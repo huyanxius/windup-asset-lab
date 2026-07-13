@@ -1,4 +1,9 @@
 /** Owns provider connection state for every generation surface. */
+export function providerIsReady(payload) {
+  return payload?.verified === true
+    || (payload?.configured === true && payload?.verified !== false);
+}
+
 export class ProviderSessionController {
   constructor({ api, elements, onChange = () => {}, onConnected = () => {} }) {
     this.api = api;
@@ -50,7 +55,7 @@ export class ProviderSessionController {
         { apiKey, model: this.model },
         { 'X-Windup-Request': 'studio' },
       );
-      this.connected = result.verified === true;
+      this.connected = providerIsReady(result);
       this.els.apiKey.value = '';
       this.els.connectBtn.textContent = '重新连接';
       this.status('ready', '已验证', `${result.model} · 当前后端会话`);
@@ -79,7 +84,7 @@ export class ProviderSessionController {
     }
     if (healthResult.status === 'fulfilled') {
       const health = healthResult.value;
-      this.connected = health.configured === true && health.verified === true;
+      this.connected = providerIsReady(health);
       this.els.serviceState.textContent = '生成后端已连接';
       if (this.connected) {
         this.els.connectBtn.textContent = '重新连接';
