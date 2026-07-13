@@ -65,3 +65,35 @@ def gen_frame(base_path, char_desc, pose_desc, out_path, skeleton_path=None, mod
         txt = ("TWO reference images. Image 1 = character identity/scale. "
                "Image 2 = OpenPose skeleton for the exact pose. " + txt)
     return _call(txt, refs, out_path, model=model, api_key=api_key)
+
+
+def gen_action_sheet(
+    base_path,
+    char_desc,
+    action,
+    phases,
+    view,
+    out_path,
+    custom_prompt="",
+    model=None,
+    api_key=None,
+):
+    """Generate one coherent eight-panel action strip from one identity reference.
+
+    This is the default full-action route. A rejected panel can still be repaired
+    later through :func:`gen_frame` without regenerating the whole sequence.
+    """
+    phase_lines = "\n".join(f"Panel {index + 1}: {phase}" for index, phase in enumerate(phases))
+    creator_constraints = f"\nCreator constraints: {custom_prompt}" if custom_prompt else ""
+    text = (
+        "Create ONE ultra-wide horizontal pixel-art sprite action strip from the reference character. "
+        "The strip must contain EXACTLY 8 equal panels in one row, ordered left to right, with no borders, "
+        "gaps, labels, captions, duplicate panels or extra characters. Preserve the EXACT same identity, "
+        "face, hairstyle, costume, palette, pixel density and body proportions in every panel. "
+        f"Character identity: {char_desc}. Action: {action}. Camera: true {view} game view. "
+        "Keep the character at identical scale and the feet on one shared ground line. Each panel must show "
+        "a clearly different animation phase and together form a continuous loop. "
+        f"{config.BG_MAGENTA} across the full strip. {config.NO_SHADOW}.\n"
+        f"Required left-to-right phases:\n{phase_lines}{creator_constraints}"
+    )
+    return _call(text, [base_path], out_path, timeout=240, model=model, api_key=api_key)

@@ -9,6 +9,7 @@ import {
   actionLoops,
   actionOrder,
   viewLabels,
+  generationDefaults,
 } from '../asset-lab/data/generated-contract.js';
 
 test('generated frontend contract exactly follows the versioned source', async () => {
@@ -19,4 +20,7 @@ test('generated frontend contract exactly follows the versioned source', async (
   assert.deepEqual(actionLoops, Object.fromEntries(actionOrder.map((key) => [key, source.actions[key].loop])));
   assert.deepEqual(actionLabels, Object.fromEntries(actionOrder.map((key) => [key, [source.actions[key].label, source.actions[key].type]])));
   assert.deepEqual(viewLabels, Object.fromEntries(Object.entries(source.views).map(([key, value]) => [key, [value.label, value.truth]])));
+  assert.deepEqual(generationDefaults, source.generation);
+  assert.equal(generationDefaults.defaultRoute, 'sheet');
+  assert.deepEqual(generationDefaults.starterPack.actions, ['idle', 'walk']);
 });

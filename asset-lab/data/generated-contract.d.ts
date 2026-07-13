@@ -2,9 +2,10 @@
 export type ViewId = "side" | "topdown" | "isometric";
 export type ActionId = "idle" | "walk" | "run" | "jump" | "lantern";
 export type ImageModelId = "gemini-2.5-flash-image" | "gemini-3.1-flash-image-preview" | "gemini-3.0-pro-image-preview";
-export declare const CONTRACT_VERSION: "1.0.0";
+export declare const CONTRACT_VERSION: "1.1.0";
 export declare const FIXED_FPS: 8;
 export declare const viewLabels: Record<ViewId, readonly [string, string]>;
 export declare const actionOrder: readonly ActionId[];
 export declare const actionLabels: Record<ActionId, readonly [string, string]>;
 export declare const actionLoops: Record<ActionId, boolean>;
+export declare const generationDefaults: { readonly routes: readonly ('sheet' | 'frames')[]; readonly defaultRoute: 'sheet' | 'frames'; readonly sheet: { readonly frameCount: 8; readonly columns: 8; readonly rows: 1 }; readonly starterPack: { readonly view: ViewId; readonly actions: readonly ActionId[] } };

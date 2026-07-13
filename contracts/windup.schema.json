@@ -3,7 +3,7 @@
   "$id": "https://windup.local/contracts/windup.schema.json",
   "title": "Windup product contract",
   "type": "object",
-  "required": ["version", "fps", "views", "actions", "imageModels"],
+  "required": ["version", "fps", "views", "actions", "imageModels", "generation"],
   "properties": {
     "$schema": { "type": "string" },
     "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
@@ -33,7 +33,45 @@
         "additionalProperties": false
       }
     },
-    "imageModels": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } }
+    "imageModels": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+    "generation": {
+      "type": "object",
+      "required": ["routes", "defaultRoute", "sheet", "starterPack"],
+      "properties": {
+        "routes": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "enum": ["sheet", "frames"] }
+        },
+        "defaultRoute": { "enum": ["sheet", "frames"] },
+        "sheet": {
+          "type": "object",
+          "required": ["frameCount", "columns", "rows"],
+          "properties": {
+            "frameCount": { "const": 8 },
+            "columns": { "const": 8 },
+            "rows": { "const": 1 }
+          },
+          "additionalProperties": false
+        },
+        "starterPack": {
+          "type": "object",
+          "required": ["view", "actions"],
+          "properties": {
+            "view": { "type": "string" },
+            "actions": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

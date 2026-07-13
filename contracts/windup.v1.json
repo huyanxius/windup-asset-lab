@@ -1,6 +1,6 @@
 {
   "$schema": "./windup.schema.json",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "fps": 8,
   "views": {
     "side": { "label": "横屏侧视资产", "truth": "真实侧视序列帧" },
@@ -88,5 +88,11 @@
     "gemini-2.5-flash-image",
     "gemini-3.1-flash-image-preview",
     "gemini-3.0-pro-image-preview"
-  ]
+  ],
+  "generation": {
+    "routes": ["sheet", "frames"],
+    "defaultRoute": "sheet",
+    "sheet": { "frameCount": 8, "columns": 8, "rows": 1 },
+    "starterPack": { "view": "side", "actions": ["idle", "walk"] }
+  }
 }

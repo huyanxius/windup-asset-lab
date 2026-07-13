@@ -51,9 +51,17 @@ class HttpContractTest(unittest.TestCase):
         with self.opener.open(request, timeout=5) as response:
             return response.status, json.load(response)
 
+    def wait_for_job(self, job_id):
+        for _ in range(100):
+            _, current = self.request(f"/api/generations/{job_id}")
+            if current["status"] in {"awaiting_review", "approved", "failed"}:
+                return current
+            time.sleep(0.02)
+        self.fail(f"job {job_id} did not finish")
+
     def test_versioned_contract_generation_and_review_flow(self):
         _, health = self.request("/api/health")
-        self.assertEqual(health["contractVersion"], "1.0.0")
+        self.assertEqual(health["contractVersion"], "1.1.0")
         self.assertEqual(health["fps"], 8)
         self.assertTrue(health["demo"])
 
@@ -62,13 +70,10 @@ class HttpContractTest(unittest.TestCase):
             "mode": "single", "frameIndex": 0, "model": "gemini-2.5-flash-image",
         })
         self.assertEqual(status, 202)
-        for _ in range(50):
-            _, current = self.request(f"/api/generations/{job['id']}")
-            if current["status"] in {"awaiting_review", "failed"}:
-                break
-            time.sleep(0.02)
+        current = self.wait_for_job(job["id"])
         self.assertEqual(current["status"], "awaiting_review")
         self.assertEqual(len(current["outputs"]), 1)
+        self.assertEqual(current["generationRoute"], "frames")
 
         _, review = self.request("/api/reviews?key=hero%3Aside%3Awalk&length=2&defaults=pending%2Creject")
         _, saved = self.request("/api/reviews", {
@@ -80,6 +85,43 @@ class HttpContractTest(unittest.TestCase):
                 "key": review["key"], "expectedVersion": 1, "reviews": ["reject", "reject"],
             })
         self.assertEqual(conflict.exception.code, 409)
+
+    def test_new_character_is_promoted_with_a_readable_starter_action_pack(self):
+        status, job = self.request("/api/characters/generations", {
+            "name": "Test Hero",
+            "description": "A restrained literary pixel-art hero with a dark coat and clear silhouette.",
+            "model": "gemini-2.5-flash-image",
+            "starterActions": ["idle", "walk"],
+        })
+        self.assertEqual(status, 202)
+        current = self.wait_for_job(job["id"])
+        self.assertEqual(current["status"], "awaiting_review")
+        self.assertEqual(len(current["outputs"]), 17)
+        self.assertEqual(current["generationRoute"], "sheet")
+        self.assertEqual(current["sourceCallCount"], 0)
+
+        _, approved = self.request(f"/api/generations/{job['id']}/promote", {})
+        self.assertEqual(approved["status"], "approved")
+        character_id = approved["character"]["id"]
+        self.assertEqual(len(approved["character"]["assets"]["side"]["idle"]["frames"]), 8)
+        self.assertEqual(len(approved["character"]["assets"]["side"]["walk"]["frames"]), 8)
+
+        _, library = self.request("/api/characters")
+        character = next(item for item in library["characters"] if item["id"] == character_id)
+        self.assertEqual(set(character["assets"]["side"]), {"idle", "walk"})
+        self.assertTrue((self.root / character["base"]).exists())
+
+    def test_full_action_uses_one_sheet_route_and_promotes_eight_frames(self):
+        status, job = self.request("/api/generations", {
+            "character": "lamplighter", "view": "side", "action": "walk",
+            "mode": "full", "route": "sheet", "model": "gemini-2.5-flash-image",
+        })
+        self.assertEqual(status, 202)
+        current = self.wait_for_job(job["id"])
+        self.assertEqual(current["status"], "awaiting_review")
+        self.assertEqual(current["generationRoute"], "sheet")
+        self.assertEqual(len(current["outputs"]), 8)
+        self.assertEqual(current["quality"]["frameCount"], 8)
 
 
 if __name__ == "__main__":

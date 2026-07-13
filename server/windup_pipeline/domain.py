@@ -5,6 +5,7 @@ from .generated_contract import (
     ACTIONS,
     CONTRACT_VERSION,
     FPS,
+    GENERATION,
     IMAGE_MODELS,
     POSES,
     VIEWS,
