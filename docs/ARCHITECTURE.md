@@ -42,8 +42,7 @@ asset-lab/
 │  ├─ provider-session-controller.js # 生成页面共用的 Key/模型连接状态
 │  └─ workflow-stepper.js       # 生成流程步骤状态
 ├─ styles/
-│  ├─ editor.css                # 明确声明七层 CSS Cascade Layers
-│  ├─ foundation.css            # 设计变量和基础组件
+│  ├─ foundation.css            # 设计变量和基础组件（第 1 层）
 │  ├─ surface.css               # 黑白专业表面与控件质感
 │  ├─ drawer.css                # macOS 毛玻璃抽屉结构
 │  ├─ workspace.css             # 全屏舞台与浮动布局
@@ -155,7 +154,7 @@ queued → generating → awaiting_review → approved
 - 不让生成结果直接覆盖正式资产。
 - 不把 API Key、生成会话、任务输出或用户提示提交到 Git。
 - 不把不同视角伪装成 CSS 旋转；每个视角必须有独立资产。
-- 审核台样式只能通过 `editor.css` 的 Cascade Layers 按 `foundation → surface → drawer → workspace → components → integrations → motion` 生效；除 `[hidden]` 和 reduced-motion 外禁止 `!important`。
+- 审核台按 `foundation → surface → drawer → workspace → components → integrations → motion` 固定顺序加载。当前视觉依赖这套明确覆盖顺序；禁止批量删除优先级或改成 Cascade Layers。样式债只能逐组件迁移，并人工确认抽屉收起、左侧胶片栏、舞台居中和右侧 Inspector 后再删除旧规则。
 - HTML 不写行内样式，业务逻辑不能依赖颜色或动画类名。
 - 不手工编辑 `generated-contract.js`、`.d.ts` 或 `.py`；改动必须从版本化契约生成。
 - 不把 API Key 写入全局配置、任务 JSON、浏览器存储或日志；一个会话不得覆盖另一个会话的模型与凭据。

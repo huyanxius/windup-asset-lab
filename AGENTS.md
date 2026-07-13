@@ -18,7 +18,7 @@ Read this file, `HANDOFF.md`, `docs/ARCHITECTURE.md`, and `CONTRIBUTING.md` befo
 - `server/app.py` is an HTTP adapter only. Business use cases live in `GenerationApplication`; provider, storage and processing remain replaceable boundaries.
 - A candidate asset never overwrites a formal asset until explicit promotion, and promotion must retain a backup.
 - API keys never enter source, browser storage, task JSON, logs or Git. Provider credentials are session-isolated in memory.
-- Styles for the editor use the declared Cascade Layers. Do not add override piles or restore a monolithic stylesheet.
+- Editor styles use the fixed order `foundation → surface → drawer → workspace → components → integrations → motion`. Do not bulk-change precedence, remove `!important`, merge files, or introduce Cascade Layers without explicit manual visual acceptance of the drawer, filmstrip and full-screen layout.
 
 ## Scope safety
 

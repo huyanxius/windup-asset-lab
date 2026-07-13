@@ -94,7 +94,7 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - 资产平台与 Cocos 联调成功，实测 `topdown / walk / 8帧`。
 - 手动移动、自动巡走、停止待机已验证。
 - 最终测试未发现 JavaScript 运行错误。
-- 前端 18 项测试、后端 4 项测试通过，覆盖新旧后端许可兼容、契约漂移、编辑会话、动作状态、播放时钟、共享 Provider 控制器、DOM/CSS 层、会话隔离、审核同步与并发、HTTP 生成主流程、API 地址和任务恢复。
+- 前端 19 项测试、后端 4 项测试通过，覆盖新旧后端许可兼容、抽屉/胶片栏/全屏布局回归、契约漂移、编辑会话、动作状态、播放时钟、共享 Provider 控制器、会话隔离、审核同步与并发、HTTP 生成主流程、API 地址和任务恢复。
 - Demo API 已跑通 `queued → generating → awaiting_review`，未调用外部模型。
 - 项目中未保存 API Key、`.env` 或凭据文件。
 - 本地修改的 8 张 Skeleton 行走帧未纳入本次架构提交。
