@@ -233,7 +233,7 @@ def run_job(job_id: str) -> None:
     frame_indices = [request["frameIndex"]] if mode == "single" else list(range(len(POSES[action])))
     job_root = JOBS_ROOT / job_id
     outputs = []
-    live = bool(os.environ.get("SUFY_KEY")) and not DEMO_MODE
+    live = bool(generate.config.API_KEY) and not DEMO_MODE
 
     try:
         update_job(job_id, status="generating", progress=2, message="正在准备角色母版")
@@ -370,7 +370,7 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/health":
             self.send_json({
                 "ok": True,
-                "configured": bool(os.environ.get("SUFY_KEY")),
+                "configured": bool(generate.config.API_KEY),
                 "demo": DEMO_MODE,
                 "provider": "OpenAI-compatible / Sufy",
                 "model": os.environ.get("SUFY_IMAGE_MODEL", "gemini-2.5-flash-image"),
@@ -390,6 +390,16 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         path = urlparse(self.path).path
         try:
+            if path == "/api/provider/session":
+                if self.headers.get("X-Windup-Request") != "studio":
+                    self.send_json({"error": "非法请求"}, 403)
+                    return
+                api_key = str(self.read_json().get("apiKey", "")).strip()
+                if not 16 <= len(api_key) <= 512 or any(char.isspace() for char in api_key):
+                    raise ValueError("API Key 格式不合法")
+                generate.config.API_KEY = api_key
+                self.send_json({"ok": True, "configured": True, "storage": "process-memory"})
+                return
             if path == "/api/generations":
                 self.send_json(create_job(self.read_json()), 202)
                 return
@@ -420,7 +430,7 @@ def main() -> None:
     load_existing_jobs()
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"Windup Asset Lab: http://{args.host}:{args.port}/asset-lab/")
-    print(f"Generation provider: {'demo' if DEMO_MODE else 'live' if os.environ.get('SUFY_KEY') else 'not configured'}")
+    print(f"Generation provider: {'demo' if DEMO_MODE else 'live' if generate.config.API_KEY else 'not configured'}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

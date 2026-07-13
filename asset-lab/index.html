@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=217" />
+  <link rel="stylesheet" href="./styles.css?v=218" />
 </head>
 <body>
   <div id="bootScreen" style="position: fixed; inset: 0; background: black; z-index: 9998; pointer-events: none;"></div>
@@ -165,6 +165,10 @@
       <div class="generation-body">
         <section class="generation-form">
           <div class="generation-identity"><img id="genPortrait" alt="角色母版"><div><small>角色母版</small><b id="genCharacterName">点灯少年</b><span>每帧共用同一母版、描述和动作相位</span></div></div>
+          <div class="provider-key-field">
+            <div><b>API Key</b><span>仅保留在本次后端进程</span></div>
+            <label><input id="providerKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…"><button id="saveProviderKeyBtn" type="button">连接</button></label>
+          </div>
           <div class="generation-fields">
             <label>视角<select id="genView"><option value="side">横屏侧视</option><option value="topdown">俯视</option><option value="isometric">2.5D</option></select></label>
             <label>动作<select id="genAction"><option value="idle">呼吸待机</option><option value="walk">行走</option><option value="run">奔跑</option><option value="jump">跳跃</option><option value="lantern">举灯点亮</option></select></label>
@@ -185,6 +189,6 @@
       </div>
     </div>
   </dialog>
-  <script src="./app.js?v=216"></script>
+  <script src="./app.js?v=218"></script>
 </body>
 </html>
