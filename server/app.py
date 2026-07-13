@@ -230,6 +230,7 @@ def run_job(job_id: str) -> None:
     view = request["view"]
     action = request["action"]
     mode = request["mode"]
+    custom_prompt = request.get("customPrompt", "")
     frame_indices = [request["frameIndex"]] if mode == "single" else list(range(len(POSES[action])))
     job_root = JOBS_ROOT / job_id
     outputs = []
@@ -258,10 +259,13 @@ def run_job(job_id: str) -> None:
             )
 
             if live:
+                frame_prompt = pose + f"; true {view} game view; preserve exact pixel-art style"
+                if custom_prompt:
+                    frame_prompt += f"; creator constraints: {custom_prompt}"
                 ok = generate.gen_frame(
                     str(base),
                     CATALOG[character_id]["description"],
-                    pose + f"; true {view} game view; preserve exact pixel-art style",
+                    frame_prompt,
                     str(raw),
                 )
                 if not ok:
@@ -301,8 +305,11 @@ def create_job(payload: dict) -> dict:
     view = str(payload.get("view", ""))
     action = str(payload.get("action", ""))
     mode = str(payload.get("mode", "full"))
+    custom_prompt = str(payload.get("customPrompt", "")).strip()
     if character_id not in CATALOG or view not in VIEWS or action not in ACTIONS or mode not in {"full", "single"}:
         raise ValueError("生成参数不合法")
+    if len(custom_prompt) > 800:
+        raise ValueError("画面约束不能超过 800 字")
     frame_index = int(payload.get("frameIndex", 0))
     if not 0 <= frame_index < len(POSES[action]):
         raise ValueError("帧号越界")
@@ -313,7 +320,7 @@ def create_job(payload: dict) -> dict:
         "status": "queued",
         "progress": 0,
         "message": "已进入生成队列",
-        "request": {"character": character_id, "view": view, "action": action, "mode": mode, "frameIndex": frame_index, "fps": 8},
+        "request": {"character": character_id, "view": view, "action": action, "mode": mode, "frameIndex": frame_index, "fps": 8, "customPrompt": custom_prompt},
         "outputs": [],
         "createdAt": now_iso(),
         "updatedAt": now_iso(),

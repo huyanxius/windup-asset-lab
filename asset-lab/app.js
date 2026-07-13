@@ -131,7 +131,7 @@ const els = collect([
   // 生成中心
   'generationModal', 'closeGenerateBtn', 'providerDot', 'providerStatus', 'genPortrait', 'genCharacterName',
   'providerKeyInput', 'saveProviderKeyBtn',
-  'genView', 'genAction', 'genMode', 'genFrameField', 'genFrame', 'startGenerationBtn', 'genBatch',
+  'genView', 'genAction', 'genMode', 'genFrameField', 'genFrame', 'genPrompt', 'startGenerationBtn', 'genBatch',
   'genPercent', 'genProgress', 'genMessage', 'candidateGrid', 'promoteJobBtn',
 ]);
 
@@ -810,7 +810,8 @@ async function startGeneration() {
     const job = await requestJson('/api/generations', {
       method: 'POST',
       body: JSON.stringify({ character: activeCharacterId, view: els.genView.value, action: els.genAction.value,
-        mode: els.genMode.value, frameIndex: Math.max(0, Math.min(7, Number(els.genFrame.value) - 1)) }),
+        mode: els.genMode.value, frameIndex: Math.max(0, Math.min(7, Number(els.genFrame.value) - 1)),
+        customPrompt: els.genPrompt.value.trim() }),
     });
     renderGenerationJob(job);
     pollGeneration(job.id);

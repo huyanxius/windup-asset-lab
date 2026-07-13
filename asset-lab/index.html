@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=218" />
+  <link rel="stylesheet" href="./styles.css?v=219" />
 </head>
 <body>
   <div id="bootScreen" style="position: fixed; inset: 0; background: black; z-index: 9998; pointer-events: none;"></div>
@@ -175,6 +175,7 @@
             <label>生成范围<select id="genMode"><option value="full">整套动作 · 8 帧</option><option value="single">仅修复单帧</option></select></label>
             <label id="genFrameField">帧号<input id="genFrame" type="number" min="1" max="8" value="1"></label>
           </div>
+          <label class="generation-prompt"><span>画面约束 <small>可选</small></span><textarea id="genPrompt" maxlength="800" placeholder="例：保留红色围巾的飘动节奏，脚底始终对齐基线…"></textarea><i>256 × 256 · 透明背景 · 8 FPS</i></label>
           <div class="phase-map"><span>接触</span><i></i><span>下沉</span><i></i><span>交叉</span><i></i><span>上升</span><i></i><span>反向循环</span></div>
           <button id="startGenerationBtn" class="start-generation">开始生成</button>
           <p class="generation-note">真实 API 只在本地后端读取密钥；Demo 模式可先零成本验证全流程。</p>
@@ -189,6 +190,6 @@
       </div>
     </div>
   </dialog>
-  <script src="./app.js?v=218"></script>
+  <script src="./app.js?v=219"></script>
 </body>
 </html>
