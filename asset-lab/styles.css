@@ -439,17 +439,6 @@ body.drawer-opening .sidebar .batch-card { animation-delay: .19s; }
   flex-direction: column;
 }
 
-.inspector-title {
-  display: grid;
-  gap: 7px;
-  padding: 20px 18px 17px;
-  border-bottom: 1px solid rgba(0,0,0,.07);
-}
-.inspector-title div { display: grid; gap: 4px; }
-.inspector-title small { color: #8e8e93; font-size: 10px; font-weight: 700; letter-spacing: .13em; }
-.inspector-title h1 { margin: 0; color: #111; font-size: 22px; line-height: 1.15; letter-spacing: -.035em; }
-.inspector-title > span { color: #8e8e93; font-size: 11px; }
-
 .accordion-item {
   background: transparent;
   border-radius: 0;
@@ -603,3 +592,42 @@ body.drawer-opening .sidebar .batch-card { animation-delay: .19s; }
 .inspector { animation-delay: 3.0s !important; }
 .playback { animation-delay: 3.1s !important; }
 .timeline-panel { animation-delay: 3.2s !important; }
+
+/* Global restrained motion system */
+:root { --motion-spring: cubic-bezier(.16,1,.3,1); }
+button,
+summary,
+select,
+textarea,
+.frame-tile,
+.qc-row,
+.spec-grid > div {
+  transition: transform .22s var(--motion-spring), background-color .2s ease,
+    border-color .2s ease, box-shadow .22s ease, opacity .2s ease;
+}
+button:not(:disabled):hover { transform: translateY(-1px); }
+button:not(:disabled):active { transform: translateY(0) scale(.97); transition-duration: .1s; }
+.accordion-item[open] .accordion-body { animation: section-reveal .34s var(--motion-spring) both; }
+.accordion-header:active { transform: scale(.99); }
+.frame-tile:hover { transform: translateY(-3px) scale(1.015); box-shadow: 0 12px 30px rgba(0,0,0,.11); }
+.qc-row:hover,
+.spec-grid > div:hover { transform: translateX(3px); }
+select:focus,
+textarea:focus { transform: translateY(-1px); box-shadow: 0 0 0 4px rgba(0,0,0,.055); outline: none; }
+.segmented button.active { animation: control-select .3s var(--motion-spring) both; }
+@keyframes section-reveal {
+  from { opacity: 0; transform: translateY(-7px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes control-select {
+  0% { transform: scale(.94); opacity: .65; }
+  70% { transform: scale(1.025); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  button, summary, select, textarea, .frame-tile, .qc-row, .spec-grid > div,
+  .accordion-item[open] .accordion-body, .segmented button.active {
+    animation: none !important;
+    transition: none !important;
+  }
+}
