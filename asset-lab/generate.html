@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Windup · 动作生成</title>
+  <link rel="stylesheet" href="./create-character.css?v=1">
+  <link rel="stylesheet" href="./generate.css?v=1">
+</head>
+<body>
+  <header class="app-header">
+    <a class="wordmark" href="./"><i>W</i><span><b>Windup</b><small>ACTION GENERATOR</small></span></a>
+    <nav><span id="serviceState">正在检查生成服务…</span><a href="./characters.html">角色资产库</a><a href="./">返回审核台</a></nav>
+  </header>
+
+  <main class="creator-layout">
+    <aside class="guide-panel">
+      <small>ACTION PIPELINE</small>
+      <h1>生成动作资产</h1>
+      <p>基于已锁定的角色母版生成动作帧。结果先进入候选区，确认后才进入审核台。</p>
+      <ol id="workflowSteps">
+        <li class="active" data-step="connect"><i>1</i><span><b>连接服务</b><small>验证 Key 与图像模型</small></span></li>
+        <li data-step="define"><i>2</i><span><b>定义动作</b><small>角色、视角与动作相位</small></span></li>
+        <li data-step="review"><i>3</i><span><b>采用候选</b><small>人工确认后进入审核台</small></span></li>
+      </ol>
+      <p class="security-note">生成任务会锁定角色、模型、视角和动作，不读取后续界面变化。</p>
+    </aside>
+
+    <section class="form-panel">
+      <header><div><small>GENERATION SETUP</small><h2>动作设置</h2></div><span id="providerState" class="status">未连接</span></header>
+      <section class="provider-card">
+        <div class="section-title"><span><b>七牛云 QnAIGC</b><small>凭据仅保留在当前后端会话</small></span><i id="providerDot"></i></div>
+        <label><span>API Key</span><input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…"></label>
+        <label><span>图像模型</span><select id="model"><option value="">正在读取模型…</option></select></label>
+        <button id="connectBtn" class="secondary" type="button">验证并连接</button>
+        <p id="connectionMessage" class="message" aria-live="polite"></p>
+      </section>
+
+      <form id="generationForm">
+        <div class="section-title"><span><b>任务定义</b><small>每个任务保存完整生成上下文</small></span></div>
+        <div class="identity-row"><img id="characterPortrait" alt="角色母版"><label><span>角色</span><select id="character"></select></label></div>
+        <div class="field-grid">
+          <label><span>视角</span><select id="view"><option value="side">横屏侧视</option><option value="topdown">俯视</option><option value="isometric">2.5D</option></select></label>
+          <label><span>动作</span><select id="action"><option value="idle">呼吸待机</option><option value="walk">行走</option><option value="run">奔跑</option><option value="jump">跳跃</option><option value="lantern">举灯点亮</option></select></label>
+          <label><span>生成范围</span><select id="mode"><option value="full">整套动作 · 8 帧</option><option value="single">仅修复单帧</option></select></label>
+          <label id="frameField"><span>帧号</span><input id="frame" type="number" min="1" max="8" value="1"></label>
+        </div>
+        <label><span>画面约束 · 可选</span><textarea id="prompt" maxlength="800" placeholder="例：保留围巾的运动节奏，脚底始终对齐基线…"></textarea></label>
+        <div class="spec-row"><span>256 × 256</span><span>透明背景</span><span>8 FPS</span><span>候选优先</span></div>
+        <button id="startBtn" class="primary" type="submit" disabled>连接服务后开始生成</button>
+      </form>
+    </section>
+
+    <section class="result-panel">
+      <header><div><small>CANDIDATE OUTPUT</small><h2>候选帧</h2></div><span id="jobPercent">—</span></header>
+      <div id="candidateGrid" class="candidate-grid"><div class="empty-result"><i>◇</i><b>等待生成</b><span>任务结果会逐帧出现在这里</span></div></div>
+      <div class="job-state">
+        <div class="progress"><i id="jobProgress"></i></div>
+        <b id="jobTitle">尚未创建任务</b>
+        <p id="jobMessage" aria-live="polite">完成动作设置后开始生成。</p>
+        <div class="result-actions"><button id="acceptBtn" class="primary" type="button" hidden>接受候选资产</button><a id="editorLink" href="./" hidden>返回审核台 →</a></div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./generate.js?v=1"></script>
+</body>
+</html>
