@@ -50,9 +50,20 @@ function renderJob(job) {
   els.jobTitle.textContent = job.batch || job.id;
   els.jobMessage.textContent = job.message || '';
   if (job.outputs?.length) {
-    els.candidateGrid.replaceChildren(...job.outputs.map((output) => {
+    // 只追加新帧：整体重建会让所有图片换 URL 重新加载，预览闪烁且丢掉逐帧动画。
+    if (els.candidateGrid.dataset.job !== job.id) {
+      els.candidateGrid.replaceChildren();
+      els.candidateGrid.dataset.job = job.id;
+    }
+    let added = 0;
+    job.outputs.forEach((output) => {
+      const key = output.path || output.url;
+      if (els.candidateGrid.querySelector(`[data-key="${CSS.escape(key)}"]`)) return;
       const card = document.createElement('figure');
-      card.className = 'candidate-card';
+      card.className = 'candidate-card is-new';
+      card.dataset.key = key;
+      card.style.animationDelay = `${Math.min(added, 7) * 70}ms`;
+      added += 1;
       const image = document.createElement('img');
       image.src = `${api.assetUrl(output.url)}?v=${encodeURIComponent(job.updatedAt || Date.now())}`;
       image.alt = `候选第 ${output.frameIndex + 1} 帧`;
@@ -63,8 +74,8 @@ function renderJob(job) {
       meta.textContent = job.request.mode === 'single' ? '单帧修复' : '动作条切帧';
       caption.append(title, meta);
       card.append(image, caption);
-      return card;
-    }));
+      els.candidateGrid.append(card);
+    });
   }
   els.acceptBtn.hidden = job.status !== 'awaiting_review';
   els.acceptBtn.disabled = false;
@@ -88,6 +99,7 @@ async function startGeneration(event) {
   state.busy = true;
   stepper.select('review');
   els.candidateGrid.innerHTML = '<div class="empty-result"><i>◇</i><b>正在创建任务</b><span>整条动作生成后会自动切为 8 帧</span></div>';
+  els.candidateGrid.dataset.job = '';
   syncControls();
   try {
     const job = await api.post('/api/generations', {

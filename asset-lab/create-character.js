@@ -8,7 +8,7 @@ import { renderAssetPackage } from './features/asset-package-preview.js';
 const $ = (id) => document.getElementById(id);
 const els = Object.fromEntries([
   'serviceState','providerState','providerDot','apiKey','model','connectBtn','connectionMessage',
-  'createForm','assetName','description','createBtn','workflowSteps','resultPanel','jobPercent',
+  'createForm','assetName','description','styleInput','paletteInput','createBtn','workflowSteps','resultPanel','jobPercent',
   'jobProgress','jobTitle','jobMessage','emptyResult','resultGrid','acceptBtn','libraryLink','editorLink',
   'starterIdle','starterWalk',
 ].map((id) => [id, $(id)]));
@@ -30,16 +30,34 @@ const provider = new ProviderSessionController({
 const templates = {
   literary: {
     name: '远灯少年',
-    description: '年轻清秀的东方少年，身形轻盈，黑色短发，穿剪裁精致的深灰蓝短斗篷与米白衬衫，少量暗红围巾作为点缀，携一盏小型黄铜灯。气质安静、聪慧而温暖，文艺幻想像素风，克制配色，轮廓清晰。',
+    style: '文艺幻想像素风，克制配色，轮廓清晰',
+    palette: '黑色短发，深灰蓝短斗篷，米白衬衫，暗红围巾点缀',
+    description: '年轻清秀的东方少年，身形轻盈，穿剪裁精致的短斗篷与衬衫，携一盏小型黄铜灯。气质安静、聪慧而温暖。',
   },
   courier: {
     name: '雾港邮差',
-    description: '二十岁左右的年轻邮差，利落短发，深海军蓝长外套配暖灰马甲与皮革邮包，衣角略受海风吹动。神情从容友善，带有旧港口文学气息，精致像素艺术，低饱和蓝灰与少量铜色。',
+    style: '旧港口文学气息，精致像素艺术，低饱和',
+    palette: '利落短发，深海军蓝长外套，暖灰马甲，少量铜色',
+    description: '二十岁左右的年轻邮差，背皮革邮包，衣角略受海风吹动。神情从容友善。',
   },
   herbalist: {
     name: '林间药师',
-    description: '年轻的森林药师，栗色微卷短发，苔绿短披肩与深棕束腰衣，腰间挂有小药瓶和植物标本，手持细木杖。气质清醒温和，带自然人文感，精致像素风，绿色、棕色与亚麻白的克制配色。',
+    style: '自然人文感的精致像素风',
+    palette: '栗色微卷短发，苔绿短披肩，深棕束腰衣，亚麻白点缀',
+    description: '年轻的森林药师，腰间挂有小药瓶和植物标本，手持细木杖。气质清醒温和。',
   },
+};
+
+const dicePools = {
+  style: ['明快卡通像素风', '暗黑哥特像素风', '复古 JRPG 像素风', '文艺幻想像素风', '赛博霓虹像素风', '水彩绘本质感像素风'],
+  palette: [
+    '银白长发，墨绿披风，黄铜饰件点缀',
+    '黑发，深蓝外套，暗红点缀',
+    '火红短发，炭灰大衣，金色纽扣',
+    '蓝黑发，海军蓝制服，白色袜靴',
+    '亚麻色卷发，米白长袍，靛蓝腰带',
+    '紫黑发，暗紫斗篷，银色链饰',
+  ],
 };
 
 function syncControls() {
@@ -68,6 +86,7 @@ function renderJob(job) {
   if (outputs.length) renderAssetPackage(els.resultGrid, outputs, {
     resolveUrl: (url) => api.assetUrl(url),
     revision: job.updatedAt,
+    resetKey: job.id,
   });
   const actionFrames = outputs.filter((output) => output.kind === 'frame');
   const completePackage = actionFrames.length >= 8 && actionFrames.length % 8 === 0;
@@ -103,6 +122,8 @@ async function createCharacter(event) {
     const job = await api.post('/api/characters/generations', {
       name: els.assetName.value.trim(),
       description: els.description.value.trim(),
+      style: els.styleInput.value.trim(),
+      palette: els.paletteInput.value.trim(),
       model: provider.model,
       starterActions: generationDefaults.starterPack.actions.filter((action) => (
         action === 'idle' ? els.starterIdle.checked : action === 'walk' ? els.starterWalk.checked : false
@@ -153,8 +174,17 @@ document.querySelectorAll('[data-template]').forEach((button) => {
   button.addEventListener('click', () => {
     const template = templates[button.dataset.template];
     els.assetName.value = template.name;
+    els.styleInput.value = template.style;
+    els.paletteInput.value = template.palette;
     els.description.value = template.description;
     stepper.select(provider.connected ? 'define' : 'connect');
+  });
+});
+document.querySelectorAll('.dice').forEach((button) => {
+  button.addEventListener('click', () => {
+    const pool = dicePools[button.dataset.dice];
+    const input = button.dataset.dice === 'style' ? els.styleInput : els.paletteInput;
+    input.value = pool[Math.floor(Math.random() * pool.length)];
   });
 });
 provider.bind();

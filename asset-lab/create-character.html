@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Windup · 创建角色</title>
-  <link rel="stylesheet" href="./create-character.css?v=2">
+  <link rel="stylesheet" href="./create-character.css?v=4">
 </head>
 <body>
   <header class="app-header">
@@ -37,16 +37,22 @@
       </section>
 
       <form id="createForm">
-        <div class="section-title"><span><b>角色定义</b><small>可以从模板起步，再自由修改</small></span></div>
+        <div class="section-title"><span><b>角色定义</b><small>按步骤填写，或从模板一键起步</small></span></div>
         <div class="templates" aria-label="角色模板">
           <button type="button" data-template="literary">文艺少年</button>
           <button type="button" data-template="courier">雾港邮差</button>
           <button type="button" data-template="herbalist">林间药师</button>
         </div>
-        <label><span>资产名称</span><input id="assetName" maxlength="40" placeholder="为角色命名" required></label>
-        <label><span>角色定义</span><textarea id="description" maxlength="800" placeholder="描述年龄、身形、发型、服装、克制配色、道具和气质…" required></textarea></label>
+        <label><span>① 视觉风格 · 留空则交给模型</span>
+          <div class="field-dice"><input id="styleInput" maxlength="120" placeholder="如：暗黑哥特像素 / 明快卡通像素"><button type="button" class="dice" data-dice="style">随机</button></div>
+        </label>
+        <label><span>② 整体配色 · 发色、衣着、点缀色</span>
+          <div class="field-dice"><input id="paletteInput" maxlength="120" placeholder="如：黑发、深蓝外套、暗红围巾点缀"><button type="button" class="dice" data-dice="palette">随机</button></div>
+        </label>
+        <label><span>③ 资产名称</span><input id="assetName" maxlength="40" placeholder="为角色命名" required></label>
+        <label><span>④ 身份描述 · 年龄、身形、发型、道具、气质</span><textarea id="description" maxlength="800" placeholder="描述这个角色是谁：年龄、身形、发型、服装、道具和气质…" required></textarea></label>
         <fieldset class="starter-pack">
-          <legend><b>基础动作包</b><small>整条生成后自动切成 8 帧</small></legend>
+          <legend><b>⑤ 基础动作包</b><small>整条生成后自动切成 8 帧</small></legend>
           <label><input id="starterIdle" type="checkbox" value="idle" checked><span><b>呼吸待机</b><small>8 帧循环</small></span></label>
           <label><input id="starterWalk" type="checkbox" value="walk" checked><span><b>行走</b><small>8 帧循环</small></span></label>
         </fieldset>
@@ -73,6 +79,6 @@
       </div>
     </section>
   </main>
-  <script type="module" src="./create-character.js?v=3"></script>
+  <script type="module" src="./create-character.js?v=5"></script>
 </body>
 </html>

@@ -20,14 +20,14 @@ IMAGE_MODELS = [
 ]
 POSES = {
     "idle": [
-        "neutral standing pose, weight centered, relaxed arms, breathing in",
-        "slight downward settle, shoulders lower subtly",
-        "lowest breathing point, knees and chest compressed slightly",
-        "rising toward neutral",
-        "neutral standing pose with a tiny sway",
-        "slight upward breathing motion",
-        "highest breathing point, chest expanded subtly",
-        "settling smoothly back to the first frame"
+        "IDLE BREATHING, feet planted, stance and silhouette IDENTICAL to reference: neutral rest, breathing in",
+        "IDLE BREATHING, feet planted, stance and silhouette IDENTICAL to reference: shoulders and chest settle slightly down",
+        "IDLE BREATHING, feet planted, stance and silhouette IDENTICAL to reference: lowest point of breath, chest gently compressed",
+        "IDLE BREATHING, feet planted, stance and silhouette IDENTICAL to reference: rising back toward neutral",
+        "IDLE BREATHING, feet planted, stance and silhouette IDENTICAL to reference: neutral again with a tiny sway",
+        "IDLE BREATHING, feet planted, stance and silhouette IDENTICAL to reference: chest lifting, inhaling",
+        "IDLE BREATHING, feet planted, stance and silhouette IDENTICAL to reference: highest point of breath, chest expanded",
+        "IDLE BREATHING, feet planted, stance and silhouette IDENTICAL to reference: settling back to frame 1 to close the loop"
     ],
     "walk": [
         "WALK CONTACT: right heel forward, left leg extended behind, widest relaxed stride",

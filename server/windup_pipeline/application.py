@@ -143,7 +143,11 @@ class GenerationApplication:
         credentials = self._credentials(session_id)
         name = str(payload.get("name", "")).strip()
         description = str(payload.get("description", "")).strip()
+        style = str(payload.get("style", "")).strip()
+        palette = str(payload.get("palette", "")).strip()
         model = str(payload.get("model", "")).strip()
+        if len(style) > 120 or len(palette) > 120:
+            raise ValueError("风格与配色各不超过 120 字")
         raw_starter_actions = payload.get("starterActions", GENERATION["starterPack"]["actions"])
         if not 1 <= len(name) <= 40:
             raise ValueError("资产名称需要 1–40 字")
@@ -163,7 +167,7 @@ class GenerationApplication:
             "status": "queued", "progress": 0, "message": "新角色与基础动作包已进入队列",
             "request": {
                 "type": "character", "character": character_id, "name": name,
-                "description": description, "model": model,
+                "description": description, "style": style, "palette": palette, "model": model,
                 "starterView": GENERATION["starterPack"]["view"],
                 "starterActions": starter_actions,
                 "generationRoute": GENERATION["defaultRoute"],

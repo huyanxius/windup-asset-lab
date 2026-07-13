@@ -11,7 +11,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import config, generate, processing
+from . import config, describe, generate, processing, provider
 from .action_pipeline import ActionPipeline
 from .domain import POSES
 from .time_utils import now_iso
@@ -87,6 +87,7 @@ class GenerationExecutor:
                 api_key=api_key,
                 progress=lambda progress, message: self.update(job_id, progress=progress, message=message),
                 provenance=lambda index, pose, elapsed, mode: self.provenance(job, index, pose, elapsed, mode),
+                publish=lambda outs: self.update(job_id, outputs=outs),
             )
             self.update(
                 job_id,
@@ -115,7 +116,25 @@ class GenerationExecutor:
             raw.parent.mkdir(parents=True, exist_ok=True)
             cutout.parent.mkdir(parents=True, exist_ok=True)
             if live:
-                generate.gen_character(request["description"], str(raw), model=request["model"], api_key=api_key)
+                # 母版门禁：正面或朝左的母版会让下游所有动作 prompt 自相矛盾，必须在源头拦下。
+                for attempt in range(2):
+                    generate.gen_character(
+                        request["description"], str(raw),
+                        style=request.get("style", ""), palette=request.get("palette", ""),
+                        model=request["model"], api_key=api_key,
+                    )
+                    self.update(job_id, progress=14, message="正在校验母版视角与朝向")
+                    try:
+                        card = describe.describe_character(str(raw), api_key=api_key)
+                    except provider.ProviderError:
+                        break  # 门禁自身故障不阻断生成
+                    view_ok = str(card.get("view", "")).lower() in {"profile", "pseudo-side", "three-quarter"}
+                    facing_ok = str(card.get("facing", "")).lower() != "left"
+                    if view_ok and facing_ok:
+                        break
+                    if attempt == 1:
+                        raise RuntimeError("母版两次都不是朝右的侧面/四分之三视角，请调整角色定义后重试")
+                    self.update(job_id, progress=16, message="母版视角不合格，正在重新生成")
                 self.update(job_id, progress=24, message="正在去背景与统一母版画布")
                 processing.matte_chroma(raw, cutout)
             else:
@@ -130,7 +149,9 @@ class GenerationExecutor:
                 "path": "normalized/base.png",
                 "file": "base.png",
             }]
+            self.update(job_id, outputs=list(outputs))
             qualities = {}
+            routes = set()
             source_calls = 1 if live else 0
             actions = request["starterActions"]
             view = request["starterView"]
@@ -158,9 +179,11 @@ class GenerationExecutor:
                     provenance=lambda index, pose, elapsed, mode, action=action: self.provenance(
                         job, index, pose, elapsed, mode, view=view, action=action,
                     ),
+                    publish=lambda outs: self.update(job_id, outputs=outputs + outs),
                 )
                 outputs.extend(batch.outputs)
                 qualities[action] = batch.quality
+                routes.add(batch.route)
                 source_calls += batch.source_calls
             self.update(
                 job_id,
@@ -169,7 +192,7 @@ class GenerationExecutor:
                 message="角色母版与基础动作包已生成，等待整体确认入库",
                 outputs=outputs,
                 quality={"actions": qualities, "semanticReviewRequired": True},
-                generationRoute=request["generationRoute"],
+                generationRoute=",".join(sorted(routes)) if routes else request["generationRoute"],
                 sourceCallCount=source_calls,
                 provider="live" if live else "demo",
             )
