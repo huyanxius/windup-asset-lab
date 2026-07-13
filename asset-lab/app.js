@@ -130,6 +130,7 @@ const els = collect([
   'packerModal', 'closePackerBtn', 'spriteCanvas', 'spriteJson', 'spriteMeta', 'downloadPackBtn', 'anchorCoords',
   // 生成中心
   'generationModal', 'closeGenerateBtn', 'providerDot', 'providerStatus', 'genPortrait', 'genCharacterName',
+  'providerKeyInput', 'saveProviderKeyBtn',
   'genView', 'genAction', 'genMode', 'genFrameField', 'genFrame', 'startGenerationBtn', 'genBatch',
   'genPercent', 'genProgress', 'genMessage', 'candidateGrid', 'promoteJobBtn',
 ]);
@@ -748,6 +749,30 @@ async function openGenerationStudio(singleFrame = false) {
   }
 }
 
+async function saveProviderKey() {
+  const apiKey = els.providerKeyInput.value.trim();
+  if (!apiKey) return els.providerKeyInput.focus();
+  els.saveProviderKeyBtn.disabled = true;
+  els.saveProviderKeyBtn.textContent = '连接中…';
+  try {
+    await requestJson('/api/provider/session', {
+      method: 'POST',
+      headers: { 'X-Windup-Request': 'studio' },
+      body: JSON.stringify({ apiKey }),
+    });
+    els.providerKeyInput.value = '';
+    els.providerDot.className = 'ready';
+    els.providerStatus.textContent = '已连接 · 仅当前会话';
+    els.saveProviderKeyBtn.textContent = '已连接';
+  } catch (error) {
+    els.providerDot.className = 'error';
+    els.providerStatus.textContent = error.message;
+    els.saveProviderKeyBtn.textContent = '重试';
+  } finally {
+    els.saveProviderKeyBtn.disabled = false;
+  }
+}
+
 function renderGenerationJob(job) {
   generationState.job = job;
   els.genBatch.textContent = job.batch || job.id;
@@ -863,6 +888,10 @@ els.editorModeCard.addEventListener('click', (event) => {
 els.regenerateFrameBtn.addEventListener('click', () => openGenerationStudio(true));
 els.closeGenerateBtn.addEventListener('click', () => els.generationModal.close());
 els.genMode.addEventListener('change', setGenerationMode);
+els.saveProviderKeyBtn.addEventListener('click', saveProviderKey);
+els.providerKeyInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') { event.preventDefault(); saveProviderKey(); }
+});
 els.startGenerationBtn.addEventListener('click', startGeneration);
 els.promoteJobBtn.addEventListener('click', promoteGeneration);
 
