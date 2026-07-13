@@ -7,8 +7,9 @@
 1. **一个状态只有一个所有者。** 人物播放与移动只由 `motion-state.js` 决策，页面不能直接拼装另一套运动状态。
 2. **页面负责组装，不承载基础能力。** 网络、任务轮询、审核存储、质检、图集与游戏通信都由独立模块提供。
 3. **候选资产和正式资产隔离。** 生成结果先进入任务目录，人工采用时才备份并写入正式目录。
-4. **外部服务只有一个边界。** API Key、鉴权、超时、重试和上游错误只在后端 `provider.py` 中处理。
-5. **可替换基础设施。** HTTP 页面不直接读写任务 JSON；未来将本地文件换成 SQLite、对象存储或队列时，接口层不需要重写。
+4. **外部服务只有一个边界。** API Key、鉴权、超时、重试和上游错误只在后端 `provider.py` 中处理；凭据按浏览器会话隔离，绝不进入任务文件。
+5. **契约只有一个来源。** 动作、视角、8 FPS、循环语义、相位和模型来自 `contracts/windup.v1.json`，前后端文件由工具生成。
+6. **可替换基础设施。** HTTP 页面不直接读写任务、审核 JSON；未来将本地文件换成 SQLite、对象存储或队列时，接口层不需要重写。
 
 ## 运行结构
 
@@ -20,14 +21,18 @@ asset-lab/
 │  ├─ editor-view.js            # DOM 渲染，不拥有业务状态
 │  ├─ editor-bindings.js        # 鼠标、键盘和按钮事件适配
 │  └─ editor-elements.js        # DOM ID 契约与启动校验
-├─ data/character-catalog.js    # 前端角色、视角、动作与帧目录
+├─ data/
+│  ├─ generated-contract.js     # 自动生成的前端领域常量
+│  ├─ generated-contract.d.ts   # 自动生成的类型边界
+│  └─ character-catalog.js      # 角色与帧目录，不重复定义动作规格
 ├─ core/
 │  ├─ editor-session.js         # 角色/视角/动作/帧/锚点的唯一所有者
 │  ├─ motion-state.js           # 纯动作状态机，无 DOM
 │  ├─ playback-clock.js         # 唯一 8 FPS 播放时钟
-│  ├─ api-client.js             # 唯一 HTTP 客户端
+│  ├─ api-client.js             # 唯一 HTTP 客户端，携带隔离会话
+│  ├─ runtime-config.js         # API、Cocos 和消息命名空间运行配置
 │  ├─ job-poller.js             # 生成任务生命周期轮询
-│  └─ review-store.js           # 审核决策持久化
+│  └─ review-store.js           # 本地即时反馈 + 服务端版本同步与冲突合并
 ├─ features/
 │  ├─ quality-check.js          # 帧几何质检
 │  ├─ sprite-packer.js          # Cocos 图集和 metadata
@@ -35,6 +40,7 @@ asset-lab/
 │  ├─ drawer-controller.js      # 左侧抽屉生命周期
 │  └─ onboarding-controller.js  # 聚光灯、模式选择和点击引导
 ├─ styles/
+│  ├─ editor.css                # 明确声明七层 CSS Cascade Layers
 │  ├─ foundation.css            # 设计变量和基础组件
 │  ├─ surface.css               # 黑白专业表面与控件质感
 │  ├─ drawer.css                # macOS 毛玻璃抽屉结构
@@ -46,15 +52,23 @@ asset-lab/
 ├─ create-character.*           # 独立新角色创建页面
 └─ characters.*                 # 独立角色资产管理页面
 
+contracts/
+├─ windup.schema.json           # 产品契约 Schema
+└─ windup.v1.json               # 前后端唯一动作/视角/模型契约
+
 server/
-├─ app.py                       # HTTP 路由与生成用例编排
+├─ app.py                       # 薄 HTTP 适配：路由、Cookie、CORS、静态文件
 └─ windup_pipeline/
-   ├─ config.py                 # 只放环境配置和固定规格
-   ├─ domain.py                 # 角色、视角、动作、模型与动作相位词汇
+   ├─ application.py            # 生成、采用、角色目录等应用用例
+   ├─ config.py                 # 只放环境配置和图像处理规格
+   ├─ generated_contract.py     # 自动生成的后端领域常量
+   ├─ domain.py                 # 内建角色目录 + 生成契约导出
    ├─ provider.py               # 七牛云鉴权、请求、重试和错误映射
    ├─ generate.py               # 组装图像模型请求
    ├─ processing.py             # 抠图与 256×256 归一化
-   └─ job_store.py              # 可替换的任务持久化边界
+   ├─ job_store.py              # 线程安全的任务持久化边界
+   ├─ review_store.py           # 乐观锁版本化审核存储
+   └─ session_store.py          # 不落盘的会话级 API 凭据
 ```
 
 ## 关键数据流
@@ -63,8 +77,10 @@ server/
 flowchart LR
   UI["独立页面"] --> API["api-client"]
   API --> HTTP["app.py 路由"]
-  HTTP --> Store["JobStore"]
-  HTTP --> Provider["QnAIGC Provider"]
+  HTTP --> App["GenerationApplication"]
+  App --> Store["JobStore / ReviewStore"]
+  App --> Session["ProviderSession"]
+  Session --> Provider["QnAIGC Provider"]
   Provider --> Generate["生成步骤"]
   Generate --> Process["抠图与归一化"]
   Process --> Candidate["候选任务目录"]
@@ -100,7 +116,8 @@ queued → generating → awaiting_review → approved
 | 角色、视角、动作、帧、逐帧偏移、锚点 | `EditorSession` | 调用明确的选择和调整方法 |
 | 播放/暂停、自动/手动移动、方向、位置 | `motion-state.js` | 发送事件给纯 reducer |
 | 8 FPS 定时器 | `PlaybackClock` | 启停一个时钟，不直接创建 interval |
-| 审核结论 | `ReviewStore` | 按角色/视角/动作隔离读写 |
+| 审核结论 | 前端 `ReviewStore` + 后端 `ReviewStore` | 本地即时更新，服务端版本同步，409 时按本帧意图合并 |
+| API 凭据 | `ProviderSessionStore` | HttpOnly 会话标识隔离；任务线程仅接收凭据快照 |
 | DOM 表现 | `EditorView` | 读取状态并渲染，不反向修改领域状态 |
 | 浏览器输入 | `editor-bindings.js` | 将事件翻译成应用命令 |
 
@@ -110,9 +127,9 @@ queued → generating → awaiting_review → approved
 
 ### 增加动作
 
-1. 在前端 `data/character-catalog.js` 增加动作名称和资产定义。
-2. 在后端 `domain.py` 增加动作名与 8 个相位描述。
-3. 放入对应的正式帧目录；页面、生成任务和导出会复用现有流程。
+1. 只在 `contracts/windup.v1.json` 增加动作名称、循环语义和 8 个相位。
+2. 运行 `node tools/generate-contract.mjs`，生成前端常量、类型与后端常量。
+3. 在 `data/character-catalog.js` 增加资产目录，放入对应正式帧。
 4. 为新的状态转换补纯函数测试，不在 DOM 事件里直接改多处状态。
 
 ### 增加角色
@@ -134,8 +151,10 @@ queued → generating → awaiting_review → approved
 - 不让生成结果直接覆盖正式资产。
 - 不把 API Key、生成会话、任务输出或用户提示提交到 Git。
 - 不把不同视角伪装成 CSS 旋转；每个视角必须有独立资产。
-- 审核台样式严格按 `foundation → surface → drawer → workspace → components → integrations → motion` 加载；禁止恢复单文件追加覆盖。
+- 审核台样式只能通过 `editor.css` 的 Cascade Layers 按 `foundation → surface → drawer → workspace → components → integrations → motion` 生效；除 `[hidden]` 和 reduced-motion 外禁止 `!important`。
 - HTML 不写行内样式，业务逻辑不能依赖颜色或动画类名。
+- 不手工编辑 `generated-contract.js`、`.d.ts` 或 `.py`；改动必须从版本化契约生成。
+- 不把 API Key 写入全局配置、任务 JSON、浏览器存储或日志；一个会话不得覆盖另一个会话的模型与凭据。
 
 ## 最小自检
 
@@ -149,4 +168,4 @@ queued → generating → awaiting_review → approved
 node tools/format-css.mjs asset-lab/styles/*.css
 ```
 
-这些检查覆盖最容易回归的动作状态、审核持久化、API 地址规则与任务恢复。视觉验收仍由人工页面检查完成，不使用截图自动化替代产品判断。
+这些检查覆盖动作状态、生成契约漂移、CSS 层级、会话隔离、审核并发、HTTP 主流程、API 地址和任务恢复。视觉验收仍由人工页面检查完成，不使用截图自动化替代产品判断。

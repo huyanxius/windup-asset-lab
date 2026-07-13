@@ -62,7 +62,11 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - `asset-lab/features/`：质检、图集打包、Cocos 通信、抽屉和启动引导。
 - `asset-lab/pages/editor.js`：Composition Root；渲染与输入分别在 `editor-view.js`、`editor-bindings.js`。
 - `asset-lab/styles/`：基础、表面、抽屉、布局、组件、集成和动效七层样式，不再使用巨型单文件。
-- `server/windup_pipeline/domain.py`：角色、动作、视角、模型与相位词汇。
+- `server/windup_pipeline/domain.py`：内建角色目录与自动生成契约的统一导出。
+- `contracts/windup.v1.json`：前后端唯一产品契约；通过工具生成 JS 类型与 Python 常量。
+- `server/windup_pipeline/application.py`：独立应用用例；`server/app.py` 只负责 HTTP 适配。
+- `server/windup_pipeline/session_store.py`：会话级 Key/模型隔离，不进入磁盘任务。
+- `server/windup_pipeline/review_store.py`：版本化审核状态与并发冲突保护。
 - `server/windup_pipeline/provider.py`：七牛云鉴权、请求、重试和错误映射。
 - `server/windup_pipeline/job_store.py`：可替换的任务持久化边界。
 - `server/windup_pipeline/processing.py`：抠图与帧归一化。
@@ -87,7 +91,7 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - 资产平台与 Cocos 联调成功，实测 `topdown / walk / 8帧`。
 - 手动移动、自动巡走、停止待机已验证。
 - 最终测试未发现 JavaScript 运行错误。
-- 编辑会话、动作状态、播放时钟、DOM/CSS 契约、审核隔离、API 地址和任务恢复共 14 项测试通过。
+- 前端 16 项测试、后端 4 项测试通过，覆盖契约漂移、编辑会话、动作状态、播放时钟、DOM/CSS 层、会话隔离、审核同步与并发、HTTP 生成主流程、API 地址和任务恢复。
 - Demo API 已跑通 `queued → generating → awaiting_review`，未调用外部模型。
 - 项目中未保存 API Key、`.env` 或凭据文件。
 - 本地修改的 8 张 Skeleton 行走帧未纳入本次架构提交。
