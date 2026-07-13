@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 node tools/generate-contract.mjs --check
+node tools/check-boundaries.mjs
 node --test tests/*.test.mjs
 python3 -m unittest discover -s tests -p 'test_*.py'
 python3 -m py_compile server/app.py server/windup_pipeline/*.py

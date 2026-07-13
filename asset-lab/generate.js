@@ -1,6 +1,8 @@
 import { createApiClient } from './core/api-client.js';
 import { createJobPoller } from './core/job-poller.js';
 import { characterCatalog, mergeCharacterRecords } from './data/character-catalog.js';
+import { ProviderSessionController } from './features/provider-session-controller.js';
+import { WorkflowStepper } from './features/workflow-stepper.js';
 
 const $ = (id) => document.getElementById(id);
 const els = Object.fromEntries([
@@ -10,35 +12,19 @@ const els = Object.fromEntries([
 ].map((id) => [id, $(id)]));
 const api = createApiClient();
 const poller = createJobPoller(api);
-const state = { connected: false, busy: false, job: null };
-
-function setStep(step) {
-  const order = ['connect', 'define', 'review'];
-  const current = order.indexOf(step);
-  els.workflowSteps.querySelectorAll('li').forEach((item) => {
-    const index = order.indexOf(item.dataset.step);
-    item.classList.toggle('active', index === current);
-    item.classList.toggle('done', index < current);
-  });
-}
-
-function providerStatus(kind, title, message = '') {
-  els.providerState.className = `status ${kind || ''}`;
-  els.providerState.textContent = title;
-  els.providerDot.className = kind || '';
-  els.connectionMessage.className = `message ${kind === 'error' ? 'error' : ''}`;
-  els.connectionMessage.textContent = message;
-}
+const state = { busy: false, job: null };
+const stepper = new WorkflowStepper(els.workflowSteps, ['connect', 'define', 'review']);
+const provider = new ProviderSessionController({
+  api,
+  elements: els,
+  onChange: syncControls,
+  onConnected: () => stepper.select('define'),
+});
 
 function syncControls() {
-  els.startBtn.disabled = !state.connected || state.busy || !els.model.value;
-  els.startBtn.textContent = state.busy ? '正在生成…' : state.connected ? '开始生成候选资产' : '连接服务后开始生成';
-  els.connectBtn.disabled = state.busy;
-}
-
-function populateModels(provider) {
-  els.model.replaceChildren(...provider.models.map((id) => new Option(id, id)));
-  els.model.value = provider.models.includes(provider.selected) ? provider.selected : provider.models[0] || '';
+  els.startBtn.disabled = !provider.connected || state.busy || !provider.model;
+  els.startBtn.textContent = state.busy ? '正在生成…' : provider.connected ? '开始生成候选资产' : '连接服务后开始生成';
+  els.connectBtn.disabled = state.busy || provider.busy;
 }
 
 function syncCharacter() {
@@ -49,30 +35,6 @@ function syncMode() {
   const single = els.mode.value === 'single';
   els.frameField.style.opacity = single ? '1' : '.4';
   els.frame.disabled = !single;
-}
-
-async function connectProvider() {
-  const apiKey = els.apiKey.value.trim();
-  if (!apiKey) { providerStatus('error', '需要 API Key', '请输入 Key 后再验证。'); els.apiKey.focus(); return; }
-  state.busy = true;
-  syncControls();
-  els.connectBtn.textContent = '正在验证…';
-  providerStatus('', '验证中', '正在进行不产生图片费用的凭据验证。');
-  try {
-    const result = await api.post('/api/provider/session', { apiKey, model: els.model.value }, { 'X-Windup-Request': 'studio' });
-    state.connected = result.verified === true;
-    els.apiKey.value = '';
-    els.connectBtn.textContent = '重新连接';
-    providerStatus('ready', '已验证', `${els.model.value} · 当前后端会话`);
-    setStep('define');
-  } catch (error) {
-    state.connected = false;
-    els.connectBtn.textContent = '重试连接';
-    providerStatus('error', '连接失败', error.message);
-  } finally {
-    state.busy = false;
-    syncControls();
-  }
 }
 
 function renderJob(job) {
@@ -102,15 +64,15 @@ function renderJob(job) {
   els.acceptBtn.hidden = job.status !== 'awaiting_review';
   els.acceptBtn.disabled = false;
   els.editorLink.hidden = job.status !== 'approved';
-  if (job.status === 'awaiting_review') setStep('review');
+  if (job.status === 'awaiting_review') stepper.select('review');
   syncControls();
 }
 
 async function startGeneration(event) {
   event.preventDefault();
-  if (!state.connected) { providerStatus('error', '请先连接', '生成前必须完成真实 Key 验证。'); return; }
+  if (!provider.requireConnection()) return;
   state.busy = true;
-  setStep('review');
+  stepper.select('review');
   els.candidateGrid.innerHTML = '<div class="empty-result"><i>◇</i><b>正在创建任务</b><span>生成结果会逐帧出现</span></div>';
   syncControls();
   try {
@@ -121,7 +83,7 @@ async function startGeneration(event) {
       mode: els.mode.value,
       frameIndex: Math.max(0, Math.min(7, Number(els.frame.value) - 1)),
       customPrompt: els.prompt.value.trim(),
-      model: els.model.value,
+      model: provider.model,
     });
     renderJob(job);
     poller.poll(job.id, (next, error) => {
@@ -132,7 +94,7 @@ async function startGeneration(event) {
     state.busy = false;
     els.jobTitle.textContent = '任务创建失败';
     els.jobMessage.textContent = error.message;
-    setStep('define');
+    stepper.select('define');
     syncControls();
   }
 }
@@ -157,9 +119,8 @@ async function boot() {
   els.mode.value = query.get('mode') || 'full';
   els.frame.value = query.get('frame') || '1';
   syncMode();
-  const [healthResult, modelsResult, charactersResult] = await Promise.allSettled([
-    api.get('/api/health'),
-    api.get('/api/provider/models'),
+  const [, charactersResult] = await Promise.allSettled([
+    provider.boot(),
     api.get('/api/characters'),
   ]);
   if (charactersResult.status === 'fulfilled') {
@@ -168,29 +129,13 @@ async function boot() {
   els.character.replaceChildren(...Object.entries(characterCatalog).map(([id, item]) => new Option(item.label, id)));
   els.character.value = characterCatalog[query.get('character')] ? query.get('character') : 'lamplighter';
   syncCharacter();
-  if (modelsResult.status === 'fulfilled') populateModels(modelsResult.value);
-  else { els.model.replaceChildren(new Option('模型读取失败', '')); els.model.disabled = true; }
-  if (healthResult.status === 'fulfilled') {
-    const health = healthResult.value;
-    state.connected = health.configured === true && health.verified === true;
-    els.serviceState.textContent = '生成后端已连接';
-    if (state.connected) { providerStatus('ready', '已验证', `${health.model} · 当前后端会话`); setStep('define'); }
-    else providerStatus(health.providerError ? 'error' : '', '未连接', health.providerError || '输入 Key 后进行真实验证。');
-  } else {
-    els.serviceState.textContent = '生成后端未启动';
-    providerStatus('error', '服务不可用', '请启动 Python 生成后端。');
-  }
+  if (provider.connected) stepper.select('define');
   syncControls();
 }
 
-els.connectBtn.addEventListener('click', connectProvider);
-els.apiKey.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); connectProvider(); } });
+provider.bind();
 els.character.addEventListener('change', syncCharacter);
 els.mode.addEventListener('change', syncMode);
-els.model.addEventListener('change', () => {
-  if (state.connected) providerStatus('ready', '已验证', `${els.model.value} · 将锁定到下一任务`);
-  syncControls();
-});
 els.generationForm.addEventListener('submit', startGeneration);
 els.acceptBtn.addEventListener('click', acceptGeneration);
 boot();
