@@ -358,22 +358,6 @@ els.closeGameBtn.addEventListener('click', () => {
 els.sendGameBtn.addEventListener('click', syncGame);
 els.gameFrame.addEventListener('load', syncGame);
 
-// Mock Export
-els.exportBtn.removeAttribute('disabled');
-els.exportBtn.addEventListener('click', () => {
-  const asset = currentAsset();
-  if (!asset) return;
-  const data = JSON.stringify(asset, null, 2);
-  const blob = new Blob([data], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `lamplighter-${state.view}-${asset.key}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  els.exportBtn.textContent = '导出成功 ✅';
-  setTimeout(() => els.exportBtn.textContent = '导出 Cocos 包', 2000);
-});
 els.enterGameBtn.addEventListener('click',()=>{const payload=gamePayload();const game=window.open('http://127.0.0.1:4173/','windup-cocos-game');if(!game||!payload)return;[700,1400,2400].forEach(delay=>setTimeout(()=>game.postMessage(payload,'http://127.0.0.1:4173'),delay));});
 let drawerCloseTimer=null;function setDrawer(collapsed){document.body.classList.toggle('sidebar-collapsed',collapsed);els.sidebarToggle.setAttribute('aria-expanded',String(!collapsed));els.sidebarReveal.setAttribute('aria-expanded',String(!collapsed));}
 function openDrawer(){clearTimeout(drawerCloseTimer);setDrawer(false);}function scheduleDrawerClose(){clearTimeout(drawerCloseTimer);drawerCloseTimer=setTimeout(()=>setDrawer(true),260);}
