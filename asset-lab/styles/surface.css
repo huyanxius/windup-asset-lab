@@ -323,14 +323,14 @@ input[type="range"] {
 }
 
 .approve-btn {
-  background: #2c2c2e !important;
-  border-color: #2c2c2e !important;
+  background: #2c2c2e;
+  border-color: #2c2c2e;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
 .reject-btn {
   color: #5a5a5e;
-  border-color: #8e8e93 !important;
+  border-color: #8e8e93;
 }
 
 .progress i {

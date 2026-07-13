@@ -100,7 +100,7 @@
 
 .review-actions .regenerate-btn {
   grid-column: 1 / -1;
-  border-color: #1d1d1f !important;
+  border-color: #1d1d1f;
   background: #fff;
   color: #1d1d1f;
   font-weight: 650;
