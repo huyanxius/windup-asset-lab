@@ -7,3 +7,20 @@
   background: #1d1d1f;
   color: #fff;
 }
+
+.preview-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.preview-copy > span {
+  color: #1d1d1f;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.preview-links {
+  display: flex;
+  gap: 7px;
+  flex: none;
+}

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Windup · 动作生成</title>
   <link rel="stylesheet" href="./create-character.css?v=1">
-  <link rel="stylesheet" href="./generate.css?v=1">
+  <link rel="stylesheet" href="./generate.css?v=2">
 </head>
 <body>
   <header class="app-header">
@@ -42,10 +42,11 @@
         <div class="field-grid">
           <label><span>视角</span><select id="view"><option value="side">横屏侧视</option><option value="topdown">俯视</option><option value="isometric">2.5D</option></select></label>
           <label><span>动作</span><select id="action"><option value="idle">呼吸待机</option><option value="walk">行走</option><option value="run">奔跑</option><option value="jump">跳跃</option><option value="lantern">举灯点亮</option></select></label>
-          <label><span>生成范围</span><select id="mode"><option value="full">整套动作 · 8 帧</option><option value="single">仅修复单帧</option></select></label>
+          <label><span>生成策略</span><select id="mode"><option value="full">一致性动作条 · 8 帧</option><option value="single">仅修复单帧</option></select></label>
           <label id="frameField"><span>帧号</span><input id="frame" type="number" min="1" max="8" value="1"></label>
         </div>
         <label><span>画面约束 · 可选</span><textarea id="prompt" maxlength="800" placeholder="例：保留围巾的运动节奏，脚底始终对齐基线…"></textarea></label>
+        <div class="strategy-note" id="strategyNote"><b>1 次生成 → 8 帧切分</b><span>共享角色、比例、相机与地面线；坏帧可单独修复</span></div>
         <div class="spec-row"><span>256 × 256</span><span>透明背景</span><span>8 FPS</span><span>候选优先</span></div>
         <button id="startBtn" class="primary" type="submit" disabled>连接服务后开始生成</button>
       </form>
@@ -58,10 +59,11 @@
         <div class="progress"><i id="jobProgress"></i></div>
         <b id="jobTitle">尚未创建任务</b>
         <p id="jobMessage" aria-live="polite">完成动作设置后开始生成。</p>
+        <div id="jobMetrics" class="job-metrics" hidden></div>
         <div class="result-actions"><button id="acceptBtn" class="primary" type="button" hidden>接受候选资产</button><a id="editorLink" href="./" hidden>返回审核台 →</a></div>
       </div>
     </section>
   </main>
-  <script type="module" src="./generate.js?v=1"></script>
+  <script type="module" src="./generate.js?v=2"></script>
 </body>
 </html>

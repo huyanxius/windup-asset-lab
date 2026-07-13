@@ -2,12 +2,14 @@ import { createApiClient } from './core/api-client.js';
 import { createJobPoller } from './core/job-poller.js';
 import { ProviderSessionController } from './features/provider-session-controller.js';
 import { WorkflowStepper } from './features/workflow-stepper.js';
+import { CONTRACT_VERSION, generationDefaults } from './data/generated-contract.js';
 
 const $ = (id) => document.getElementById(id);
 const els = Object.fromEntries([
   'serviceState','providerState','providerDot','apiKey','model','connectBtn','connectionMessage',
   'createForm','assetName','description','createBtn','workflowSteps','resultPanel','jobPercent',
-  'jobProgress','jobTitle','jobMessage','emptyResult','candidateImage','acceptBtn','libraryLink',
+  'jobProgress','jobTitle','jobMessage','emptyResult','resultGrid','acceptBtn','libraryLink','editorLink',
+  'starterIdle','starterWalk',
 ].map((id) => [id, $(id)]));
 
 const api = createApiClient();
@@ -40,9 +42,14 @@ const templates = {
 };
 
 function syncControls() {
-  const ready = provider.connected && !state.busy && Boolean(provider.model);
+  const contractReady = provider.contractVersion === CONTRACT_VERSION;
+  const ready = provider.connected && contractReady && !state.busy && Boolean(provider.model);
   els.createBtn.disabled = !ready;
-  els.createBtn.textContent = state.busy ? '正在生成角色母版…' : provider.connected ? '生成角色母版' : '连接服务后生成角色母版';
+  els.createBtn.textContent = state.busy
+    ? '正在生成完整角色包…'
+    : provider.connected && !contractReady
+      ? '请重启生成服务以启用角色包'
+      : provider.connected ? '生成完整角色包' : '连接服务后生成角色包';
   els.connectBtn.disabled = state.busy || provider.busy;
 }
 
@@ -54,15 +61,66 @@ function renderJob(job) {
   els.jobTitle.textContent = job.batch || '角色创建任务';
   els.jobMessage.textContent = job.message || '';
   state.busy = poller.isActive(job.status);
-  const output = job.outputs?.[0];
-  els.emptyResult.hidden = Boolean(output);
-  els.candidateImage.hidden = !output;
-  if (output) els.candidateImage.src = `${api.assetUrl(output.url)}?v=${encodeURIComponent(job.updatedAt || Date.now())}`;
-  els.acceptBtn.hidden = job.status !== 'awaiting_review';
+  const outputs = job.outputs || [];
+  els.emptyResult.hidden = Boolean(outputs.length);
+  els.resultGrid.hidden = !outputs.length;
+  if (outputs.length) renderPackage(outputs, job.updatedAt);
+  const actionFrames = outputs.filter((output) => output.kind === 'frame');
+  const completePackage = actionFrames.length >= 8 && actionFrames.length % 8 === 0;
+  els.acceptBtn.hidden = job.status !== 'awaiting_review' || !completePackage;
   els.acceptBtn.disabled = false;
   els.libraryLink.hidden = job.status !== 'approved';
+  els.editorLink.hidden = job.status !== 'approved';
+  if (job.status === 'approved' && job.character) {
+    const character = encodeURIComponent(job.character.id);
+    els.libraryLink.href = `./characters.html?character=${character}`;
+    els.editorLink.href = `./?character=${character}`;
+  }
   if (job.status === 'awaiting_review') stepper.select('review');
+  if (job.status === 'awaiting_review' && !completePackage) {
+    els.jobMessage.textContent = '当前服务只返回了角色母版，未生成基础动作。请重启新版生成服务后重新创建。';
+  }
   syncControls();
+}
+
+function previewImage(output, updatedAt, alt) {
+  const image = document.createElement('img');
+  image.src = `${api.assetUrl(output.url)}?v=${encodeURIComponent(updatedAt || Date.now())}`;
+  image.alt = alt;
+  return image;
+}
+
+function renderPackage(outputs, updatedAt) {
+  const base = outputs.find((output) => output.kind === 'base') || outputs[0];
+  const master = document.createElement('figure');
+  master.className = 'package-master';
+  master.append(previewImage(base, updatedAt, '候选角色母版'));
+  const caption = document.createElement('figcaption');
+  caption.innerHTML = '<b>角色母版</b><span>身份与风格基准</span>';
+  master.append(caption);
+
+  const groups = new Map();
+  outputs.filter((output) => output.kind === 'frame').forEach((output) => {
+    if (!groups.has(output.action)) groups.set(output.action, []);
+    groups.get(output.action).push(output);
+  });
+  const strips = [...groups].map(([action, frames]) => {
+    const section = document.createElement('section');
+    section.className = 'package-action';
+    const header = document.createElement('header');
+    const title = document.createElement('b');
+    title.textContent = action === 'idle' ? '呼吸待机' : action === 'walk' ? '行走' : action;
+    const meta = document.createElement('small');
+    meta.textContent = `${frames.length} 帧 · 8 FPS`;
+    header.append(title, meta);
+    const strip = document.createElement('div');
+    strip.append(...frames.sort((a, b) => a.frameIndex - b.frameIndex).map((output) => (
+      previewImage(output, updatedAt, `${title.textContent}第 ${output.frameIndex + 1} 帧`)
+    )));
+    section.append(header, strip);
+    return section;
+  });
+  els.resultGrid.replaceChildren(master, ...strips);
 }
 
 async function createCharacter(event) {
@@ -71,6 +129,7 @@ async function createCharacter(event) {
   state.busy = true;
   stepper.select('review');
   els.emptyResult.hidden = false;
+  els.resultGrid.hidden = true;
   els.jobTitle.textContent = '正在创建任务';
   els.jobMessage.textContent = '角色定义正在发送到生成服务…';
   els.jobPercent.textContent = '0%';
@@ -81,6 +140,9 @@ async function createCharacter(event) {
       name: els.assetName.value.trim(),
       description: els.description.value.trim(),
       model: provider.model,
+      starterActions: generationDefaults.starterPack.actions.filter((action) => (
+        action === 'idle' ? els.starterIdle.checked : action === 'walk' ? els.starterWalk.checked : false
+      )),
     });
     renderJob(job);
     poller.poll(job.id, (next, error) => {
@@ -109,7 +171,7 @@ async function acceptCharacter() {
     const job = await api.post(`/api/generations/${state.job.id}/promote`, {});
     renderJob(job);
     els.acceptBtn.hidden = true;
-    els.jobMessage.textContent = `${job.character.label} 已加入角色资产库。`;
+    els.jobMessage.textContent = `${job.character.label} 已携基础动作加入资产库，可直接进入审核台。`;
   } catch (error) {
     els.acceptBtn.disabled = false;
     els.acceptBtn.textContent = '确认并加入角色库';

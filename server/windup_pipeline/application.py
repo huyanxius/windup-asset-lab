@@ -134,7 +134,13 @@ class GenerationApplication:
             self.sessions.fail(session_id, str(error))
             raise
         session = self.sessions.connect(session_id, api_key, model)
-        return {"ok": True, **session.public(), "storage": "isolated-process-session", "models": IMAGE_MODELS}
+        return {
+            "ok": True,
+            **session.public(),
+            "storage": "isolated-process-session",
+            "models": IMAGE_MODELS,
+            "contractVersion": CONTRACT_VERSION,
+        }
 
     def character_card(self, character_id: str) -> dict:
         item = dict(self.catalog[character_id])

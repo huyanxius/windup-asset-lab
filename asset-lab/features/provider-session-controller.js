@@ -12,6 +12,7 @@ export class ProviderSessionController {
     this.onConnected = onConnected;
     this.connected = false;
     this.busy = false;
+    this.contractVersion = '';
   }
 
   get model() { return this.els.model.value; }
@@ -56,6 +57,7 @@ export class ProviderSessionController {
         { 'X-Windup-Request': 'studio' },
       );
       this.connected = providerIsReady(result);
+      this.contractVersion = result.contractVersion || this.contractVersion;
       this.els.apiKey.value = '';
       this.els.connectBtn.textContent = '重新连接';
       this.status('ready', '已验证', `${result.model} · 当前后端会话`);
@@ -84,6 +86,7 @@ export class ProviderSessionController {
     }
     if (healthResult.status === 'fulfilled') {
       const health = healthResult.value;
+      this.contractVersion = health.contractVersion || '';
       this.connected = providerIsReady(health);
       this.els.serviceState.textContent = '生成后端已连接';
       if (this.connected) {
