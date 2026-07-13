@@ -1,21 +1,18 @@
-export const FIXED_FPS = 8;
+export {
+  FIXED_FPS,
+  actionLabels,
+  actionLoops,
+  actionOrder,
+  viewLabels,
+} from './generated-contract.js';
+import {
+  FIXED_FPS,
+  actionLabels,
+  actionLoops,
+  viewLabels,
+} from './generated-contract.js';
 export const CHARACTER_ROOT = '../assets/resources/character';
 export const TEAMMATE_ROOT = '../assets/resources/characters';
-
-export const actionOrder = ['idle', 'walk', 'run', 'jump', 'lantern'];
-export const actionLabels = {
-  idle: ['呼吸待机', '标准动作'],
-  walk: ['行走', '标准动作'],
-  run: ['奔跑', '标准动作'],
-  jump: ['跳跃', '标准动作'],
-  lantern: ['举灯点亮', '自定义动作'],
-};
-
-const viewLabels = {
-  side: ['横屏侧视资产', '真实侧视序列帧'],
-  topdown: ['真实俯视资产', '母版约束的独立俯视绘制'],
-  isometric: ['真实 2.5D 资产', '母版约束的独立 3/4 绘制'],
-};
 
 export function makeFrames(base, prefix, count = 8) {
   return Array.from(
@@ -30,7 +27,7 @@ function asset(label, key, frames, batch, options = {}) {
     key,
     frames,
     fps: FIXED_FPS,
-    loop: true,
+    loop: actionLoops[key] ?? true,
     initial: 'pending',
     batch,
     ...options,

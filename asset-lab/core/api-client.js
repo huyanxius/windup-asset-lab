@@ -1,4 +1,4 @@
-const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);
+import { resolveRuntimeConfig } from './runtime-config.js';
 
 export class ApiError extends Error {
   constructor(message, status, payload = {}) {
@@ -10,16 +10,13 @@ export class ApiError extends Error {
 }
 
 export function resolveApiBase(locationLike = globalThis.location) {
-  if (globalThis.WINDUP_API_BASE) return String(globalThis.WINDUP_API_BASE).replace(/\/$/, '');
-  if (LOCAL_HOSTS.has(locationLike.hostname) && locationLike.port !== '4174') {
-    return 'http://127.0.0.1:4174';
-  }
-  return '';
+  return resolveRuntimeConfig(locationLike).apiBase;
 }
 
 export function createApiClient(baseUrl = resolveApiBase()) {
   async function request(path, options = {}) {
     const response = await fetch(`${baseUrl}${path}`, {
+      credentials: 'include',
       ...options,
       headers: {
         Accept: 'application/json',
