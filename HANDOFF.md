@@ -53,7 +53,8 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - 左侧资产栏为 macOS 毛玻璃抽屉：默认收起，鼠标移入左侧热区展开，移出后自动收回。
 - 人物点击统一走动作状态机：开始、暂停、从原位置恢复，不再依赖事件冒泡。
 - 角色创建、角色管理、动作生成和逐帧审核为四个独立页面，共用 API 与任务轮询模块。
-- 新角色确认入库后会自动进入角色管理、动作生成与审核台角色目录。
+- 新角色默认一次生成母版、待机 8 帧和行走 8 帧，整体确认后原子入库，可直接进入审核台。
+- 完整动作默认一次生成横向动作条并自动切成 8 帧；单帧退回继续走独立修复。
 
 ## 5. 架构入口
 
@@ -68,6 +69,9 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - `server/windup_pipeline/domain.py`：内建角色目录与自动生成契约的统一导出。
 - `contracts/windup.v1.json`：前后端唯一产品契约；通过工具生成 JS 类型与 Python 常量。
 - `server/windup_pipeline/application.py`：独立应用用例；`server/app.py` 只负责 HTTP 适配。
+- `server/windup_pipeline/generation_executor.py`：后台任务进度、角色包执行与溯源。
+- `server/windup_pipeline/action_pipeline.py`：动作条生成、切帧、逐帧修复与回退策略。
+- `server/windup_pipeline/asset_catalog.py` / `publisher.py`：正式资产发现、原子入库、备份与失败恢复。
 - `server/windup_pipeline/session_store.py`：会话级 Key/模型隔离，不进入磁盘任务。
 - `server/windup_pipeline/review_store.py`：版本化审核状态与并发冲突保护。
 - `server/windup_pipeline/provider.py`：七牛云鉴权、请求、重试和错误映射。
@@ -94,7 +98,7 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - 资产平台与 Cocos 联调成功，实测 `topdown / walk / 8帧`。
 - 手动移动、自动巡走、停止待机已验证。
 - 最终测试未发现 JavaScript 运行错误。
-- 前端 19 项测试、后端 4 项测试通过，覆盖新旧后端许可兼容、抽屉/胶片栏/全屏布局回归、契约漂移、编辑会话、动作状态、播放时钟、共享 Provider 控制器、会话隔离、审核同步与并发、HTTP 生成主流程、API 地址和任务恢复。
+- 前端 22 项测试、后端 8 项测试通过，覆盖角色包界面、动作条路由、旧后端拦截、抽屉/胶片栏/全屏布局回归、契约漂移、编辑会话、动作状态、播放时钟、会话隔离、审核同步与并发、HTTP 完整角色包、切帧、API 地址和任务恢复。
 - Demo API 已跑通 `queued → generating → awaiting_review`，未调用外部模型。
 - 项目中未保存 API Key、`.env` 或凭据文件。
 - 本地修改的 8 张 Skeleton 行走帧未纳入本次架构提交。
