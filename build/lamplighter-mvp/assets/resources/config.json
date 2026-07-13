@@ -23,7 +23,6 @@
         "0ba9fb2a-bea6-4b3c-bdf4-de3bc7291cd4",
         "0ba9fb2a-bea6-4b3c-bdf4-de3bc7291cd4@6c48a",
         "0ba9fb2a-bea6-4b3c-bdf4-de3bc7291cd4@f9941",
-        "10d7c42d-9f38-4cb4-9609-e92a1899bf1d",
         "114c78b9-4352-4007-bf0a-a1d0d0de7e2b",
         "114c78b9-4352-4007-bf0a-a1d0d0de7e2b@6c48a",
         "114c78b9-4352-4007-bf0a-a1d0d0de7e2b@f9941",
@@ -320,11 +319,6 @@
         "fd7d3a4b-43b4-4dc9-aa43-a76776b18262@f9941"
     ],
     "paths": {
-        "10d7c42d-9f38-4cb4-9609-e92a1899bf1d": [
-            "character",
-            "cc.Asset",
-            1
-        ],
         "02811b63-674e-4689-87f9-911e00a9663a": [
             "background/old-street",
             "cc.ImageAsset",
