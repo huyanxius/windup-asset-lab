@@ -7,10 +7,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=221" />
+  <link rel="stylesheet" href="./styles/foundation.css?v=1" />
+  <link rel="stylesheet" href="./styles/surface.css?v=1" />
+  <link rel="stylesheet" href="./styles/drawer.css?v=1" />
+  <link rel="stylesheet" href="./styles/workspace.css?v=1" />
+  <link rel="stylesheet" href="./styles/components.css?v=1" />
+  <link rel="stylesheet" href="./styles/integrations.css?v=1" />
+  <link rel="stylesheet" href="./styles/motion.css?v=1" />
 </head>
 <body>
-  <div id="bootScreen" style="position: fixed; inset: 0; background: black; z-index: 9998; pointer-events: none;"></div>
+  <div id="bootScreen"></div>
   <div id="bootWordmark" class="boot-wordmark" aria-hidden="true">Windup</div>
   <div class="app-shell">
     <aside id="assetDrawer" class="sidebar">
@@ -105,7 +111,7 @@
           <details class="accordion-item">
             <summary class="accordion-header">
               <div class="header-content"><b>自动质检</b></div>
-              <span id="qcSummary" style="font-size: 12px; color: #666;">正在分析…</span>
+              <span id="qcSummary">正在分析…</span>
             </summary>
             <div class="accordion-body">
               <div id="qcChecks" class="qc-list"></div>
@@ -114,7 +120,7 @@
           <details class="accordion-item">
             <summary class="accordion-header">
               <div class="header-content"><b>单帧审核</b></div>
-              <span id="selectedFrame" style="font-size: 12px; font-weight: bold; font-family: monospace;">#01</span>
+              <span id="selectedFrame">#01</span>
             </summary>
             <div class="accordion-body">
               <div class="frame-meta"><span>批次 <b id="frameBatch">B-20260713-05</b></span><span>状态 <b id="frameState">待审核</b></span></div>
@@ -125,16 +131,16 @@
           <details class="accordion-item">
             <summary class="accordion-header">
               <div class="header-content"><b>导出门禁</b></div>
-              <span id="approvalText" style="font-size: 12px; color: #666;">0 / 8 帧通过</span>
+              <span id="approvalText">0 / 8 帧通过</span>
             </summary>
             <div class="accordion-body">
-              <p id="gateMessage" style="font-size: 12px; color: #666; margin-bottom: 8px;">全部帧通过后才可导出，避免残缺动作进入项目。</p>
+              <p id="gateMessage">全部帧通过后才可导出，避免残缺动作进入项目。</p>
               <div class="progress"><i id="approvalProgress"></i></div>
-              <div class="export-actions" style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
-                <span id="saveState" class="saved" style="text-align: center;">本地状态已保存</span>
-                <button id="gamePreviewBtn" class="game-preview-btn" style="padding: 10px; border-radius: 8px; background: transparent; border: 1px solid #ddd; cursor: pointer;">游戏联调</button>
-                <button id="enterGameBtn" class="enter-game-btn" style="padding: 10px; border-radius: 8px; background: #333; color: white; border: none; cursor: pointer;">进入 Cocos 游戏</button>
-                <button id="exportBtn" class="export-btn" disabled style="padding: 10px; border-radius: 8px; border: none; cursor: pointer;">导出 Cocos 包</button>
+              <div class="export-actions">
+                <span id="saveState" class="saved">本地状态已保存</span>
+                <button id="gamePreviewBtn" class="game-preview-btn">游戏联调</button>
+                <button id="enterGameBtn" class="enter-game-btn">进入 Cocos 游戏</button>
+                <button id="exportBtn" class="export-btn" disabled>导出 Cocos 包</button>
               </div>
             </div>
           </details>
