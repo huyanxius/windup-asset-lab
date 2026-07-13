@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Windup · 角色资产中心</title>
+  <link rel="stylesheet" href="./characters.css?v=1">
+</head>
+<body>
+  <header class="app-header">
+    <a class="wordmark" href="./"><i>W</i><span><b>Windup</b><small>CHARACTER ASSETS</small></span></a>
+    <div class="header-actions"><span id="serviceState">正在连接服务…</span><a href="./">返回审核台</a></div>
+  </header>
+  <main class="layout">
+    <aside class="catalog-panel">
+      <div class="panel-title"><div><small>LIBRARY</small><h1>角色资产</h1></div><b id="assetCount">0</b></div>
+      <div id="characterList" class="character-list"></div>
+    </aside>
+
+    <section class="preview-panel">
+      <div class="preview-meta"><div><small>MASTER PREVIEW</small><h2 id="previewName">选择角色</h2></div><span id="previewType">—</span></div>
+      <div class="preview-stage"><div class="halo"></div><img id="previewImage" alt="角色母版"><span class="baseline"></span></div>
+      <div class="preview-footer"><p id="previewDescription">角色母版是后续视角和动作生成的一致性基准。</p><a href="./">用此角色生成动作 ↗</a></div>
+    </section>
+
+    <aside class="create-panel">
+      <div class="panel-title"><div><small>CREATE</small><h2>创建新资产</h2></div></div>
+      <section class="provider-box">
+        <div><b>七牛云 QnAIGC</b><span id="providerState">待配置</span></div>
+        <input id="apiKey" type="password" autocomplete="off" placeholder="API Key">
+        <select id="model"><option>正在读取模型…</option></select>
+        <button id="connectBtn">连接当前会话</button>
+      </section>
+      <form id="createForm">
+        <label><span>资产名称</span><input id="assetName" maxlength="40" placeholder="例：雾港邮差" required></label>
+        <label><span>角色定义</span><textarea id="description" maxlength="800" placeholder="描述年龄、身形、发型、服装、配色、道具与像素风格…" required></textarea></label>
+        <div class="spec-row"><span>256 × 256</span><span>透明背景</span><span>中性站姿</span></div>
+        <button id="createBtn" class="primary" type="submit">生成角色母版</button>
+      </form>
+      <section id="jobPanel" class="job-panel" hidden>
+        <div><b id="jobTitle">正在创建…</b><span id="jobPercent">0%</span></div>
+        <div class="progress"><i id="jobProgress"></i></div>
+        <p id="jobMessage">任务已入队</p>
+        <img id="candidateImage" alt="候选角色母版" hidden>
+        <button id="acceptBtn" class="primary" hidden>确认并加入角色库</button>
+      </section>
+      <p class="security-note">Key 仅保留在当前后端进程，不写入浏览器、文件或 Git。</p>
+    </aside>
+  </main>
+  <script src="./characters.js?v=1"></script>
+</body>
+</html>

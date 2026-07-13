@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_ROOT = ROOT / "generation-data"
 JOBS_ROOT = DATA_ROOT / "jobs"
 BACKUPS_ROOT = DATA_ROOT / "backups"
+CUSTOM_CHARACTERS_ROOT = DATA_ROOT / "characters"
 LOCK = threading.Lock()
 JOBS: dict[str, dict] = {}
 DEMO_MODE = os.environ.get("WINDUP_DEMO") == "1"
@@ -157,6 +158,30 @@ def load_existing_jobs() -> None:
             continue
 
 
+def load_custom_characters() -> None:
+    if not CUSTOM_CHARACTERS_ROOT.exists():
+        return
+    for card_file in CUSTOM_CHARACTERS_ROOT.glob("*/card.json"):
+        try:
+            card = json.loads(card_file.read_text(encoding="utf-8"))
+            character_id = str(card.get("id", ""))
+            if not SAFE_ID.fullmatch(character_id):
+                continue
+            base = str(card.get("base", ""))
+            if not base.startswith("generation-data/characters/") or not (ROOT / base).exists():
+                continue
+            CATALOG[character_id] = {
+                "label": str(card.get("label", character_id)),
+                "base": base,
+                "root": str(Path(base).parent),
+                "description": str(card.get("description", "")),
+                "custom": True,
+                "card": str(card_file.relative_to(ROOT)),
+            }
+        except Exception:
+            continue
+
+
 def character_card(character_id: str) -> dict:
     item = dict(CATALOG[character_id])
     card_path = item.get("card")
@@ -171,6 +196,9 @@ def official_frame(character_id: str, view: str, action: str, frame_index: int) 
         if view == "side" and action == "walk":
             return ROOT / "assets/resources/character/frames" / name
         return ROOT / "assets/resources/character/views" / view / name
+    custom_root = CATALOG.get(character_id, {}).get("root")
+    if custom_root:
+        return ROOT / custom_root / "views" / view / name
     return ROOT / "assets/resources/characters" / character_id / "views" / view / name
 
 
@@ -305,6 +333,63 @@ def run_job(job_id: str) -> None:
         update_job(job_id, status="failed", message=str(error), error=str(error))
 
 
+def run_character_job(job_id: str) -> None:
+    job = JOBS[job_id]
+    request = job["request"]
+    job_root = JOBS_ROOT / job_id
+    raw = job_root / "raw" / "base.png"
+    cutout = job_root / "cutout" / "base.png"
+    output = job_root / "normalized" / "base.png"
+    live = bool(generate.config.API_KEY) and not DEMO_MODE
+    try:
+        update_job(job_id, status="generating", progress=8, message="正在构建原创角色母版")
+        raw.parent.mkdir(parents=True, exist_ok=True)
+        cutout.parent.mkdir(parents=True, exist_ok=True)
+        if live:
+            if not generate.gen_character(request["description"], str(raw)):
+                raise RuntimeError("角色母版生成失败")
+            update_job(job_id, progress=72, message="正在去背景与统一画布")
+            matte_chroma(raw, cutout)
+        elif DEMO_MODE:
+            source = ROOT / CATALOG["lamplighter"]["base"]
+            shutil.copy2(source, raw)
+            shutil.copy2(source, cutout)
+        else:
+            raise RuntimeError("请先在生成界面连接七牛云 Key")
+        normalize_frame(cutout, output, "idle", 0)
+        update_job(
+            job_id, status="awaiting_review", progress=100,
+            message="角色母版已生成，等待确认入库",
+            outputs=[{"frameIndex": 0, "url": f"/generation-data/jobs/{job_id}/normalized/base.png", "file": "base.png"}],
+            provider="live" if live else "demo",
+        )
+    except Exception as error:
+        update_job(job_id, status="failed", message=str(error), error=str(error))
+
+
+def create_character_job(payload: dict) -> dict:
+    name = str(payload.get("name", "")).strip()
+    description = str(payload.get("description", "")).strip()
+    if not 1 <= len(name) <= 40:
+        raise ValueError("资产名称需要 1–40 字")
+    if not 12 <= len(description) <= 800:
+        raise ValueError("角色定义需要 12–800 字")
+    job_id = uuid.uuid4().hex[:12]
+    character_id = f"custom-{uuid.uuid4().hex[:8]}"
+    job = {
+        "id": job_id,
+        "batch": f"C-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+        "status": "queued", "progress": 0, "message": "新角色创建任务已入队",
+        "request": {"type": "character", "character": character_id, "name": name, "description": description},
+        "outputs": [], "createdAt": now_iso(), "updatedAt": now_iso(),
+    }
+    with LOCK:
+        JOBS[job_id] = job
+        persist(job)
+    threading.Thread(target=run_character_job, args=(job_id,), daemon=True).start()
+    return job
+
+
 def create_job(payload: dict) -> dict:
     character_id = str(payload.get("character", ""))
     view = str(payload.get("view", ""))
@@ -342,6 +427,29 @@ def promote_job(job_id: str) -> dict:
     if not job or job.get("status") != "awaiting_review":
         raise ValueError("该任务尚不可采用")
     request = job["request"]
+    if request.get("type") == "character":
+        character_id = request["character"]
+        character_root = CUSTOM_CHARACTERS_ROOT / character_id
+        source = JOBS_ROOT / job_id / "normalized" / "base.png"
+        target = character_root / "base.png"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        card = {
+            "id": character_id, "label": request["name"], "description": request["description"],
+            "base": str(target.relative_to(ROOT)), "createdAt": now_iso(),
+            "sourceJob": job_id, "model": generate.config.IMAGE_MODEL,
+        }
+        write_json(character_root / "card.json", card)
+        CATALOG[character_id] = {
+            "label": card["label"], "description": card["description"], "base": card["base"],
+            "root": str(character_root.relative_to(ROOT)), "custom": True,
+            "card": str((character_root / "card.json").relative_to(ROOT)),
+        }
+        return update_job(
+            job_id, status="approved", message="新角色已加入资产库",
+            character={"id": character_id, "label": card["label"], "base": card["base"],
+                       "root": str(character_root.relative_to(ROOT)), "description": card["description"]},
+        )
     backup = BACKUPS_ROOT / job_id
     promoted = []
     for output in job.get("outputs", []):
@@ -421,6 +529,9 @@ class Handler(SimpleHTTPRequestHandler):
                 generate.config.IMAGE_MODEL = model
                 self.send_json({"ok": True, "configured": True, "storage": "process-memory", "model": model})
                 return
+            if path == "/api/characters/generations":
+                self.send_json(create_character_job(self.read_json()), 202)
+                return
             if path == "/api/generations":
                 self.send_json(create_job(self.read_json()), 202)
                 return
@@ -448,6 +559,8 @@ def main() -> None:
     DEMO_MODE = DEMO_MODE or args.demo
     JOBS_ROOT.mkdir(parents=True, exist_ok=True)
     BACKUPS_ROOT.mkdir(parents=True, exist_ok=True)
+    CUSTOM_CHARACTERS_ROOT.mkdir(parents=True, exist_ok=True)
+    load_custom_characters()
     load_existing_jobs()
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"Windup Asset Lab: http://{args.host}:{args.port}/asset-lab/")

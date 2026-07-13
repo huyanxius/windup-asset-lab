@@ -39,6 +39,15 @@ def to_side_view(ref_path, char_desc, out_path):
     return _call(txt, [ref_path], out_path)
 
 
+def gen_character(char_desc, out_path):
+    """从文字创建一张不依赖旧角色的游戏角色母版。"""
+    txt = ("Create ONE original full-body chibi pixel-art game character master sprite. "
+           f"Character definition: {char_desc}. Neutral standing pose, pseudo-side 3/4 view facing RIGHT. "
+           "Clean readable silhouette, cohesive restrained color palette, polished literary fantasy art direction. "
+           f"{config.BG_MAGENTA}. {config.NO_SHADOW}. Character centered, full body head-to-feet, no text, no frame.")
+    return _call(txt, [], out_path)
+
+
 def gen_frame(base_path, char_desc, pose_desc, out_path, skeleton_path=None):
     """④ 生成一帧动作。base_path=角色基准帧；pose_desc=该帧姿势；
     skeleton_path 可选：给一张骨架条件图做姿势约束。"""
