@@ -58,6 +58,9 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 ## 5. 架构入口
 
 - `docs/ARCHITECTURE.md`：模块边界、状态所有权、扩展步骤与维护红线。
+- `docs/ENGINEERING_PLAYBOOK.md`：端到端资产流程、数据寿命、故障处理和生产升级阈值。
+- `docs/DECISIONS.md`：当前必须保持的架构决策。
+- `CONTRIBUTING.md` / `AGENTS.md`：人类和 AI 协作者的固定开发规则。
 - `asset-lab/core/`：编辑会话、动作状态、播放时钟、API、任务轮询和审核持久化。
 - `asset-lab/features/`：质检、图集打包、Cocos 通信、抽屉和启动引导。
 - `asset-lab/pages/editor.js`：Composition Root；渲染与输入分别在 `editor-view.js`、`editor-bindings.js`。
@@ -91,7 +94,7 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - 资产平台与 Cocos 联调成功，实测 `topdown / walk / 8帧`。
 - 手动移动、自动巡走、停止待机已验证。
 - 最终测试未发现 JavaScript 运行错误。
-- 前端 16 项测试、后端 4 项测试通过，覆盖契约漂移、编辑会话、动作状态、播放时钟、DOM/CSS 层、会话隔离、审核同步与并发、HTTP 生成主流程、API 地址和任务恢复。
+- 前端 17 项测试、后端 4 项测试通过，覆盖契约漂移、编辑会话、动作状态、播放时钟、共享 Provider 控制器、DOM/CSS 层、会话隔离、审核同步与并发、HTTP 生成主流程、API 地址和任务恢复。
 - Demo API 已跑通 `queued → generating → awaiting_review`，未调用外部模型。
 - 项目中未保存 API Key、`.env` 或凭据文件。
 - 本地修改的 8 张 Skeleton 行走帧未纳入本次架构提交。

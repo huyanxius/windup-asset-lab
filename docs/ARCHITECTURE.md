@@ -38,7 +38,9 @@ asset-lab/
 │  ├─ sprite-packer.js          # Cocos 图集和 metadata
 │  ├─ game-bridge.js            # 工作台与 Cocos 的消息协议
 │  ├─ drawer-controller.js      # 左侧抽屉生命周期
-│  └─ onboarding-controller.js  # 聚光灯、模式选择和点击引导
+│  ├─ onboarding-controller.js  # 聚光灯、模式选择和点击引导
+│  ├─ provider-session-controller.js # 生成页面共用的 Key/模型连接状态
+│  └─ workflow-stepper.js       # 生成流程步骤状态
 ├─ styles/
 │  ├─ editor.css                # 明确声明七层 CSS Cascade Layers
 │  ├─ foundation.css            # 设计变量和基础组件
@@ -96,6 +98,8 @@ queued → generating → awaiting_review → approved
                     ↘ failed
 服务重启中的活动任务 → interrupted
 ```
+
+完整的“需求 → 规格 → 候选 → 质检 → 审核 → 采用 → Cocos → 发布”退出条件见 `ENGINEERING_PLAYBOOK.md`。本文件定义代码结构，Playbook 定义团队如何持续使用这套结构。
 
 ## 人物交互契约
 
@@ -155,6 +159,19 @@ queued → generating → awaiting_review → approved
 - HTML 不写行内样式，业务逻辑不能依赖颜色或动画类名。
 - 不手工编辑 `generated-contract.js`、`.d.ts` 或 `.py`；改动必须从版本化契约生成。
 - 不把 API Key 写入全局配置、任务 JSON、浏览器存储或日志；一个会话不得覆盖另一个会话的模型与凭据。
+- `generate.js` 与 `create-character.js` 必须复用 provider controller 和 stepper，不再复制 Key 连接与流程状态。
+
+## 自动架构门禁
+
+`tools/check-boundaries.mjs` 在每次验证中检查：
+
+- `core → pages/features` 和 `features → pages` 的逆向依赖。
+- 绕过 `api-client` 的浏览器 `fetch`。
+- 绕过 `PlaybackClock` 的动画 interval。
+- HTTP 适配层重新吸收业务/存储逻辑或超过合理体积。
+- 全局 API Key 写入、硬编码运行地址和生成契约漂移。
+
+规则应尽可能由机器执行；文档只保留无法自动判断的产品语义和取舍。
 
 ## 最小自检
 

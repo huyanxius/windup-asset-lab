@@ -166,7 +166,12 @@ node tools/import-windup-sheet.js \
 
 ## Architecture
 
-详细的模块边界、状态所有权与扩展规则见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+详细工程入口：
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：系统结构、模块边界与状态所有权。
+- [`docs/ENGINEERING_PLAYBOOK.md`](docs/ENGINEERING_PLAYBOOK.md)：从需求、生成、审核到发布的完整流程与升级触发条件。
+- [`docs/DECISIONS.md`](docs/DECISIONS.md)：关键架构决策及其不可随意破坏的原因。
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)：新人进入、改动位置、完成标准与 Review 顺序。
 
 | Layer | Implementation | Responsibility |
 |---|---|---|
