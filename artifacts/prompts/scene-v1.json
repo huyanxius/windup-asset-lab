@@ -1,0 +1,7 @@
+{
+  "model": "openai/gpt-image-2",
+  "size": "1536x864",
+  "quality": "medium",
+  "output_format": "png",
+  "prompt": "Create a wide 16:9 side-view 2D pixel-art game background with NO people, NO animals, NO text and NO interface. A quiet old Chinese residential street at night in the mid-20th century: wet stone pavement, worn plaster walls, wooden doors, narrow windows, overhead wires, three old gas street lamps at different distances, a tiny closed repair shop, subtle rain and mist. Literary and humanistic atmosphere, poetic realism, pixel woodcut and vintage illustrated-book texture. Restrained palette only: deep indigo night, charcoal grey, muted brick red, aged paper brown, tiny accents of warm amber lamp light. Large areas of darkness, strong readable silhouettes, detailed but not noisy pixel clusters, authentic handcrafted pixel art, no smooth vector shapes, no neon cyberpunk colors, no glossy 3D, no painterly blur. Designed as a playable horizontal platform-like scene with a clear continuous walking ground across the lower third and enough empty space around the character area. Pixel-perfect visual language as if authored at 480x270 and enlarged with nearest-neighbor scaling."
+}

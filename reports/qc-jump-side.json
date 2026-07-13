@@ -1,0 +1,220 @@
+{
+  "generatedAt": "2026-07-13T11:18:46.991Z",
+  "input": {
+    "framesDir": "/Users/huyan/Desktop/点灯人/assets/resources/character/views/side",
+    "prefix": "jump",
+    "frames": 8,
+    "fps": 8,
+    "loop": false,
+    "profile": "jump"
+  },
+  "score": 67,
+  "passed": false,
+  "metrics": {
+    "footDrift": 1,
+    "heightDrift": 1,
+    "maxStep": 23.82519636435603,
+    "medianStep": 5.105388232606647,
+    "maxAreaDelta": 42.82962249472085,
+    "seamDistance": 5.859682526664942,
+    "seamAreaDelta": 23.49091619456925
+  },
+  "checks": [
+    {
+      "name": "帧数",
+      "pass": true,
+      "detail": "8 帧"
+    },
+    {
+      "name": "画布一致",
+      "pass": true,
+      "detail": "8/8 帧已读取"
+    },
+    {
+      "name": "透明背景",
+      "pass": true,
+      "detail": "最低透明区比例 58.5%"
+    },
+    {
+      "name": "脚底线偏差",
+      "pass": null,
+      "detail": "跳跃动作不使用固定脚底线判定"
+    },
+    {
+      "name": "主体高度偏差",
+      "pass": true,
+      "detail": "1px / 基准 7px"
+    },
+    {
+      "name": "相邻帧位移连续性",
+      "pass": false,
+      "detail": "最大 23.8px，中值 5.1px",
+      "recommendation": "检查跳变帧、错序帧或不稳定的人物位置。"
+    },
+    {
+      "name": "轮廓面积波动",
+      "pass": false,
+      "detail": "最大 42.8% / 阈值 28%",
+      "recommendation": "检查人物是否忽大忽小或服装轮廓突变。"
+    },
+    {
+      "name": "循环首尾接缝",
+      "pass": null,
+      "detail": "单次动作，不适用"
+    }
+  ],
+  "frames": [
+    {
+      "file": "jump-01.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 20476,
+      "transparentRatio": 0.686370849609375,
+      "bbox": {
+        "minX": 47,
+        "minY": 30,
+        "maxX": 209,
+        "maxY": 237,
+        "width": 163,
+        "height": 208
+      },
+      "centroid": {
+        "x": 131.53062121508108,
+        "y": 137.5553330728658
+      }
+    },
+    {
+      "file": "jump-02.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 23748,
+      "transparentRatio": 0.63555908203125,
+      "bbox": {
+        "minX": 35,
+        "minY": 31,
+        "maxX": 220,
+        "maxY": 237,
+        "width": 186,
+        "height": 207
+      },
+      "centroid": {
+        "x": 130.4330891022402,
+        "y": 137.86563078996127
+      }
+    },
+    {
+      "file": "jump-03.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 15336,
+      "transparentRatio": 0.7647705078125,
+      "bbox": {
+        "minX": 63,
+        "minY": 30,
+        "maxX": 193,
+        "maxY": 237,
+        "width": 131,
+        "height": 208
+      },
+      "centroid": {
+        "x": 127.93420709441837,
+        "y": 126.40095200834638
+      }
+    },
+    {
+      "file": "jump-04.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 15393,
+      "transparentRatio": 0.7639007568359375,
+      "bbox": {
+        "minX": 61,
+        "minY": 30,
+        "maxX": 194,
+        "maxY": 237,
+        "width": 134,
+        "height": 208
+      },
+      "centroid": {
+        "x": 128.92886376924577,
+        "y": 127.0936139803807
+      }
+    },
+    {
+      "file": "jump-05.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 18930,
+      "transparentRatio": 0.70965576171875,
+      "bbox": {
+        "minX": 50,
+        "minY": 30,
+        "maxX": 206,
+        "maxY": 236,
+        "width": 157,
+        "height": 207
+      },
+      "centroid": {
+        "x": 126.91801373481246,
+        "y": 131.7863180137348
+      }
+    },
+    {
+      "file": "jump-06.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 15432,
+      "transparentRatio": 0.7629547119140625,
+      "bbox": {
+        "minX": 42,
+        "minY": 31,
+        "maxX": 213,
+        "maxY": 237,
+        "width": 172,
+        "height": 207
+      },
+      "centroid": {
+        "x": 114.43824520476932,
+        "y": 126.91925868325558
+      }
+    },
+    {
+      "file": "jump-07.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 26993,
+      "transparentRatio": 0.5853729248046875,
+      "bbox": {
+        "minX": 23,
+        "minY": 30,
+        "maxX": 233,
+        "maxY": 236,
+        "width": 211,
+        "height": 207
+      },
+      "centroid": {
+        "x": 135.17448968251028,
+        "y": 138.651613381247
+      }
+    },
+    {
+      "file": "jump-08.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 15666,
+      "transparentRatio": 0.7597198486328125,
+      "bbox": {
+        "minX": 68,
+        "minY": 31,
+        "maxX": 188,
+        "maxY": 237,
+        "width": 121,
+        "height": 207
+      },
+      "centroid": {
+        "x": 137.37616494318908,
+        "y": 137.9621473254181
+      }
+    }
+  ]
+}

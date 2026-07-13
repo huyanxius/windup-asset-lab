@@ -1,0 +1,218 @@
+{
+  "generatedAt": "2026-07-13T11:15:43.794Z",
+  "input": {
+    "framesDir": "/Users/huyan/Desktop/点灯人/assets/resources/character/frames",
+    "prefix": "walk",
+    "frames": 8,
+    "fps": 8,
+    "loop": true,
+    "profile": "locomotion"
+  },
+  "score": 100,
+  "passed": true,
+  "metrics": {
+    "footDrift": 0,
+    "heightDrift": 1,
+    "maxStep": 5.230512888189775,
+    "medianStep": 2.9317424313905676,
+    "maxAreaDelta": 7.131460284425946,
+    "seamDistance": 3.937767994535007,
+    "seamAreaDelta": 4.136475553992262
+  },
+  "checks": [
+    {
+      "name": "帧数",
+      "pass": true,
+      "detail": "8 帧"
+    },
+    {
+      "name": "画布一致",
+      "pass": true,
+      "detail": "8/8 帧已读取"
+    },
+    {
+      "name": "透明背景",
+      "pass": true,
+      "detail": "最低透明区比例 77.0%"
+    },
+    {
+      "name": "脚底线偏差",
+      "pass": true,
+      "detail": "0px / 阈值 3px"
+    },
+    {
+      "name": "主体高度偏差",
+      "pass": true,
+      "detail": "1px / 基准 7px"
+    },
+    {
+      "name": "相邻帧位移连续性",
+      "pass": true,
+      "detail": "最大 5.2px，中值 2.9px"
+    },
+    {
+      "name": "轮廓面积波动",
+      "pass": true,
+      "detail": "最大 7.1% / 阈值 18%"
+    },
+    {
+      "name": "循环首尾接缝",
+      "pass": true,
+      "detail": "位移 3.9px，面积 4.1%"
+    }
+  ],
+  "frames": [
+    {
+      "file": "walk-01.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 14215,
+      "transparentRatio": 0.7816314697265625,
+      "bbox": {
+        "minX": 68,
+        "minY": 30,
+        "maxX": 187,
+        "maxY": 237,
+        "width": 120,
+        "height": 208
+      },
+      "centroid": {
+        "x": 131.29243756595147,
+        "y": 132.26056982061203
+      }
+    },
+    {
+      "file": "walk-02.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 14426,
+      "transparentRatio": 0.77880859375,
+      "bbox": {
+        "minX": 66,
+        "minY": 30,
+        "maxX": 189,
+        "maxY": 237,
+        "width": 124,
+        "height": 208
+      },
+      "centroid": {
+        "x": 133.3154720643283,
+        "y": 130.81623457645918
+      }
+    },
+    {
+      "file": "walk-03.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 13825,
+      "transparentRatio": 0.7878875732421875,
+      "bbox": {
+        "minX": 71,
+        "minY": 31,
+        "maxX": 185,
+        "maxY": 237,
+        "width": 115,
+        "height": 207
+      },
+      "centroid": {
+        "x": 129.1493670886076,
+        "y": 131.09728752260398
+      }
+    },
+    {
+      "file": "walk-04.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 13387,
+      "transparentRatio": 0.7944793701171875,
+      "bbox": {
+        "minX": 75,
+        "minY": 30,
+        "maxX": 180,
+        "maxY": 237,
+        "width": 106,
+        "height": 208
+      },
+      "centroid": {
+        "x": 128.62418764472997,
+        "y": 128.21296780458653
+      }
+    },
+    {
+      "file": "walk-05.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 14415,
+      "transparentRatio": 0.778594970703125,
+      "bbox": {
+        "minX": 72,
+        "minY": 30,
+        "maxX": 184,
+        "maxY": 237,
+        "width": 113,
+        "height": 208
+      },
+      "centroid": {
+        "x": 132.36559139784947,
+        "y": 131.86812348248353
+      }
+    },
+    {
+      "file": "walk-06.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 14973,
+      "transparentRatio": 0.770233154296875,
+      "bbox": {
+        "minX": 65,
+        "minY": 30,
+        "maxX": 190,
+        "maxY": 237,
+        "width": 126,
+        "height": 208
+      },
+      "centroid": {
+        "x": 133.06391504708475,
+        "y": 132.69091030521605
+      }
+    },
+    {
+      "file": "walk-07.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 14057,
+      "transparentRatio": 0.784271240234375,
+      "bbox": {
+        "minX": 70,
+        "minY": 30,
+        "maxX": 185,
+        "maxY": 237,
+        "width": 116,
+        "height": 208
+      },
+      "centroid": {
+        "x": 129.46837874368643,
+        "y": 131.3934694458277
+      }
+    },
+    {
+      "file": "walk-08.png",
+      "width": 256,
+      "height": 256,
+      "opaque": 13627,
+      "transparentRatio": 0.791015625,
+      "bbox": {
+        "minX": 75,
+        "minY": 30,
+        "maxX": 181,
+        "maxY": 237,
+        "width": 107,
+        "height": 208
+      },
+      "centroid": {
+        "x": 128.63176047552653,
+        "y": 129.35767226829088
+      }
+    }
+  ]
+}
