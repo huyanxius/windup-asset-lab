@@ -6,14 +6,15 @@ Windup 是一套面向 2D 游戏角色的资产工作流原型。它将角色生
 
 > 目标不是生成“一组看起来不错的图”，而是交付“一组经过审核、可修复、可追溯、进入引擎即可播放的角色资产”。
 
-## Two repositories, one workflow
+## Three repositories, one product
 
-Windup 由两个队内仓库协同构成。两者职责独立，交付协议一致。
+Windup 是本次比赛主项目的角色资产子系统，由三个队内仓库协同构成。主仓库管理比赛项目整体交付，本仓库负责产品化工作台，队友仓库负责角色生成管线。
 
 | Repository | Ownership | Responsibility |
 |---|---|---|
-| **[windup-asset-lab](https://github.com/huyanxius/windup-asset-lab)** | 本仓库 | 生成入口、资产管理、逐帧审核、质检门禁、导出与 Cocos 联调 |
-| **[windup-pipeline](https://github.com/johnnyzhang-eng/windup-pipeline)** | 队友 `johnnyzhang-eng` | 角色资产生成与处理管线、动作帧组织及资产实验实现 |
+| **[game-asset-character](https://github.com/huyanxius/game-asset-character)** | 比赛主仓库 | 项目总入口、整体产品交付与比赛材料组织 |
+| **[windup-asset-lab](https://github.com/huyanxius/windup-asset-lab)** | 当前子系统 | 生成入口、资产管理、逐帧审核、质检门禁、导出与 Cocos 联调 |
+| **[windup-pipeline](https://github.com/johnnyzhang-eng/windup-pipeline)** | 队友管线 | 角色资产生成与处理、动作帧组织及资产实验实现 |
 
 本仓库中的 `Boy`、`Skeleton` 和 `Lirael` 演示角色用于验证队友管线产物的导入、展示与播放。角色卡和 provenance 保留在 `artifacts/characters/`，集成适配层位于 `server/windup_pipeline/`。
 
@@ -105,17 +106,17 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory build/lamplighter-mvp
 
 ### Enable a generation provider
 
-API 凭据只能注入后端进程，不得写入前端、Cocos 资产、`.env` 样例或 Git 记录。
+API 凭据可以在生成界面中连接，仅保留在当前后端进程内存；也可通过环境变量注入。凭据不得写入前端源码、浏览器存储、Cocos 资产或 Git 记录。
 
 ```bash
-SUFY_KEY="your-key" python3 server/app.py
+QNAIGC_KEY="your-key" python3 server/app.py
 ```
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `SUFY_KEY` | OpenAI-compatible image API credential | none |
-| `SUFY_BASE` | API base URL | `https://openai.sufy.com/v1` |
-| `SUFY_IMAGE_MODEL` | Image generation model | `gemini-2.5-flash-image` |
+| `QNAIGC_KEY` | 七牛云 QnAIGC API credential | none |
+| `QNAIGC_BASE` | API base URL | `https://api.qnaigc.com/v1` |
+| `QNAIGC_IMAGE_MODEL` | Image generation model | `gemini-2.5-flash-image` |
 
 ## Generation API
 
@@ -202,10 +203,11 @@ Windup 保留三个人工决策点：
 - 将单帧退回、相邻帧约束和候选替换闭环为稳定产品流程。
 - 将模型、提示版本、成本、耗时和质检结果收敛到统一批次记录。
 - 将本地文件任务管理升级为持久化队列与对象存储。
-- 以版本化 package 或 API 稳定双仓库协作边界。
+- 以版本化 package 或 API 稳定三仓库协作边界。
 
 ## Credits
 
+- **Competition project and primary entry:** [huyanxius/game-asset-character](https://github.com/huyanxius/game-asset-character)
 - **Asset generation pipeline and teammate assets:** [johnnyzhang-eng/windup-pipeline](https://github.com/johnnyzhang-eng/windup-pipeline)
 - **Asset studio, review workflow and Cocos integration:** [huyanxius/windup-asset-lab](https://github.com/huyanxius/windup-asset-lab)
 

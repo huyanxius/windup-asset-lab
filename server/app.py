@@ -33,6 +33,11 @@ DEMO_MODE = os.environ.get("WINDUP_DEMO") == "1"
 VIEWS = {"side", "topdown", "isometric"}
 ACTIONS = {"idle", "walk", "run", "jump", "lantern"}
 SAFE_ID = re.compile(r"^[a-z0-9-]+$")
+IMAGE_MODELS = [
+    "gemini-2.5-flash-image",
+    "gemini-3.1-flash-image-preview",
+    "gemini-3.0-pro-image-preview",
+]
 
 CATALOG = {
     "lamplighter": {
@@ -213,7 +218,7 @@ def provenance(job: dict, frame_index: int, pose: str, elapsed: float, mode: str
         "action": job["request"]["action"],
         "frame": frame_index,
         "prompt": pose,
-        "model": os.environ.get("SUFY_IMAGE_MODEL", "gemini-2.5-flash-image"),
+        "model": generate.config.IMAGE_MODEL,
         "mode": mode,
         "elapsed_s": round(elapsed, 2),
         "aigc_label": "AI-generated" if mode == "live" else "demo-copy",
@@ -230,6 +235,7 @@ def run_job(job_id: str) -> None:
     view = request["view"]
     action = request["action"]
     mode = request["mode"]
+    custom_prompt = request.get("customPrompt", "")
     frame_indices = [request["frameIndex"]] if mode == "single" else list(range(len(POSES[action])))
     job_root = JOBS_ROOT / job_id
     outputs = []
@@ -241,7 +247,7 @@ def run_job(job_id: str) -> None:
         if not base.exists():
             raise RuntimeError("角色母版不存在")
         if not live and not DEMO_MODE:
-            raise RuntimeError("生成服务未配置：请在后端设置 SUFY_KEY，或用 --demo 验证管线")
+            raise RuntimeError("生成服务未配置：请在生成界面连接七牛云 Key，或用 --demo 验证管线")
 
         for order, frame_index in enumerate(frame_indices):
             pose = POSES[action][frame_index]
@@ -258,10 +264,13 @@ def run_job(job_id: str) -> None:
             )
 
             if live:
+                frame_prompt = pose + f"; true {view} game view; preserve exact pixel-art style"
+                if custom_prompt:
+                    frame_prompt += f"; creator constraints: {custom_prompt}"
                 ok = generate.gen_frame(
                     str(base),
                     CATALOG[character_id]["description"],
-                    pose + f"; true {view} game view; preserve exact pixel-art style",
+                    frame_prompt,
                     str(raw),
                 )
                 if not ok:
@@ -301,8 +310,11 @@ def create_job(payload: dict) -> dict:
     view = str(payload.get("view", ""))
     action = str(payload.get("action", ""))
     mode = str(payload.get("mode", "full"))
+    custom_prompt = str(payload.get("customPrompt", "")).strip()
     if character_id not in CATALOG or view not in VIEWS or action not in ACTIONS or mode not in {"full", "single"}:
         raise ValueError("生成参数不合法")
+    if len(custom_prompt) > 800:
+        raise ValueError("画面约束不能超过 800 字")
     frame_index = int(payload.get("frameIndex", 0))
     if not 0 <= frame_index < len(POSES[action]):
         raise ValueError("帧号越界")
@@ -313,7 +325,7 @@ def create_job(payload: dict) -> dict:
         "status": "queued",
         "progress": 0,
         "message": "已进入生成队列",
-        "request": {"character": character_id, "view": view, "action": action, "mode": mode, "frameIndex": frame_index, "fps": 8},
+        "request": {"character": character_id, "view": view, "action": action, "mode": mode, "frameIndex": frame_index, "fps": 8, "customPrompt": custom_prompt},
         "outputs": [],
         "createdAt": now_iso(),
         "updatedAt": now_iso(),
@@ -372,10 +384,13 @@ class Handler(SimpleHTTPRequestHandler):
                 "ok": True,
                 "configured": bool(generate.config.API_KEY),
                 "demo": DEMO_MODE,
-                "provider": "OpenAI-compatible / Sufy",
-                "model": os.environ.get("SUFY_IMAGE_MODEL", "gemini-2.5-flash-image"),
+                "provider": "七牛云 QnAIGC",
+                "model": generate.config.IMAGE_MODEL,
                 "characters": [{"id": key, "label": value["label"]} for key, value in CATALOG.items()],
             })
+            return
+        if path == "/api/provider/models":
+            self.send_json({"provider": "七牛云 QnAIGC", "models": IMAGE_MODELS, "selected": generate.config.IMAGE_MODEL})
             return
         if path == "/api/characters":
             self.send_json({"characters": [{"id": key, **character_card(key)} for key in CATALOG]})
@@ -394,11 +409,17 @@ class Handler(SimpleHTTPRequestHandler):
                 if self.headers.get("X-Windup-Request") != "studio":
                     self.send_json({"error": "非法请求"}, 403)
                     return
-                api_key = str(self.read_json().get("apiKey", "")).strip()
+                payload = self.read_json()
+                api_key = str(payload.get("apiKey", "")).strip()
+                model = str(payload.get("model", "")).strip() or IMAGE_MODELS[0]
                 if not 16 <= len(api_key) <= 512 or any(char.isspace() for char in api_key):
                     raise ValueError("API Key 格式不合法")
+                if model not in IMAGE_MODELS:
+                    raise ValueError("不支持的图像模型")
                 generate.config.API_KEY = api_key
-                self.send_json({"ok": True, "configured": True, "storage": "process-memory"})
+                generate.config.API_BASE = "https://api.qnaigc.com/v1"
+                generate.config.IMAGE_MODEL = model
+                self.send_json({"ok": True, "configured": True, "storage": "process-memory", "model": model})
                 return
             if path == "/api/generations":
                 self.send_json(create_job(self.read_json()), 202)

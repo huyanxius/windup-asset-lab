@@ -130,8 +130,8 @@ const els = collect([
   'packerModal', 'closePackerBtn', 'spriteCanvas', 'spriteJson', 'spriteMeta', 'downloadPackBtn', 'anchorCoords',
   // 生成中心
   'generationModal', 'closeGenerateBtn', 'providerDot', 'providerStatus', 'genPortrait', 'genCharacterName',
-  'providerKeyInput', 'saveProviderKeyBtn',
-  'genView', 'genAction', 'genMode', 'genFrameField', 'genFrame', 'startGenerationBtn', 'genBatch',
+  'providerKeyInput', 'providerModel', 'saveProviderKeyBtn',
+  'genView', 'genAction', 'genMode', 'genFrameField', 'genFrame', 'genPrompt', 'startGenerationBtn', 'genBatch',
   'genPercent', 'genProgress', 'genMessage', 'candidateGrid', 'promoteJobBtn',
 ]);
 
@@ -737,7 +737,12 @@ async function openGenerationStudio(singleFrame = false) {
   setGenerationMode();
   els.generationModal.showModal();
   try {
-    const health = await requestJson('/api/health');
+    const [health, provider] = await Promise.all([
+      requestJson('/api/health'),
+      requestJson('/api/provider/models'),
+    ]);
+    els.providerModel.innerHTML = provider.models.map((model) => `<option value="${model}">${model}</option>`).join('');
+    els.providerModel.value = provider.selected;
     els.providerDot.className = 'ready';
     els.providerStatus.textContent = health.demo
       ? 'Demo 管线已就绪 · 不消耗 API'
@@ -758,7 +763,7 @@ async function saveProviderKey() {
     await requestJson('/api/provider/session', {
       method: 'POST',
       headers: { 'X-Windup-Request': 'studio' },
-      body: JSON.stringify({ apiKey }),
+      body: JSON.stringify({ apiKey, model: els.providerModel.value }),
     });
     els.providerKeyInput.value = '';
     els.providerDot.className = 'ready';
@@ -810,7 +815,8 @@ async function startGeneration() {
     const job = await requestJson('/api/generations', {
       method: 'POST',
       body: JSON.stringify({ character: activeCharacterId, view: els.genView.value, action: els.genAction.value,
-        mode: els.genMode.value, frameIndex: Math.max(0, Math.min(7, Number(els.genFrame.value) - 1)) }),
+        mode: els.genMode.value, frameIndex: Math.max(0, Math.min(7, Number(els.genFrame.value) - 1)),
+        customPrompt: els.genPrompt.value.trim() }),
     });
     renderGenerationJob(job);
     pollGeneration(job.id);
