@@ -32,6 +32,7 @@ test('provider controller owns connection state and clears the submitted key', a
 });
 
 test('provider readiness accepts the running v1 backend and respects explicit rejection', () => {
+  assert.equal(providerIsReady({ demo: true, configured: false, verified: false }), true);
   assert.equal(providerIsReady({ configured: true }), true);
   assert.equal(providerIsReady({ configured: true, verified: true }), true);
   assert.equal(providerIsReady({ configured: true, verified: false }), false);
