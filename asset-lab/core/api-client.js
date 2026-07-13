@@ -1,0 +1,51 @@
+const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);
+
+export class ApiError extends Error {
+  constructor(message, status, payload = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
+export function resolveApiBase(locationLike = globalThis.location) {
+  if (globalThis.WINDUP_API_BASE) return String(globalThis.WINDUP_API_BASE).replace(/\/$/, '');
+  if (LOCAL_HOSTS.has(locationLike.hostname) && locationLike.port !== '4174') {
+    return 'http://127.0.0.1:4174';
+  }
+  return '';
+}
+
+export function createApiClient(baseUrl = resolveApiBase()) {
+  async function request(path, options = {}) {
+    const response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        Accept: 'application/json',
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.headers || {}),
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new ApiError(payload.error || `请求失败（HTTP ${response.status}）`, response.status, payload);
+    }
+    return payload;
+  }
+
+  return {
+    baseUrl,
+    get: (path) => request(path),
+    post: (path, body, headers = {}) => request(path, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    }),
+    assetUrl(path) {
+      if (!path || /^https?:/.test(path)) return path;
+      if (path.startsWith('../') || path.startsWith('./')) return path;
+      return baseUrl ? `${baseUrl}/${path.replace(/^\//, '')}` : `/${path.replace(/^\//, '')}`;
+    },
+  };
+}
