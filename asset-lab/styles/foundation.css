@@ -876,13 +876,13 @@ textarea {
 
 .reject-btn {
   color: var(--rust);
-  border-color: #bd8b80;
+  border-color: #bd8b80 !important;
 }
 
 .approve-btn {
-  color: white;
-  background: var(--green);
-  border-color: var(--green);
+  color: white !important;
+  background: var(--green) !important;
+  border-color: var(--green) !important;
 }
 
 .export-gate {
