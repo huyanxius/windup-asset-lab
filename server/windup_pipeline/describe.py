@@ -4,7 +4,7 @@
 可扩展的关键：加一个角色 = 加一张图，描述自动来，不写代码、不手写 prompt。
 """
 import json, base64, re
-from . import config
+from . import config, provider
 
 
 def describe_character(ref_path, model=None):
@@ -22,7 +22,7 @@ def describe_character(ref_path, model=None):
         {"type": "text", "text": prompt},
         {"type": "image_url", "image_url": {"url": "data:image/png;base64," + b}},
     ]}]}
-    res = config.post_json("/chat/completions", body)   # 带重试
+    res = provider.post_json("/chat/completions", body)   # 带重试
     content = res["choices"][0]["message"]["content"]
     m = re.search(r'\{.*\}', content, re.S)
     if m:

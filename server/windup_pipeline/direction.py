@@ -16,7 +16,7 @@
 """
 import os, glob, base64, json, re
 from PIL import Image
-from . import config
+from . import config, provider
 
 
 def facing_vlm(path, model=None):
@@ -30,7 +30,7 @@ def facing_vlm(path, model=None):
         {"type": "text", "text": prompt},
         {"type": "image_url", "image_url": {"url": "data:image/png;base64," + b}}]}]}
     try:
-        res = config.post_json("/chat/completions", body, timeout=90)
+        res = provider.post_json("/chat/completions", body, timeout=90)
         m = re.search(r'\{.*\}', res["choices"][0]["message"]["content"], re.S)
         if m:
             return json.loads(m.group(0)).get("facing")
