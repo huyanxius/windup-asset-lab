@@ -1,0 +1,538 @@
+/* Post-spotlight interface choice */
+.mode-cards {
+  position: absolute !important;
+  z-index: 24 !important;
+  left: calc(50% + 164px) !important;
+  top: 50% !important;
+  width: 238px !important;
+  display: grid !important;
+  gap: 12px !important;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(22px, -50%) scale(0.96);
+  transition: opacity 0.34s ease, transform 0.46s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mode-cards.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(0, -50%) scale(1);
+}
+
+.mode-cards.leaving {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(18px, -50%) scale(0.97);
+}
+
+.mode-card {
+  width: 100%;
+  min-height: 92px;
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1d1d1f;
+  text-align: left;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.mode-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 0, 0, 0.18);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.17), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.mode-card:active {
+  transform: translateY(-1px) scale(0.985);
+}
+
+.mode-card .mode-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #ededf0;
+  font-size: 18px;
+}
+
+.mode-card > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.mode-card small {
+  font: 700 8px/1 ui-monospace, SFMono-Regular, monospace;
+  letter-spacing: 0.13em;
+  color: #8e8e93;
+}
+
+.mode-card b {
+  font-size: 14px;
+  letter-spacing: -0.02em;
+}
+
+.mode-card em {
+  font-style: normal;
+  font-size: 9px;
+  line-height: 1.45;
+  color: #777;
+}
+
+.mode-card > i {
+  font-style: normal;
+  color: #8e8e93;
+  font-size: 15px;
+}
+
+.mode-card.primary {
+  background: rgba(29, 29, 31, 0.94);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.13);
+}
+
+.mode-card.primary .mode-icon {
+  background: #343438;
+}
+
+.mode-card.primary small, .mode-card.primary em, .mode-card.primary > i {
+  color: #aaaab0;
+}
+
+.mode-card.primary:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 26px 65px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+@media (max-width: 860px) {
+  .mode-cards {
+    left: 50% !important;
+    top: calc(50% + 190px) !important;
+    grid-template-columns: 1fr 1fr;
+    width: min(500px, calc(100vw - 32px)) !important;
+    transform: translate(-50%, 18px) scale(0.96);
+  }
+
+  .mode-cards.visible {
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  .mode-cards.leaving {
+    transform: translate(-50%, 14px) scale(0.97);
+  }
+
+}
+
+/* Animated mouse cue after entering the editor */
+.character-click-guide {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  top: calc(50% - 100px);
+  width: 220px;
+  height: 120px;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.character-click-guide.leaving {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.character-click-guide b {
+  position: absolute;
+  left: 30px;
+  top: 78px;
+  padding: 8px 13px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.13);
+  color: #1d1d1f;
+  font-size: 11px;
+  white-space: nowrap;
+  backdrop-filter: blur(16px);
+  animation: guide-label 1.8s ease-in-out infinite;
+}
+
+.guide-cursor {
+  position: absolute;
+  left: -11px;
+  top: 33px;
+  width: 22px;
+  height: 34px;
+  border: 2px solid #1d1d1f;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.18);
+  animation: guide-mouse 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.guide-cursor:before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 5px;
+  width: 2px;
+  height: 7px;
+  border-radius: 2px;
+  background: #1d1d1f;
+}
+
+.guide-ripple {
+  position: absolute;
+  left: 0;
+  top: 50px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(29, 29, 31, 0.58);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.3);
+  opacity: 0;
+  animation: guide-ripple 1.8s ease-out infinite;
+}
+
+@keyframes guide-mouse {
+  0% {
+    opacity: 0;
+    transform: translate(105px, -55px) scale(0.9);
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  56%, 72% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+
+  64% {
+    transform: translate(0, 2px) scale(0.9);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) scale(1);
+  }
+
+}
+
+@keyframes guide-ripple {
+  0%, 55% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+
+  62% {
+    opacity: 0.8;
+  }
+
+  88%, 100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.5);
+  }
+
+}
+
+@keyframes guide-label {
+  0%, 15%, 100% {
+    opacity: 0.58;
+  }
+
+  42%, 82% {
+    opacity: 1;
+  }
+
+}
+
+.sidebar {
+  animation-delay: 2.8s !important;
+}
+
+.view-toolbar {
+  animation-delay: 2.9s !important;
+}
+
+.inspector {
+  animation-delay: 3s !important;
+}
+
+.playback {
+  animation-delay: 3.1s !important;
+}
+
+.timeline-panel {
+  animation-delay: 3.2s !important;
+}
+
+/* Global restrained motion system */
+:root {
+  --motion-spring: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button, summary, select, textarea, .frame-tile, .qc-row, .spec-grid > div {
+  transition: transform 0.22s var(--motion-spring), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.22s ease, opacity 0.2s ease;
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+button:not(:disabled):active {
+  transform: translateY(0) scale(0.97);
+  transition-duration: 0.1s;
+}
+
+.accordion-item[open] .accordion-body {
+  animation: section-reveal 0.34s var(--motion-spring) both;
+}
+
+.accordion-header:active {
+  transform: scale(0.99);
+}
+
+.frame-tile:hover {
+  transform: translateY(-3px) scale(1.015);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.11);
+}
+
+.qc-row:hover, .spec-grid > div:hover {
+  transform: translateX(3px);
+}
+
+select:focus, textarea:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.055);
+  outline: none;
+}
+
+.segmented button.active {
+  animation: control-select 0.3s var(--motion-spring) both;
+}
+
+@keyframes section-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-7px);
+    filter: blur(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+
+}
+
+@keyframes control-select {
+  0% {
+    transform: scale(0.94);
+    opacity: 0.65;
+  }
+
+  70% {
+    transform: scale(1.025);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button, summary, select, textarea, .frame-tile, .qc-row, .spec-grid > div, .accordion-item[open] .accordion-body, .segmented button.active {
+    animation: none !important;
+    transition: none !important;
+  }
+
+}
+
+/* Fine-grained global choreography */
+.tree-row, .action-item, .accordion-item, .status, .saved, .mode-icon, .progress i {
+  transition: transform 0.28s var(--motion-spring), opacity 0.22s ease, background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease, box-shadow 0.28s var(--motion-spring), width 0.32s var(--motion-spring);
+}
+
+.tree-row:hover, .action-item:hover {
+  transform: translateX(3px);
+}
+
+.tree-row:active, .action-item:active {
+  transform: translateX(1px) scale(0.985);
+}
+
+.accordion-item:hover {
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.accordion-item[open] {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.status {
+  will-change: color, border-color, background-color;
+}
+
+.frame-tile {
+  animation: tile-arrive 0.44s var(--motion-spring) both;
+}
+
+.frame-tile:nth-child(2) {
+  animation-delay: 25ms;
+}
+
+.frame-tile:nth-child(3) {
+  animation-delay: 50ms;
+}
+
+.frame-tile:nth-child(4) {
+  animation-delay: 75ms;
+}
+
+.frame-tile:nth-child(5) {
+  animation-delay: 100ms;
+}
+
+.frame-tile:nth-child(6) {
+  animation-delay: 125ms;
+}
+
+.frame-tile:nth-child(7) {
+  animation-delay: 150ms;
+}
+
+.frame-tile:nth-child(8) {
+  animation-delay: 175ms;
+}
+
+.qc-row {
+  animation: detail-arrive 0.34s var(--motion-spring) both;
+}
+
+.qc-row:nth-child(2) {
+  animation-delay: 30ms;
+}
+
+.qc-row:nth-child(3) {
+  animation-delay: 60ms;
+}
+
+.qc-row:nth-child(4) {
+  animation-delay: 90ms;
+}
+
+.qc-row:nth-child(5) {
+  animation-delay: 120ms;
+}
+
+.qc-row:nth-child(6) {
+  animation-delay: 150ms;
+}
+
+.qc-row:nth-child(7) {
+  animation-delay: 180ms;
+}
+
+.mode-cards.visible .mode-card {
+  animation: mode-card-arrive 0.5s var(--motion-spring) both;
+}
+
+.mode-cards.visible .mode-card + .mode-card {
+  animation-delay: 70ms;
+}
+
+.mode-card:hover .mode-icon {
+  transform: rotate(-4deg) scale(1.06);
+}
+
+.playback button, .view-toolbar button, .review-actions button, .export-actions button {
+  will-change: transform;
+}
+
+@keyframes uiFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    filter: blur(8px);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.002);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+
+}
+
+@keyframes tile-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+    filter: blur(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+
+}
+
+@keyframes detail-arrive {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+}
+
+@keyframes mode-card-arrive {
+  from {
+    opacity: 0;
+    transform: translateX(14px) scale(0.97);
+    filter: blur(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-row, .action-item, .accordion-item, .status, .saved, .mode-icon, .progress i, .frame-tile, .qc-row, .mode-card {
+    animation: none !important;
+    transition: none !important;
+  }
+
+}

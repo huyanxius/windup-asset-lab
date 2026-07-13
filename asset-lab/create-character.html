@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Windup · 创建角色</title>
+  <link rel="stylesheet" href="./create-character.css?v=1">
+</head>
+<body>
+  <header class="app-header">
+    <a class="wordmark" href="./"><i>W</i><span><b>Windup</b><small>CHARACTER CREATOR</small></span></a>
+    <nav><span id="serviceState">正在检查生成服务…</span><a href="./characters.html">角色资产库</a><a href="./">审核台</a></nav>
+  </header>
+
+  <main class="creator-layout">
+    <aside class="guide-panel">
+      <small>NEW CHARACTER</small>
+      <h1>创建角色母版</h1>
+      <p>从一个清晰的角色定义开始，生成独立于现有角色的新母版。确认后才会写入资产库。</p>
+      <ol id="workflowSteps">
+        <li class="active" data-step="connect"><i>1</i><span><b>连接服务</b><small>验证 Key 并选择模型</small></span></li>
+        <li data-step="define"><i>2</i><span><b>定义角色</b><small>确定身份与视觉约束</small></span></li>
+        <li data-step="review"><i>3</i><span><b>审核母版</b><small>确认后加入角色库</small></span></li>
+      </ol>
+      <p class="security-note">API Key 只保留在当前后端进程，不写入浏览器、文件或 Git。</p>
+    </aside>
+
+    <section class="form-panel">
+      <header><div><small>GENERATION SETUP</small><h2>生成设置</h2></div><span id="providerState" class="status">未连接</span></header>
+
+      <section class="provider-card">
+        <div class="section-title"><span><b>七牛云 QnAIGC</b><small>先验证凭据，再开放生成</small></span><i id="providerDot"></i></div>
+        <label><span>API Key</span><input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…"></label>
+        <label><span>图像模型</span><select id="model" aria-label="图像模型"><option value="">正在读取模型…</option></select></label>
+        <button id="connectBtn" class="secondary" type="button">验证并连接</button>
+        <p id="connectionMessage" class="message" aria-live="polite"></p>
+      </section>
+
+      <form id="createForm">
+        <div class="section-title"><span><b>角色定义</b><small>可以从模板起步，再自由修改</small></span></div>
+        <div class="templates" aria-label="角色模板">
+          <button type="button" data-template="literary">文艺少年</button>
+          <button type="button" data-template="courier">雾港邮差</button>
+          <button type="button" data-template="herbalist">林间药师</button>
+        </div>
+        <label><span>资产名称</span><input id="assetName" maxlength="40" placeholder="为角色命名" required></label>
+        <label><span>角色定义</span><textarea id="description" maxlength="800" placeholder="描述年龄、身形、发型、服装、克制配色、道具和气质…" required></textarea></label>
+        <div class="spec-row"><span>256 × 256</span><span>透明背景</span><span>中性站姿</span><span>像素风格</span></div>
+        <button id="createBtn" class="primary" type="submit" disabled>连接服务后生成角色母版</button>
+      </form>
+    </section>
+
+    <section class="result-panel" id="resultPanel">
+      <header><div><small>MASTER PREVIEW</small><h2>候选母版</h2></div><span id="jobPercent">—</span></header>
+      <div class="result-stage">
+        <div id="emptyResult" class="empty-result"><i>◇</i><b>等待生成</b><span>候选结果会在这里出现</span></div>
+        <img id="candidateImage" alt="候选角色母版" hidden>
+      </div>
+      <div class="job-state">
+        <div class="progress"><i id="jobProgress"></i></div>
+        <b id="jobTitle">尚未创建任务</b>
+        <p id="jobMessage" aria-live="polite">完成左侧设置后开始生成。</p>
+        <div class="result-actions">
+          <button id="acceptBtn" class="primary" type="button" hidden>确认并加入角色库</button>
+          <a id="libraryLink" href="./characters.html" hidden>前往角色资产库 →</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./create-character.js?v=2"></script>
+</body>
+</html>

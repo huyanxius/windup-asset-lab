@@ -7,7 +7,10 @@
 
 当前已完成一套可运行的 Cocos Creator 3.8.8 游戏 MVP，以及独立的人物资产管理与测试平台。
 
-- 资产平台：`http://127.0.0.1:4174/asset-lab/`
+- 资产审核台：`http://127.0.0.1:4174/asset-lab/`
+- 动作生成：`http://127.0.0.1:4174/asset-lab/generate.html`
+- 角色创建：`http://127.0.0.1:4174/asset-lab/create-character.html`
+- 角色管理：`http://127.0.0.1:4174/asset-lab/characters.html`
 - Cocos 游戏：`http://127.0.0.1:4173/`
 - 帧率：全链路固定 8 FPS
 - 视角：横屏侧视、俯视、2.5D
@@ -28,7 +31,7 @@
 ```bash
 cd /Users/huyan/Desktop/点灯人
 python3 -m http.server 4173 --bind 127.0.0.1 --directory build/lamplighter-mvp
-python3 -m http.server 4174 --bind 127.0.0.1 --directory /Users/huyan/Desktop/点灯人
+python3 -m server.app --demo
 ```
 
 如需编辑 Cocos 项目：
@@ -48,26 +51,50 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - 一键进入独立 Cocos 游戏。
 - 预览舞台可直接操控人物和自动巡走。
 - 左侧资产栏为 macOS 毛玻璃抽屉：默认收起，鼠标移入左侧热区展开，移出后自动收回。
+- 人物点击统一走动作状态机：开始、暂停、从原位置恢复，不再依赖事件冒泡。
+- 角色创建、角色管理、动作生成和逐帧审核为四个独立页面，共用 API 与任务轮询模块。
+- 新角色确认入库后会自动进入角色管理、动作生成与审核台角色目录。
 
-## 5. 资产缺口
+## 5. 架构入口
+
+- `docs/ARCHITECTURE.md`：模块边界、状态所有权、扩展步骤与维护红线。
+- `docs/ENGINEERING_PLAYBOOK.md`：端到端资产流程、数据寿命、故障处理和生产升级阈值。
+- `docs/DECISIONS.md`：当前必须保持的架构决策。
+- `CONTRIBUTING.md` / `AGENTS.md`：人类和 AI 协作者的固定开发规则。
+- `asset-lab/core/`：编辑会话、动作状态、播放时钟、API、任务轮询和审核持久化。
+- `asset-lab/features/`：质检、图集打包、Cocos 通信、抽屉和启动引导。
+- `asset-lab/pages/editor.js`：Composition Root；渲染与输入分别在 `editor-view.js`、`editor-bindings.js`。
+- `asset-lab/styles/`：基础、表面、抽屉、布局、组件、集成和动效七层样式，不再使用巨型单文件。
+- `server/windup_pipeline/domain.py`：内建角色目录与自动生成契约的统一导出。
+- `contracts/windup.v1.json`：前后端唯一产品契约；通过工具生成 JS 类型与 Python 常量。
+- `server/windup_pipeline/application.py`：独立应用用例；`server/app.py` 只负责 HTTP 适配。
+- `server/windup_pipeline/session_store.py`：会话级 Key/模型隔离，不进入磁盘任务。
+- `server/windup_pipeline/review_store.py`：版本化审核状态与并发冲突保护。
+- `server/windup_pipeline/provider.py`：七牛云鉴权、请求、重试和错误映射。
+- `server/windup_pipeline/job_store.py`：可替换的任务持久化边界。
+- `server/windup_pipeline/processing.py`：抠图与帧归一化。
+
+## 6. 资产缺口
 
 - 俯视和 2.5D 仍需补齐 idle、jump、lantern 等动作。
 - 横屏可继续补 attack、受击、倒地、交互等动作。
 - 俯视与 2.5D 的镜头角度区分仍需进一步拉大。
 - 几何质检不能判断脚步语义、解剖和风格一致性，仍需人工逐帧审核。
 
-## 6. 下一步建议
+## 7. 下一步建议
 
 1. 补齐三视角的共用动作矩阵。
 2. 实现“退回单帧 → 带相邻帧重生成 → 新批次替换”。
 3. 将生成模型、提示词、参考图版本、成本与耗时自动写入批次。
 4. 将角色母版约束转为可计算特征，增加跨视角一致性评分。
 
-## 7. 交付验证
+## 8. 交付验证
 
 - Cocos Creator Web 构建成功。
 - 资产平台与 Cocos 联调成功，实测 `topdown / walk / 8帧`。
 - 手动移动、自动巡走、停止待机已验证。
 - 最终测试未发现 JavaScript 运行错误。
+- 前端 19 项测试、后端 4 项测试通过，覆盖新旧后端许可兼容、抽屉/胶片栏/全屏布局回归、契约漂移、编辑会话、动作状态、播放时钟、共享 Provider 控制器、会话隔离、审核同步与并发、HTTP 生成主流程、API 地址和任务恢复。
+- Demo API 已跑通 `queued → generating → awaiting_review`，未调用外部模型。
 - 项目中未保存 API Key、`.env` 或凭据文件。
-
+- 本地修改的 8 张 Skeleton 行走帧未纳入本次架构提交。

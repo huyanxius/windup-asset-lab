@@ -28,9 +28,7 @@ node_modules/
 *.bak
 assets/resources/character.zip.meta
 
-# Generation runtime: jobs may contain API-produced images and prompts.
-/generation-data/jobs/
-/generation-data/backups/
-/generation-data/provenance.jsonl
+# Generation runtime may contain API-produced images, prompts and character cards.
+/generation-data/
 .env
 .env.*

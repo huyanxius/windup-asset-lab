@@ -1,0 +1,412 @@
+/* WHITE FLOATING PANELS (NO BLOCKING)       */
+/* ========================================= */
+/* 1. True Full-Screen Canvas */
+.app-shell {
+  display: block !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+.workspace {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  padding: 0 !important;
+  z-index: 10 !important;
+  pointer-events: none !important;
+}
+
+.content-grid {
+  display: block !important;
+  height: 100% !important;
+}
+
+.preview-column {
+  display: block !important;
+  height: 100% !important;
+}
+
+.stage {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  pointer-events: auto !important;
+  perspective: none !important;
+}
+
+/* 2. Fix Transparent Background (Obvious White/Grey Checkerboard) */
+.stage.checker {
+  background-color: #eee !important;
+  background-image: linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(-45deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(-45deg, transparent 75%, #ddd 75%) !important;
+  background-size: 24px 24px !important;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0 !important;
+}
+
+.stage.show-grid:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(#d1d3d6 1px, transparent 1px) !important;
+  background-size: 20px 20px !important;
+  background-position: 0 0 !important;
+  pointer-events: none;
+}
+
+/* Center character properly */
+.stage img {
+  bottom: calc(50% - 18px) !important;
+  left: 50% !important;
+}
+
+.ground-plane {
+  bottom: calc(50% - 25px) !important;
+}
+
+.anchor-dot {
+  bottom: calc(50% - 3px) !important;
+  left: calc(50% - 3px) !important;
+}
+
+.guide.baseline {
+  bottom: 50% !important;
+}
+
+.stage-note {
+  z-index: 5 !important;
+}
+
+/* 3. Floating White Panels (Glass) */
+.sidebar, .inspector, .topbar, .view-toolbar, .playback, .timeline-panel {
+  pointer-events: auto !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(24px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+  border-radius: 24px !important;
+  color: #111 !important;
+}
+
+.sidebar .brand small, .sidebar .eyebrow, .sidebar .tree-row small, .sidebar .action-item small, .sidebar .batch-card {
+  color: #666 !important;
+}
+
+.sidebar .brand-mark {
+  color: #fff !important;
+  background: #111 !important;
+}
+
+.sidebar .tree-row:hover, .sidebar .action-item:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+.sidebar .tree-row.active, .sidebar .action-item.active {
+  background: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  color: #000 !important;
+}
+
+.sidebar .project-switch, .sidebar .batch-card {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.sidebar .batch-card b {
+  color: #111 !important;
+}
+
+.sidebar .action-item em {
+  border-color: rgba(0, 0, 0, 0.2) !important;
+  color: #555 !important;
+}
+
+/* Left Drawer */
+.sidebar {
+  position: absolute !important;
+  left: 20px !important;
+  top: 20px !important;
+  height: max-content !important;
+  max-height: calc(100vh - 40px) !important;
+  width: 280px !important;
+  margin: 0 !important;
+  z-index: 50 !important;
+}
+
+.sidebar::before {
+  display: none !important;
+}
+
+body.sidebar-collapsed .sidebar {
+  transform: translateX(-120%) !important;
+}
+
+/* W drawer opening motion */
+body.sidebar-collapsed .sidebar-reveal span {
+  animation: w-breathe 2.2s ease-in-out infinite;
+}
+
+body.sidebar-collapsed .sidebar-reveal::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 1px solid rgba(29, 29, 31, 0.18);
+  border-radius: 19px;
+  pointer-events: none;
+  animation: w-ring 2.2s ease-out infinite;
+}
+
+.sidebar-reveal:hover {
+  transform: translateY(-2px) scale(1.05) !important;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2), inset 0 1px 0 #fff;
+}
+
+body.drawer-opening .sidebar {
+  animation: drawer-spring-in 0.52s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+body.drawer-opening .sidebar > :not(.drawer-grip):not(.sidebar-toggle) {
+  animation: drawer-content-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+body.drawer-opening .sidebar .brand {
+  animation-delay: 0.04s;
+}
+
+body.drawer-opening .sidebar .project-switch {
+  animation-delay: 0.07s;
+}
+
+body.drawer-opening .sidebar .character-picker {
+  animation-delay: 0.1s;
+}
+
+body.drawer-opening .sidebar .generation-entry {
+  animation-delay: 0.13s;
+}
+
+body.drawer-opening .sidebar .asset-tree {
+  animation-delay: 0.16s;
+}
+
+body.drawer-opening .sidebar .batch-card {
+  animation-delay: 0.19s;
+}
+
+@keyframes w-breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.12);
+    opacity: 0.7;
+  }
+
+}
+
+@keyframes w-ring {
+  0%, 45% {
+    opacity: 0;
+    transform: scale(0.84);
+  }
+
+  70% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.16);
+  }
+
+}
+
+@keyframes drawer-spring-in {
+  0% {
+    transform: translateX(-112%) scale(0.96);
+    opacity: 0;
+  }
+
+  70% {
+    transform: translateX(7px) scale(1.005);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+
+}
+
+@keyframes drawer-content-in {
+  from {
+    transform: translateX(-10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.sidebar-collapsed .sidebar-reveal span, body.sidebar-collapsed .sidebar-reveal::after, body.drawer-opening .sidebar, body.drawer-opening .sidebar > :not(.drawer-grip):not(.sidebar-toggle) {
+    animation: none;
+  }
+
+}
+
+/* Right Inspector */
+.inspector {
+  position: absolute !important;
+  right: 20px !important;
+  top: 20px !important;
+  height: max-content !important;
+  max-height: calc(100vh - 40px) !important;
+  width: 320px !important;
+  z-index: 50 !important;
+  overflow-y: auto !important;
+}
+
+/* UI Overrides removed */
+.workflow {
+  display: none !important;
+}
+
+/* Floating Playback (Pill) */
+.playback {
+  position: absolute !important;
+  bottom: 24px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: max-content !important;
+  border-radius: 999px !important;
+  padding: 8px 24px !important;
+  z-index: 40 !important;
+}
+
+/* Floating Timeline (Vertical Filmstrip) */
+.timeline-panel {
+  position: absolute !important;
+  top: 80px !important;
+  bottom: 24px !important;
+  left: 20px !important;
+  transform: none !important;
+  width: 96px !important;
+  z-index: 40 !important;
+  margin: 0 !important;
+  padding: 12px 0 0 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.timeline-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.timeline-viewport {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 10px 12px 10px;
+  scrollbar-width: none;
+}
+
+.timeline-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.timeline-panel .timeline-head {
+  margin-bottom: 12px !important;
+  text-align: center !important;
+}
+
+.timeline-panel .timeline-head b {
+  font-size: 11px !important;
+  color: var(--ink) !important;
+}
+
+.timeline-panel .timeline-head span, .timeline-panel .legend {
+  display: none !important;
+  /* Hide bulky instructions/legend to save space */
+}
+
+.timeline {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.frame-tile {
+  width: 100% !important;
+  height: auto !important;
+  flex-shrink: 0 !important;
+  opacity: 0.5;
+  transform: scale(0.9);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.frame-tile.active {
+  outline: none !important;
+  box-shadow: none !important;
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Floating View Toolbar */
+.view-toolbar {
+  position: absolute !important;
+  top: 20px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: max-content !important;
+  border-radius: 999px !important;
+  z-index: 40 !important;
+  height: auto !important;
+  padding: 6px 16px !important;
+}
+
+/* 4. Feature: Onion Skin (洋葱皮) */
+.onion-skin {
+  position: absolute !important;
+  z-index: 2 !important;
+  width: 256px !important;
+  height: 256px !important;
+  image-rendering: pixelated !important;
+  left: 50% !important;
+  bottom: calc(50% - 18px) !important;
+  transform: translateX(-50%) !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  transition: opacity 0.2s !important;
+}
+
+.onion-skin.show {
+  opacity: 0.35 !important;
+}
+
+.onion-skin.prev {
+  filter: sepia(1) hue-rotate(-50deg) saturate(3) brightness(0.8) !important;
+  /* Red tint */
+}
+
+.onion-skin.next {
+  filter: sepia(1) hue-rotate(90deg) saturate(3) brightness(0.8) !important;
+  /* Green tint */
+}

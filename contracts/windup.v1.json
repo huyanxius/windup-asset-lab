@@ -1,0 +1,98 @@
+{
+  "$schema": "./windup.schema.json",
+  "version": "1.1.0",
+  "fps": 8,
+  "views": {
+    "side": { "label": "横屏侧视资产", "truth": "真实侧视序列帧" },
+    "topdown": { "label": "真实俯视资产", "truth": "母版约束的独立俯视绘制" },
+    "isometric": { "label": "真实 2.5D 资产", "truth": "母版约束的独立 3/4 绘制" }
+  },
+  "actions": {
+    "idle": {
+      "label": "呼吸待机",
+      "type": "标准动作",
+      "loop": true,
+      "phases": [
+        "neutral standing pose, weight centered, relaxed arms, breathing in",
+        "slight downward settle, shoulders lower subtly",
+        "lowest breathing point, knees and chest compressed slightly",
+        "rising toward neutral",
+        "neutral standing pose with a tiny sway",
+        "slight upward breathing motion",
+        "highest breathing point, chest expanded subtly",
+        "settling smoothly back to the first frame"
+      ]
+    },
+    "walk": {
+      "label": "行走",
+      "type": "标准动作",
+      "loop": true,
+      "phases": [
+        "WALK CONTACT: right heel forward, left leg extended behind, widest relaxed stride",
+        "WALK DOWN: right foot takes weight, body at lowest point, left foot lifting",
+        "WALK PASSING: left leg passes under body, right leg supports, legs close",
+        "WALK UP: left leg reaches forward, body at highest point on right toe",
+        "OPPOSITE CONTACT: left heel forward, right leg behind, widest stride",
+        "OPPOSITE DOWN: left foot takes weight, right foot lifting",
+        "OPPOSITE PASSING: right leg passes under body, left leg supports",
+        "OPPOSITE UP: right leg reaches forward, returning smoothly to frame one"
+      ]
+    },
+    "run": {
+      "label": "奔跑",
+      "type": "标准动作",
+      "loop": true,
+      "phases": [
+        "RUN CONTACT: right leg reaches forward, left leg fully behind, arms counter-swing",
+        "RUN COMPRESSION: right foot takes weight, body low and loaded",
+        "RUN PASSING: left knee drives forward under body",
+        "RUN FLIGHT: both feet briefly airborne, body stretched",
+        "OPPOSITE RUN CONTACT: left leg forward, right leg behind",
+        "OPPOSITE COMPRESSION: left foot takes weight, body low",
+        "OPPOSITE PASSING: right knee drives forward under body",
+        "OPPOSITE FLIGHT: both feet airborne, returning to first contact"
+      ]
+    },
+    "jump": {
+      "label": "跳跃",
+      "type": "标准动作",
+      "loop": false,
+      "phases": [
+        "JUMP ANTICIPATION: deep crouch, knees bent, arms back",
+        "JUMP LAUNCH: legs extending powerfully, feet leaving the ground",
+        "JUMP RISE: body travelling upward, legs trailing",
+        "JUMP APEX: highest point, limbs tucked compactly",
+        "JUMP FALL: body descending, legs extending for landing",
+        "JUMP LAND: feet contact ground, knees absorb impact",
+        "JUMP RECOVERY: body rises from landing crouch",
+        "return to the neutral standing pose"
+      ]
+    },
+    "lantern": {
+      "label": "举灯点亮",
+      "type": "自定义动作",
+      "loop": false,
+      "phases": [
+        "standing with lantern held low at the side",
+        "hand begins lifting the lantern",
+        "lantern reaches chest height, eyes following its glow",
+        "lantern raised beside the face",
+        "lantern held high, warm light at maximum intensity",
+        "hold the high lantern pose with a subtle breathing shift",
+        "lantern begins lowering smoothly",
+        "lantern returns toward the starting pose"
+      ]
+    }
+  },
+  "imageModels": [
+    "gemini-2.5-flash-image",
+    "gemini-3.1-flash-image-preview",
+    "gemini-3.0-pro-image-preview"
+  ],
+  "generation": {
+    "routes": ["sheet", "frames"],
+    "defaultRoute": "sheet",
+    "sheet": { "frameCount": 8, "columns": 8, "rows": 1 },
+    "starterPack": { "view": "side", "actions": ["idle", "walk"] }
+  }
+}

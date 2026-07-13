@@ -1,0 +1,9 @@
+.layout {
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+
+.header-actions .create-link {
+  border-color: #1d1d1f;
+  background: #1d1d1f;
+  color: #fff;
+}

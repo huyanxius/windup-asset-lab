@@ -7,7 +7,7 @@
 """
 import json, base64
 from PIL import Image
-from . import config, align
+from . import config, align, provider
 
 
 # ---------- A. 对齐漂移（纯 CV） ----------
@@ -50,7 +50,7 @@ def vlm_consistency(base_path, frame_path, model=None):
         {"type": "image_url", "image_url": {"url": "data:image/png;base64," + b64(frame_path)}},
     ]}]}
     try:
-        res = config.post_json("/chat/completions", body, timeout=120)   # 带重试
+        res = provider.post_json("/chat/completions", body, timeout=120)   # 带重试
         txt = res["choices"][0]["message"]["content"]
         import re
         m = re.search(r'\{.*\}', txt, re.S)

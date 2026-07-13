@@ -18,29 +18,3 @@ NO_SHADOW = "NO shadow"
 # sprite 规格
 CELL = 256          # 单帧输出边长
 FOOT_RATIO = 0.90   # 脚底基线在画布高度的比例
-
-def require_key():
-    if not API_KEY:
-        raise SystemExit("请先设置 QNAIGC_KEY（七牛云图像生成 API key）")
-    return API_KEY
-
-
-def post_json(path, body, retries=4, timeout=180):
-    """统一的 API 调用：带重试，扛 SSL/网络抖动（本机代理不稳时尤其需要）。
-    返回解析后的 JSON dict；全部失败抛最后一次异常。"""
-    import json, time, urllib.request, urllib.error
-    require_key()
-    last = None
-    for attempt in range(retries):
-        try:
-            req = urllib.request.Request(
-                API_BASE + path, data=json.dumps(body).encode(),
-                headers={"Authorization": f"Bearer {API_KEY}",
-                         "Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.load(r)
-        except Exception as e:
-            last = e
-            print(f"    · API 重试 {attempt+1}/{retries}: {str(e)[:70]}")
-            time.sleep(2 + attempt * 2)   # 递增退避
-    raise last

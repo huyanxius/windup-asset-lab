@@ -1,0 +1,107 @@
+/* Character catalogue and generation entry points used by the editor shell. */
+.character-picker {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 8px;
+  color: #666;
+  font-size: 10px;
+}
+
+.character-picker select {
+  width: 100%;
+  height: 38px;
+  border: 1px solid rgba(0, 0, 0, 0.11);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 0 11px;
+  color: #1d1d1f;
+  font: 600 12px -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+  outline: none;
+}
+
+.character-picker select:focus {
+  border-color: #666;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+
+.character-manager-entry {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  padding: 9px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #1d1d1f;
+  text-decoration: none;
+  transition: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.character-manager-entry:hover {
+  transform: translateX(2px);
+  background: #fff;
+}
+
+.character-manager-entry span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: #eeeef0;
+  font-size: 15px;
+}
+
+.character-manager-entry b {
+  font-size: 10px;
+}
+
+.character-manager-entry i {
+  color: #999;
+  font-style: normal;
+  font-size: 15px;
+}
+
+.generation-entry {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.generation-entry span {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 8px;
+  background: #2c2c2e;
+}
+
+.generation-entry b {
+  font-size: 11px;
+}
+
+.generation-entry small {
+  font-size: 9px;
+  color: #aaa;
+}
+
+.review-actions .regenerate-btn {
+  grid-column: 1 / -1;
+  border-color: #1d1d1f !important;
+  background: #fff;
+  color: #1d1d1f;
+  font-weight: 650;
+}

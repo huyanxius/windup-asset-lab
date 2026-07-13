@@ -1,0 +1,177 @@
+/* macOS glass asset drawer */
+.app-shell {
+  grid-template-columns: 296px minmax(960px, 1fr);
+  transition: grid-template-columns 0.34s cubic-bezier(0.22, 0.78, 0.2, 1);
+}
+
+.sidebar {
+  position: sticky;
+  top: 12px;
+  width: 272px;
+  height: calc(100vh - 24px);
+  margin: 12px 0 12px 12px;
+  padding: 26px 16px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 24px;
+  background: linear-gradient( 155deg, rgba(36, 36, 40, 0.88), rgba(15, 15, 17, 0.76) );
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: saturate(145%) blur(32px);
+  -webkit-backdrop-filter: saturate(145%) blur(32px);
+  overflow: hidden;
+  transition: transform 0.34s cubic-bezier(0.22, 0.78, 0.2, 1), opacity 0.24s ease;
+  z-index: 15;
+}
+
+.sidebar:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient( circle at 12% 0, rgba(255, 255, 255, 0.11), transparent 32% ), linear-gradient(115deg, transparent 55%, rgba(255, 255, 255, 0.035));
+  border-radius: inherit;
+}
+
+.sidebar > * {
+  position: relative;
+}
+
+.drawer-grip {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 34px;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-toggle {
+  position: absolute;
+  right: 12px;
+  top: 15px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #d1d1d6;
+  font-size: 21px;
+  line-height: 22px;
+  cursor: pointer;
+  z-index: 3;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateX(-1px);
+}
+
+.sidebar .brand {
+  padding-right: 34px;
+}
+
+.sidebar .project-switch, .sidebar .batch-card {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.sidebar .tree-row.active, .sidebar .action-item.active {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.055);
+}
+
+.sidebar-reveal {
+  position: fixed;
+  left: 12px;
+  top: 18px;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 15px;
+  background: rgba(245, 245, 247, 0.72);
+  color: #1d1d1f;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16), inset 0 1px 0 white;
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-12px) scale(0.9);
+  transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 30;
+  cursor: pointer;
+}
+
+.sidebar-reveal span {
+  font-weight: 750;
+}
+
+.sidebar-reveal i {
+  font-style: normal;
+  color: #8e8e93;
+  font-size: 17px;
+}
+
+.drawer-hotspot {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 100vh;
+  z-index: 29;
+}
+
+body.sidebar-collapsed .app-shell {
+  grid-template-columns: 0 minmax(960px, 1fr);
+}
+
+body.sidebar-collapsed .sidebar {
+  transform: translateX(-115%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed .sidebar-reveal {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+body.sidebar-collapsed .workspace {
+  padding-left: 74px;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 0 minmax(760px, 1fr);
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+  }
+
+  .sidebar-reveal {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  .workspace {
+    padding-left: 74px;
+  }
+
+  body:not(.sidebar-collapsed) .sidebar-reveal {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+}
+
+/* ========================================= */
