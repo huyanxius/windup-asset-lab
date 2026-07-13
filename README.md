@@ -89,7 +89,7 @@ flowchart LR
 
 ```bash
 python3 -m pip install -r server/requirements.txt
-python3 server/app.py --demo
+python3 -m server.app --demo
 ```
 
 Demo 模式不调用外部生成 API，可使用仓库内的演示资产跑通完整工作流。
@@ -110,7 +110,7 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory build/lamplighter-mvp
 API 凭据可以在生成界面中连接，仅保留在当前后端进程内存；也可通过环境变量注入。凭据不得写入前端源码、浏览器存储、Cocos 资产或 Git 记录。
 
 ```bash
-QNAIGC_KEY="your-key" python3 server/app.py
+QNAIGC_KEY="your-key" python3 -m server.app
 ```
 
 | Variable | Purpose | Default |
@@ -152,6 +152,8 @@ node tools/import-windup-sheet.js \
 
 ## Architecture
 
+详细的模块边界、状态所有权与扩展规则见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+
 | Layer | Implementation | Responsibility |
 |---|---|---|
 | Studio UI | HTML / CSS / Vanilla JS | 生成入口、播放、逐帧审核、候选采用与导出 |
@@ -171,8 +173,9 @@ node tools/import-windup-sheet.js \
 │  └─ scripts/GameRoot.ts        # Cocos 运行时与联调协议
 ├─ artifacts/characters/           # 角色卡和 provenance
 ├─ server/
-│  ├─ app.py                     # 后端代理、任务与候选采用
-│  └─ windup_pipeline/           # 队友管线的原型集成适配层
+│  ├─ app.py                     # HTTP 路由与生成用例编排
+│  └─ windup_pipeline/           # 供应商、领域、处理与任务存储模块
+├─ docs/ARCHITECTURE.md           # 模块边界、状态所有权与扩展约定
 ├─ tools/                          # 切帧、归一化和动画审计工具
 ├─ build/lamplighter-mvp/          # 可静态部署的 Cocos Web 构建
 ├─ reports/                        # 质检数据与实测报告
