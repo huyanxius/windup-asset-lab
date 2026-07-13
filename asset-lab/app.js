@@ -81,12 +81,13 @@ const state = {
   view: 'side',
   action: 'idle',
   frame: 0,
-  playing: true,
+  playing: false,
   timer: null,
   reviews: JSON.parse(localStorage.getItem('windup-review-state') || '{}'),
 };
 
 const generationState = { job: null, poll: null };
+const bootState = { complete: false, choiceMade: false };
 
 const movement = { x: 0, direction: 1, left: false, right: false, auto: false, wasMoving: false, lastTime: performance.now() };
 
@@ -112,6 +113,7 @@ const els = collect([
   'gameDock', 'gameFrame', 'gameStatus', 'closeGameBtn', 'sendGameBtn',
   // 视角与舞台
   'viewTabs', 'gridToggle', 'checkerToggle', 'stage', 'viewLabel', 'viewTruth', 'characterFrame', 'missingState',
+  'modeCards', 'generationModeCard', 'editorModeCard',
   // 播放控制
   'firstBtn', 'prevBtn', 'playBtn', 'nextBtn', 'lastBtn', 'moveLeftBtn', 'moveRightBtn', 'autoWalkBtn',
   'frameCounter', 'timeCounter', 'fpsSlider', 'fpsValue', 'loopToggle',
@@ -278,6 +280,7 @@ function render() {
   els.fpsValue.textContent = FIXED_FPS;
   els.loopToggle.checked = asset.loop;
   els.specPlayback.textContent = `${FIXED_FPS} FPS · ${asset.loop ? '循环' : '单次'}`;
+  els.playBtn.textContent = state.playing ? '暂停' : '播放';
 
   renderTimeline(asset);
   renderFrameOnly();
@@ -443,6 +446,10 @@ function switchMovementAction(isMoving) {
 function movementLoop(now) {
   const delta = Math.min((now - movement.lastTime) / 1000, 0.05);
   movement.lastTime = now;
+  if (!bootState.complete) {
+    requestAnimationFrame(movementLoop);
+    return;
+  }
   const axis = Number(movement.right) - Number(movement.left);
   const moving = movement.auto || axis !== 0;
 
@@ -517,7 +524,34 @@ function scheduleDrawerClose() {
 // 启动引导：聚光灯揭示 + 自动起步
 // ────────────────────────────────────────────────────────────
 
+function showModeCards() {
+  els.modeCards.hidden = false;
+  requestAnimationFrame(() => els.modeCards.classList.add('visible'));
+}
+
+function closeModeCards(callback) {
+  if (bootState.choiceMade) return;
+  bootState.choiceMade = true;
+  els.modeCards.classList.remove('visible');
+  els.modeCards.classList.add('leaving');
+  setTimeout(() => {
+    els.modeCards.hidden = true;
+    els.modeCards.classList.remove('leaving');
+    callback?.();
+  }, 220);
+}
+
 function bootReveal() {
+  // 聚光灯期间固定在 idle 第 1 帧，不启动播放或自动巡走。
+  state.playing = false;
+  state.frame = 0;
+  movement.auto = false;
+  movement.left = false;
+  movement.right = false;
+  clearInterval(state.timer);
+  renderFrameOnly();
+  els.playBtn.textContent = '播放';
+
   const rect = els.characterFrame.getBoundingClientRect();
   const spotlight = document.createElement('div');
   spotlight.className = 'dynamic-spotlight';
@@ -527,19 +561,11 @@ function bootReveal() {
 
   const bootScreen = document.getElementById('bootScreen');
   if (bootScreen) setTimeout(() => bootScreen.remove(), 100);
-  setTimeout(() => spotlight.remove(), 3000);
-
   setTimeout(() => {
-    const viewLib = library[state.view];
-    if (state.action === 'idle' && viewLib.walk) {
-      state.action = 'walk';
-      movement.auto = true;
-      els.autoWalkBtn.classList.add('active');
-      els.autoWalkBtn.textContent = '停止巡走';
-      render();
-    }
-    showClickPrompt(`▶ 开始${actionLabels[state.action][0]}`, 'calc(50% + 50px)', 'calc(50% - 30px)', 2500);
-  }, 2800);
+    spotlight.remove();
+    bootState.complete = true;
+    showModeCards();
+  }, 3000);
 }
 
 // 舞台上的一次性浮动提示气泡。
@@ -778,6 +804,14 @@ els.characterSelect.innerHTML = Object.entries(characterCatalog)
   .map(([id, character]) => `<option value="${id}">${character.label}</option>`).join('');
 els.characterSelect.addEventListener('change', () => switchCharacter(els.characterSelect.value));
 els.openGenerateBtn.addEventListener('click', () => openGenerationStudio(false));
+els.generationModeCard.addEventListener('click', (event) => {
+  event.stopPropagation();
+  closeModeCards(() => openGenerationStudio(false));
+});
+els.editorModeCard.addEventListener('click', (event) => {
+  event.stopPropagation();
+  closeModeCards(() => setDrawer(false));
+});
 els.regenerateFrameBtn.addEventListener('click', () => openGenerationStudio(true));
 els.closeGenerateBtn.addEventListener('click', () => els.generationModal.close());
 els.genMode.addEventListener('change', setGenerationMode);
@@ -802,6 +836,7 @@ els.viewTabs.querySelectorAll('button').forEach((button) =>
 
 // 播放控制。
 els.playBtn.addEventListener('click', () => {
+  if (!bootState.complete) return;
   state.playing = !state.playing;
   els.playBtn.textContent = state.playing ? '暂停' : '播放';
   setPlayback();
@@ -845,6 +880,7 @@ window.addEventListener('mouseup', () => {
 
 // 点击舞台空白处：在 idle / walk / run 之间循环切换（拖拽过则忽略这次点击）。
 els.stage.addEventListener('click', (event) => {
+  if (!bootState.complete || !bootState.choiceMade) return;
   if (drag.moved) return;
   if (event.target.closest('.sidebar, .inspector, .topbar, .view-toolbar, .playback, .timeline-panel, .tool-toggles')) return;
 
@@ -918,6 +954,7 @@ els.assetDrawer.addEventListener('mouseleave', scheduleDrawerClose);
   button.addEventListener('pointercancel', () => setMoveKey(direction, false));
 });
 els.autoWalkBtn.addEventListener('click', () => {
+  if (!bootState.complete) return;
   movement.auto = !movement.auto;
   movement.left = false;
   movement.right = false;
@@ -927,6 +964,7 @@ els.autoWalkBtn.addEventListener('click', () => {
 
 // 键盘：暂停时方向键微调当前帧偏移；播放时方向键/AD 驱动移动，空格切播放。
 window.addEventListener('keydown', (event) => {
+  if (!bootState.complete) return;
   if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
 
   if (!state.playing && event.code.startsWith('Arrow')) {

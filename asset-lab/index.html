@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=200" />
+  <link rel="stylesheet" href="./styles.css?v=210" />
 </head>
 <body>
   <div id="bootScreen" style="position: fixed; inset: 0; background: black; z-index: 9998; pointer-events: none;"></div>
@@ -61,6 +61,14 @@
             <img id="onionPrev" class="onion-skin prev" hidden />
             <img id="onionNext" class="onion-skin next" hidden />
             <img id="characterFrame" alt="角色动画预览" />
+            <div id="modeCards" class="mode-cards" hidden aria-label="选择工作界面">
+              <button id="generationModeCard" class="mode-card primary">
+                <span class="mode-icon">✦</span><span><small>GENERATE</small><b>生成界面</b><em>创建整套动作或修复单帧</em></span><i>↗</i>
+              </button>
+              <button id="editorModeCard" class="mode-card">
+                <span class="mode-icon">⌘</span><span><small>EDIT</small><b>编辑界面</b><em>播放、对齐、审核与导出</em></span><i>→</i>
+              </button>
+            </div>
             <div id="missingState" class="missing-state" hidden><b>此视角尚无该动作</b><span>这是资产缺口，不使用伪透视替代</span></div>
           </div>
 
@@ -176,6 +184,6 @@
       </div>
     </div>
   </dialog>
-  <script src="./app.js?v=200"></script>
+  <script src="./app.js?v=210"></script>
 </body>
 </html>
