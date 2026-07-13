@@ -10,6 +10,7 @@ import {
 } from '../core/motion-state.js';
 import { PlaybackClock } from '../core/playback-clock.js';
 import { ReviewStore } from '../core/review-store.js';
+import { runtimeConfig } from '../core/runtime-config.js';
 import { DrawerController } from '../features/drawer-controller.js';
 import { createGameBridge } from '../features/game-bridge.js';
 import { OnboardingController } from '../features/onboarding-controller.js';
@@ -18,14 +19,11 @@ import { bindEditorEvents } from './editor-bindings.js';
 import { collectEditorElements } from './editor-elements.js';
 import { EditorView } from './editor-view.js';
 
-const GAME_ORIGIN = 'http://127.0.0.1:4173';
-const PREVIEW_NAMESPACE = 'windup';
-
 export function bootstrapEditor() {
   const els = collectEditorElements();
   const api = createApiClient();
   const session = new EditorSession(characterCatalog);
-  const reviewStore = new ReviewStore();
+  const reviewStore = new ReviewStore(globalThis.localStorage, 'windup-review-state', api);
   const playback = new PlaybackClock(FIXED_FPS);
   const view = new EditorView(els, session, reviewStore);
   const drawer = new DrawerController({
@@ -40,17 +38,18 @@ export function bootstrapEditor() {
     modeCards: els.modeCards,
   });
   const gameBridge = createGameBridge({
-    origin: GAME_ORIGIN,
-    namespace: PREVIEW_NAMESPACE,
+    origin: runtimeConfig.gameOrigin,
+    namespace: runtimeConfig.previewNamespace,
     iframe: els.gameFrame,
     status: els.gameStatus,
   });
 
   let motion = createMotionState();
   let lastMotionTime = performance.now();
+  els.gameFrame.src = runtimeConfig.gameUrl;
 
   function gamePayload() {
-    return session.gamePayload(PREVIEW_NAMESPACE, els.loopToggle.checked);
+    return session.gamePayload(runtimeConfig.previewNamespace, els.loopToggle.checked);
   }
 
   function syncPlayback() {
@@ -72,6 +71,15 @@ export function bootstrapEditor() {
   function render() {
     view.renderAll(motion);
     syncPlayback();
+    if (session.asset) {
+      const reviewKey = session.reviewKey;
+      reviewStore.hydrate(reviewKey, session.asset, () => {
+        if (session.reviewKey !== reviewKey) return;
+        view.renderTimeline();
+        view.renderFrame(motion);
+        view.updateGate();
+      }).catch(() => {});
+    }
     if (!els.gameDock.hidden) setTimeout(() => gameBridge.send(gamePayload()), 0);
   }
 
@@ -161,6 +169,7 @@ export function bootstrapEditor() {
   async function exportSpriteSheet() {
     if (!session.asset) return;
     if (reviewStore.list(session.reviewKey, session.asset).some((value) => value !== 'pass')) return;
+    await reviewStore.flush(session.reviewKey);
     els.packerModal.showModal();
     els.spriteMeta.textContent = '打包中…';
     try {

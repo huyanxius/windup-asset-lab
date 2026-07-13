@@ -93,5 +93,5 @@ def list_models(api_key=None):
     return [str(item.get("id")) for item in result.get("data", []) if item.get("id")]
 
 
-def post_json(path, body, retries=4, timeout=180):
-    return request_json("POST", path, body, retries=retries, timeout=timeout)
+def post_json(path, body, retries=4, timeout=180, api_key=None):
+    return request_json("POST", path, body, retries=retries, timeout=timeout, api_key=api_key)

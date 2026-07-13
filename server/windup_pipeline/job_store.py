@@ -18,11 +18,13 @@ class JobStore:
         self._jobs: dict[str, dict] = {}
 
     def __getitem__(self, job_id: str) -> dict:
-        return self._jobs[job_id]
+        with self._lock:
+            return dict(self._jobs[job_id])
 
     def get(self, job_id: str):
-        job = self._jobs.get(job_id)
-        return dict(job) if job else None
+        with self._lock:
+            job = self._jobs.get(job_id)
+            return dict(job) if job else None
 
     def _write(self, job: dict) -> None:
         path = self.root / job["id"] / "job.json"

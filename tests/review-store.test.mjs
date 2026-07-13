@@ -28,3 +28,23 @@ test('review store rejects invalid state values', () => {
   const asset = { frames: ['1.png'], initial: 'pending' };
   assert.throws(() => store.set('hero:side:walk', asset, 0, 'broken'), /未知审核状态/);
 });
+
+test('review store hydrates and flushes versioned server decisions', async () => {
+  const storage = memoryStorage();
+  let server = { key: 'hero:side:walk', version: 3, reviews: ['pending', 'reject'] };
+  const api = {
+    get: async () => structuredClone(server),
+    post: async (_path, body) => {
+      assert.equal(body.expectedVersion, server.version);
+      server = { key: body.key, version: server.version + 1, reviews: body.reviews };
+      return structuredClone(server);
+    },
+  };
+  const asset = { frames: ['1.png', '2.png'], initial: 'pending' };
+  const store = new ReviewStore(storage, 'reviews', api);
+  await store.hydrate('hero:side:walk', asset);
+  store.set('hero:side:walk', asset, 0, 'pass');
+  await store.flush('hero:side:walk');
+  assert.deepEqual(server.reviews, ['pass', 'reject']);
+  assert.equal(server.version, 4);
+});
