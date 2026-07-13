@@ -58,9 +58,10 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 ## 5. 架构入口
 
 - `docs/ARCHITECTURE.md`：模块边界、状态所有权、扩展步骤与维护红线。
-- `asset-lab/core/`：动作状态、API、任务轮询和审核持久化。
-- `asset-lab/features/`：质检、图集打包与 Cocos 通信。
-- `asset-lab/pages/editor.js`：审核台页面编排，不再承载底层能力。
+- `asset-lab/core/`：编辑会话、动作状态、播放时钟、API、任务轮询和审核持久化。
+- `asset-lab/features/`：质检、图集打包、Cocos 通信、抽屉和启动引导。
+- `asset-lab/pages/editor.js`：Composition Root；渲染与输入分别在 `editor-view.js`、`editor-bindings.js`。
+- `asset-lab/styles/`：基础、表面、抽屉、布局、组件、集成和动效七层样式，不再使用巨型单文件。
 - `server/windup_pipeline/domain.py`：角色、动作、视角、模型与相位词汇。
 - `server/windup_pipeline/provider.py`：七牛云鉴权、请求、重试和错误映射。
 - `server/windup_pipeline/job_store.py`：可替换的任务持久化边界。
@@ -86,7 +87,7 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - 资产平台与 Cocos 联调成功，实测 `topdown / walk / 8帧`。
 - 手动移动、自动巡走、停止待机已验证。
 - 最终测试未发现 JavaScript 运行错误。
-- 动作状态、审核隔离、API 地址和任务恢复共 8 项最小测试通过。
+- 编辑会话、动作状态、播放时钟、DOM/CSS 契约、审核隔离、API 地址和任务恢复共 14 项测试通过。
 - Demo API 已跑通 `queued → generating → awaiting_review`，未调用外部模型。
 - 项目中未保存 API Key、`.env` 或凭据文件。
 - 本地修改的 8 张 Skeleton 行走帧未纳入本次架构提交。

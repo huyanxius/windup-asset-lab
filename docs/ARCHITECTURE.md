@@ -15,17 +15,33 @@
 ```text
 asset-lab/
 ├─ app.js                       # 审核台极薄入口
-├─ pages/editor.js              # 页面编排：把模块接到现有 DOM
+├─ pages/
+│  ├─ editor.js                 # Composition Root，只组装模块与用例
+│  ├─ editor-view.js            # DOM 渲染，不拥有业务状态
+│  ├─ editor-bindings.js        # 鼠标、键盘和按钮事件适配
+│  └─ editor-elements.js        # DOM ID 契约与启动校验
 ├─ data/character-catalog.js    # 前端角色、视角、动作与帧目录
 ├─ core/
+│  ├─ editor-session.js         # 角色/视角/动作/帧/锚点的唯一所有者
 │  ├─ motion-state.js           # 纯动作状态机，无 DOM
+│  ├─ playback-clock.js         # 唯一 8 FPS 播放时钟
 │  ├─ api-client.js             # 唯一 HTTP 客户端
 │  ├─ job-poller.js             # 生成任务生命周期轮询
 │  └─ review-store.js           # 审核决策持久化
 ├─ features/
 │  ├─ quality-check.js          # 帧几何质检
 │  ├─ sprite-packer.js          # Cocos 图集和 metadata
-│  └─ game-bridge.js            # 工作台与 Cocos 的消息协议
+│  ├─ game-bridge.js            # 工作台与 Cocos 的消息协议
+│  ├─ drawer-controller.js      # 左侧抽屉生命周期
+│  └─ onboarding-controller.js  # 聚光灯、模式选择和点击引导
+├─ styles/
+│  ├─ foundation.css            # 设计变量和基础组件
+│  ├─ surface.css               # 黑白专业表面与控件质感
+│  ├─ drawer.css                # macOS 毛玻璃抽屉结构
+│  ├─ workspace.css             # 全屏舞台与浮动布局
+│  ├─ components.css            # Inspector、图集等部件
+│  ├─ integrations.css          # 角色和生成入口
+│  └─ motion.css                # 动效与 reduced-motion 降级
 ├─ generate.*                   # 独立动作生成页面
 ├─ create-character.*           # 独立新角色创建页面
 └─ characters.*                 # 独立角色资产管理页面
@@ -77,6 +93,19 @@ queued → generating → awaiting_review → approved
 
 禁止给人物和舞台分别编写互相竞争的点击业务逻辑；禁止用 `stopPropagation()` 表达“开始或暂停”的状态转换。
 
+## 状态所有权
+
+| 状态 | 唯一所有者 | 页面如何使用 |
+|---|---|---|
+| 角色、视角、动作、帧、逐帧偏移、锚点 | `EditorSession` | 调用明确的选择和调整方法 |
+| 播放/暂停、自动/手动移动、方向、位置 | `motion-state.js` | 发送事件给纯 reducer |
+| 8 FPS 定时器 | `PlaybackClock` | 启停一个时钟，不直接创建 interval |
+| 审核结论 | `ReviewStore` | 按角色/视角/动作隔离读写 |
+| DOM 表现 | `EditorView` | 读取状态并渲染，不反向修改领域状态 |
+| 浏览器输入 | `editor-bindings.js` | 将事件翻译成应用命令 |
+
+新增交互时先判断它属于哪位所有者；如果没有明确所有者，先扩展契约，不能直接在页面里增加平行状态。
+
 ## 如何扩展
 
 ### 增加动作
@@ -105,14 +134,19 @@ queued → generating → awaiting_review → approved
 - 不让生成结果直接覆盖正式资产。
 - 不把 API Key、生成会话、任务输出或用户提示提交到 Git。
 - 不把不同视角伪装成 CSS 旋转；每个视角必须有独立资产。
-- `styles.css` 只负责审核台表现；新增页面使用自己的页面级样式，业务逻辑不能依赖颜色或动画类名。
+- 审核台样式严格按 `foundation → surface → drawer → workspace → components → integrations → motion` 加载；禁止恢复单文件追加覆盖。
+- HTML 不写行内样式，业务逻辑不能依赖颜色或动画类名。
 
 ## 最小自检
 
 ```bash
-node --test tests/*.test.mjs
-python3 -m unittest tests/test_job_store.py
-python3 -m py_compile server/app.py server/windup_pipeline/*.py
+./tools/verify-architecture.sh
+```
+
+样式修改后统一运行：
+
+```bash
+node tools/format-css.mjs asset-lab/styles/*.css
 ```
 
 这些检查覆盖最容易回归的动作状态、审核持久化、API 地址规则与任务恢复。视觉验收仍由人工页面检查完成，不使用截图自动化替代产品判断。
