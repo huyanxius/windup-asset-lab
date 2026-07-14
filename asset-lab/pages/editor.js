@@ -104,14 +104,22 @@ export function bootstrapEditor() {
   }
 
   function dispatchMotion(event) {
+    const previousAnimation = motion.animation;
     motion = reduceMotion(motion, event);
     const desiredAction = desiredActionForMotion(event);
     if (desiredAction !== session.action && session.selectAction(desiredAction)) {
-      render();
+      view.syncMotion(motion);
+      syncPlayback();
+      view.applyCharacterTransform(motion);
+      view.renderTimeline();
+      view.renderFrame(motion);
       return;
     }
     view.syncMotion(motion);
-    syncPlayback();
+    // Only restart the frame clock when play/pause actually changed. Restarting it on every
+    // (possibly repeated) motion event would keep clearing the 125ms interval before it ticks,
+    // stalling manual-walk playback around frame two.
+    if (motion.animation !== previousAnimation) syncPlayback();
     view.applyCharacterTransform(motion);
   }
 

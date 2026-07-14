@@ -116,22 +116,7 @@ def make_action_sheet(frames: list[Path], destination: Path) -> Path:
 
 def sequence_quality(frames: list[Path], action: str = "") -> dict:
     """Measure deterministic geometry continuity; semantic motion remains human-reviewed."""
-    metrics = []
-    for path in frames:
-        image = Image.open(path).convert("RGBA")
-        alpha = image.getchannel("A")
-        bbox = alpha.point(lambda value: 255 if value > 24 else 0).getbbox()
-        if not bbox:
-            metrics.append(None)
-            continue
-        left, top, right, bottom = bbox
-        metrics.append({
-            "width": right - left,
-            "height": bottom - top,
-            "centerX": round((left + right) / 2, 2),
-            "footY": bottom,
-            "coverage": round(sum(1 for value in alpha.getdata() if value > 24) / (image.width * image.height), 4),
-        })
+    metrics = _compute_metrics(frames)
     visible = [metric for metric in metrics if metric]
     warnings = []
     if len(visible) != len(frames):
@@ -151,11 +136,56 @@ def sequence_quality(frames: list[Path], action: str = "") -> dict:
             warnings.append("脚底基线不连续")
     else:
         height_spread = center_spread = foot_spread = 0
+
+    from .quality import (
+        DuplicateFrameEvaluator,
+        HorizontalGuideLineEvaluator,
+        InvisibleFrameEvaluator,
+        LoopSeamEvaluator,
+        PaletteDriftEvaluator,
+        QualityGate,
+    )
+
+    gate = QualityGate([
+        InvisibleFrameEvaluator(),
+        HorizontalGuideLineEvaluator(),
+        DuplicateFrameEvaluator(),
+        PaletteDriftEvaluator(),
+        LoopSeamEvaluator(action=action),
+    ])
+    report = gate.evaluate(frames)
+    passed = len(report["blockingIssues"]) == 0 and not warnings
+    if report["metrics"].get("nearDuplicatePairs"):
+        warnings.append("近重复：相邻帧主体几乎无变化")
+
     return {
-        "passed": len(visible) == len(frames) and not warnings,
+        "passed": passed,
         "frameCount": len(frames),
         "geometryContinuity": round(max(0, 100 - height_spread * 90 - center_spread * 0.8 - foot_spread * 2), 1),
         "warnings": warnings,
         "frames": metrics,
         "semanticReviewRequired": True,
+        "blockingIssues": report["blockingIssues"],
+        "metrics": report["metrics"],
     }
+
+
+def _compute_metrics(frames: list[Path]) -> list:
+    """Extract per-frame geometry for reuse by quality evaluators."""
+    result = []
+    for path in frames:
+        image = Image.open(path).convert("RGBA")
+        alpha = image.getchannel("A")
+        bbox = alpha.point(lambda value: 255 if value > 24 else 0).getbbox()
+        if not bbox:
+            result.append(None)
+            continue
+        left, top, right, bottom = bbox
+        result.append({
+            "width": right - left,
+            "height": bottom - top,
+            "centerX": round((left + right) / 2, 2),
+            "footY": bottom,
+            "coverage": round(sum(1 for value in alpha.getdata() if value > 24) / (image.width * image.height), 4),
+        })
+    return result

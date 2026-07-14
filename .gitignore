@@ -20,6 +20,11 @@ node_modules/
 .vscode/
 .idea/
 
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
 #///////////////////////////
 # 系统与备份垃圾
 #///////////////////////////
