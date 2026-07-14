@@ -28,7 +28,7 @@ def regenerate_frame(name, action_name, frame_idx, outroot="characters",
     print(f"重生成 {name}/{action_name} 帧 {frame_idx} ...")
     import time; t = time.time()
     if not generate.gen_frame(card.base_frame, card.desc, pose, raw):
-        raise SystemExit("重生成失败（检查 SUFY_KEY / 网络）")
+        raise SystemExit("重生成失败（检查 QNAIGC_KEY / 网络）")
     provenance.record(name, action_name, frame_idx, pose, config.IMAGE_MODEL,
                       elapsed_s=time.time()-t, outroot=outroot)
 

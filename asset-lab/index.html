@@ -7,10 +7,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=217" />
+  <link rel="stylesheet" href="./styles/foundation.css?v=4" />
+  <link rel="stylesheet" href="./styles/surface.css?v=4" />
+  <link rel="stylesheet" href="./styles/drawer.css?v=4" />
+  <link rel="stylesheet" href="./styles/workspace.css?v=4" />
+  <link rel="stylesheet" href="./styles/components.css?v=4" />
+  <link rel="stylesheet" href="./styles/integrations.css?v=4" />
+  <link rel="stylesheet" href="./styles/motion.css?v=4" />
 </head>
 <body>
-  <div id="bootScreen" style="position: fixed; inset: 0; background: black; z-index: 9998; pointer-events: none;"></div>
+  <div id="bootScreen"></div>
   <div id="bootWordmark" class="boot-wordmark" aria-hidden="true">Windup</div>
   <div class="app-shell">
     <aside id="assetDrawer" class="sidebar">
@@ -19,6 +25,7 @@
       <div class="brand"><span class="brand-mark">W</span><div><strong>Windup</strong><small>人物资产实验室</small></div></div>
       <div class="project-switch"><span>项目</span><strong>点灯人 · MVP</strong><b>⌄</b></div>
       <label class="character-picker"><span>当前角色</span><select id="characterSelect"></select></label>
+      <a class="character-manager-entry" href="./characters.html"><span>＋</span><b>创建与管理角色</b><i>›</i></a>
       <button id="openGenerateBtn" class="generation-entry"><span>✦</span><b>生成中心</b><small>整套 / 单帧</small></button>
       <nav class="asset-tree">
         <p class="eyebrow">资产结构</p>
@@ -104,7 +111,7 @@
           <details class="accordion-item">
             <summary class="accordion-header">
               <div class="header-content"><b>自动质检</b></div>
-              <span id="qcSummary" style="font-size: 12px; color: #666;">正在分析…</span>
+              <span id="qcSummary">正在分析…</span>
             </summary>
             <div class="accordion-body">
               <div id="qcChecks" class="qc-list"></div>
@@ -113,7 +120,7 @@
           <details class="accordion-item">
             <summary class="accordion-header">
               <div class="header-content"><b>单帧审核</b></div>
-              <span id="selectedFrame" style="font-size: 12px; font-weight: bold; font-family: monospace;">#01</span>
+              <span id="selectedFrame">#01</span>
             </summary>
             <div class="accordion-body">
               <div class="frame-meta"><span>批次 <b id="frameBatch">B-20260713-05</b></span><span>状态 <b id="frameState">待审核</b></span></div>
@@ -124,16 +131,16 @@
           <details class="accordion-item">
             <summary class="accordion-header">
               <div class="header-content"><b>导出门禁</b></div>
-              <span id="approvalText" style="font-size: 12px; color: #666;">0 / 8 帧通过</span>
+              <span id="approvalText">0 / 8 帧通过</span>
             </summary>
             <div class="accordion-body">
-              <p id="gateMessage" style="font-size: 12px; color: #666; margin-bottom: 8px;">全部帧通过后才可导出，避免残缺动作进入项目。</p>
+              <p id="gateMessage">全部帧通过后才可导出，避免残缺动作进入项目。</p>
               <div class="progress"><i id="approvalProgress"></i></div>
-              <div class="export-actions" style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
-                <span id="saveState" class="saved" style="text-align: center;">本地状态已保存</span>
-                <button id="gamePreviewBtn" class="game-preview-btn" style="padding: 10px; border-radius: 8px; background: transparent; border: 1px solid #ddd; cursor: pointer;">游戏联调</button>
-                <button id="enterGameBtn" class="enter-game-btn" style="padding: 10px; border-radius: 8px; background: #333; color: white; border: none; cursor: pointer;">进入 Cocos 游戏</button>
-                <button id="exportBtn" class="export-btn" disabled style="padding: 10px; border-radius: 8px; border: none; cursor: pointer;">导出 Cocos 包</button>
+              <div class="export-actions">
+                <span id="saveState" class="saved">本地状态已保存</span>
+                <button id="gamePreviewBtn" class="game-preview-btn">游戏联调</button>
+                <button id="enterGameBtn" class="enter-game-btn">进入 Cocos 游戏</button>
+                <button id="exportBtn" class="export-btn" disabled>导出 Cocos 包</button>
               </div>
             </div>
           </details>
@@ -143,7 +150,7 @@
   </div>
   <section id="gameDock" class="game-dock" hidden>
     <header><div><b>Cocos 游戏联调</b><span id="gameStatus">等待连接</span></div><button id="closeGameBtn" aria-label="关闭">×</button></header>
-    <iframe id="gameFrame" title="点灯人游戏预览" src="http://127.0.0.1:4173/"></iframe>
+    <iframe id="gameFrame" title="点灯人游戏预览" src="about:blank"></iframe>
     <footer><span>当前审核动作会同步到游戏角色</span><button id="sendGameBtn">重新同步</button></footer>
   </section>
   <dialog id="packerModal" class="packer-modal">
@@ -159,32 +166,6 @@
       <footer><span>该图集完全符合小游戏 4MB 限制，可直接进远程加载目录。</span><button id="downloadPackBtn" class="approve-btn">下载图集与 JSON</button></footer>
     </div>
   </dialog>
-  <dialog id="generationModal" class="generation-modal">
-    <div class="generation-shell">
-      <header><div><span class="generation-kicker">WINDUP PIPELINE</span><b>角色生成中心</b></div><div class="provider"><i id="providerDot"></i><span id="providerStatus">正在检查服务…</span></div><button id="closeGenerateBtn" aria-label="关闭">×</button></header>
-      <div class="generation-body">
-        <section class="generation-form">
-          <div class="generation-identity"><img id="genPortrait" alt="角色母版"><div><small>角色母版</small><b id="genCharacterName">点灯少年</b><span>每帧共用同一母版、描述和动作相位</span></div></div>
-          <div class="generation-fields">
-            <label>视角<select id="genView"><option value="side">横屏侧视</option><option value="topdown">俯视</option><option value="isometric">2.5D</option></select></label>
-            <label>动作<select id="genAction"><option value="idle">呼吸待机</option><option value="walk">行走</option><option value="run">奔跑</option><option value="jump">跳跃</option><option value="lantern">举灯点亮</option></select></label>
-            <label>生成范围<select id="genMode"><option value="full">整套动作 · 8 帧</option><option value="single">仅修复单帧</option></select></label>
-            <label id="genFrameField">帧号<input id="genFrame" type="number" min="1" max="8" value="1"></label>
-          </div>
-          <div class="phase-map"><span>接触</span><i></i><span>下沉</span><i></i><span>交叉</span><i></i><span>上升</span><i></i><span>反向循环</span></div>
-          <button id="startGenerationBtn" class="start-generation">开始生成</button>
-          <p class="generation-note">真实 API 只在本地后端读取密钥；Demo 模式可先零成本验证全流程。</p>
-        </section>
-        <section class="generation-output">
-          <div class="job-head"><div><small>生成任务</small><b id="genBatch">尚未开始</b></div><span id="genPercent">0%</span></div>
-          <div class="job-progress"><i id="genProgress"></i></div>
-          <p id="genMessage">选择动作后开始生成。结果先进入候选区，不会直接覆盖正式资产。</p>
-          <div id="candidateGrid" class="candidate-grid"><div class="candidate-empty">候选帧将在这里逐帧出现</div></div>
-          <footer><span>人工确认后才会推入审核台与 Cocos</span><button id="promoteJobBtn" disabled>接受候选资产</button></footer>
-        </section>
-      </div>
-    </div>
-  </dialog>
-  <script src="./app.js?v=216"></script>
+  <script type="module" src="./app.js?v=300"></script>
 </body>
 </html>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Windup · 角色资产中心</title>
+  <link rel="stylesheet" href="./characters.css?v=1">
+  <link rel="stylesheet" href="./characters-layout.css?v=3">
+</head>
+<body>
+  <header class="app-header">
+    <a class="wordmark" href="./"><i>W</i><span><b>Windup</b><small>CHARACTER ASSETS</small></span></a>
+    <div class="header-actions"><span id="serviceState">正在读取角色库…</span><a class="create-link" href="./create-character.html">＋ 创建新角色</a><a href="./">返回审核台</a></div>
+  </header>
+  <main class="layout">
+    <aside class="catalog-panel">
+      <div class="panel-title"><div><small>LIBRARY</small><h1>角色资产</h1></div><b id="assetCount">0</b></div>
+      <div id="characterList" class="character-list"></div>
+    </aside>
+
+    <section class="preview-panel">
+      <div class="preview-meta"><div><small>MASTER PREVIEW</small><h2 id="previewName">选择角色</h2></div><span id="previewType">—</span></div>
+      <div class="preview-stage"><div class="halo"></div><img id="previewImage" alt="角色母版"><span class="baseline"></span></div>
+      <div class="preview-footer">
+        <div class="preview-copy"><p id="previewDescription">角色母版是后续视角和动作生成的一致性基准。</p><span id="previewActions">尚未读取动作</span></div>
+        <div class="preview-links"><a id="previewEditorLink" href="./" hidden>打开审核台</a><a id="previewActionLink" href="./generate.html">继续生成动作 ↗</a></div>
+      </div>
+    </section>
+
+  </main>
+  <script type="module" src="./characters.js?v=3"></script>
+</body>
+</html>

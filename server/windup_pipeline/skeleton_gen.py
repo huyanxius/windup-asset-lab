@@ -9,6 +9,11 @@ from PIL import Image, ImageDraw
 
 W = H = 512
 NECK = (256, 150); HIP = (256, 300); HEAD = (256, 95)
+GROUND_Y = 494  # 定位点：固定地平线（双腿垂直时脚踝所在 y），8 帧共用
+
+
+def _dot(d, p, r=5):
+    d.ellipse([p[0] - r, p[1] - r, p[0] + r, p[1] + r], fill=(255, 255, 255))
 
 
 def _leg(d, hip, phase, thigh_c, shin_c):
@@ -23,6 +28,7 @@ def _leg(d, hip, phase, thigh_c, shin_c):
     d.line([hip, (kx, ky)], fill=thigh_c, width=10)
     d.line([(kx, ky), (ax, ay)], fill=shin_c, width=10)
     d.line([(ax, ay), (ax + 22, ay)], fill=shin_c, width=9)
+    _dot(d, (kx, ky)); _dot(d, (ax, ay))   # 定位点：膝、踝
     return (kx, ky), (ax, ay)
 
 
@@ -31,6 +37,7 @@ def _arm(d, sho, phase, uc, lc):
     ex = sho[0] + 68 * math.sin(math.radians(a)); ey = sho[1] + 68 * math.cos(math.radians(a))
     hx = ex + 60 * math.sin(math.radians(a * 1.4)); hy = ey + 60 * math.cos(math.radians(a * 1.4))
     d.line([sho, (ex, ey)], fill=uc, width=9); d.line([(ex, ey), (hx, hy)], fill=lc, width=9)
+    _dot(d, (ex, ey)); _dot(d, (hx, hy))   # 定位点：肘、手
 
 
 def make_walk_skeletons(out_dir, n=8):
@@ -39,10 +46,13 @@ def make_walk_skeletons(out_dir, n=8):
     os.makedirs(out_dir, exist_ok=True)
     paths = []
     for i in range(n):
-        t = i / n * 2 * math.pi
+        # 相位偏移 +π/2：使第 1 帧 = 接触位（近腿前伸最大），与合同姿势行
+        # CONTACT/DOWN/PASSING/UP/对侧×4 一一对应，骨骼图与姿势文本不再互相矛盾。
+        t = i / n * 2 * math.pi + math.pi / 2
         bob = int(6 * math.sin(2 * t))
         hip = (256, 300 + bob); neck = (256, 150 + bob); head = (256, 95 + bob); sho = (256, neck[1] + 12)
         im = Image.new("RGB", (W, H), (0, 0, 0)); d = ImageDraw.Draw(im)
+        d.line([(40, GROUND_Y), (W - 40, GROUND_Y)], fill=(120, 120, 120), width=3)  # 定位点：地平线
         _leg(d, hip, t + math.pi, (0, 90, 180), (0, 60, 140))     # 远腿 暗蓝
         _arm(d, sho, t, (150, 90, 0), (150, 120, 0))              # 远臂 暗橙
         d.line([neck, hip], fill=(0, 200, 0), width=11)
