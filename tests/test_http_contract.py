@@ -97,7 +97,7 @@ class HttpContractTest(unittest.TestCase):
         current = self.wait_for_job(job["id"])
         self.assertEqual(current["status"], "awaiting_review")
         self.assertEqual(len(current["outputs"]), 17)
-        self.assertEqual(current["generationRoute"], "sheet")
+        self.assertEqual(current["generationRoute"], "frames,sheet")
         self.assertEqual(current["sourceCallCount"], 0)
 
         _, approved = self.request(f"/api/generations/{job['id']}/promote", {})
@@ -111,7 +111,7 @@ class HttpContractTest(unittest.TestCase):
         self.assertEqual(set(character["assets"]["side"]), {"idle", "walk"})
         self.assertTrue((self.root / character["base"]).exists())
 
-    def test_full_action_uses_one_sheet_route_and_promotes_eight_frames(self):
+    def test_full_walk_uses_skeleton_frames_route_and_promotes_eight_frames(self):
         status, job = self.request("/api/generations", {
             "character": "lamplighter", "view": "side", "action": "walk",
             "mode": "full", "route": "sheet", "model": "gemini-2.5-flash-image",
@@ -119,7 +119,7 @@ class HttpContractTest(unittest.TestCase):
         self.assertEqual(status, 202)
         current = self.wait_for_job(job["id"])
         self.assertEqual(current["status"], "awaiting_review")
-        self.assertEqual(current["generationRoute"], "sheet")
+        self.assertEqual(current["generationRoute"], "frames")
         self.assertEqual(len(current["outputs"]), 8)
         self.assertEqual(current["quality"]["frameCount"], 8)
 

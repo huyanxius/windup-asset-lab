@@ -7,8 +7,8 @@ import json, base64, re
 from . import config, provider
 
 
-def describe_character(ref_path, model=None):
-    """看参考图 → 返回 {desc, palette, view} 供角色卡使用。"""
+def describe_character(ref_path, model=None, api_key=None):
+    """看参考图 → 返回 {desc, palette, view, facing} 供角色卡与母版门禁使用。"""
     model = model or config.VLM_MODEL
     b = base64.b64encode(open(ref_path, "rb").read()).decode()
     prompt = (
@@ -16,13 +16,14 @@ def describe_character(ref_path, model=None):
         '{"desc": "one concise English sentence capturing art style + key identity features '
         '(hair, outfit, props, colors, body type) — used to keep the character consistent across frames", '
         '"palette": "main colors, comma separated", '
-        '"view": "front|profile|pseudo-side|three-quarter (the view in THIS image)"}. '
+        '"view": "front|profile|pseudo-side|three-quarter (the view in THIS image)", '
+        '"facing": "left|right|viewer (which way the character faces)"}. '
         "Be specific about distinguishing features (e.g. broken sword, antler crown), omit background.")
     body = {"model": model, "messages": [{"role": "user", "content": [
         {"type": "text", "text": prompt},
         {"type": "image_url", "image_url": {"url": "data:image/png;base64," + b}},
     ]}]}
-    res = provider.post_json("/chat/completions", body)   # 带重试
+    res = provider.post_json("/chat/completions", body, api_key=api_key)   # 带重试
     content = res["choices"][0]["message"]["content"]
     m = re.search(r'\{.*\}', content, re.S)
     if m:

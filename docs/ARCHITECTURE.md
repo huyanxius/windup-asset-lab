@@ -66,7 +66,11 @@ server/
    ├─ domain.py                 # 内建角色目录 + 生成契约导出
    ├─ provider.py               # 七牛云鉴权、请求、重试和错误映射
    ├─ generate.py               # 组装图像模型请求
-   ├─ processing.py             # 抠图与 256×256 归一化
+   ├─ generation_executor.py    # 后台任务执行、进度与溯源
+   ├─ action_pipeline.py        # 动作条/单帧双路由与回退
+   ├─ asset_catalog.py          # 正式角色目录与动作清单
+   ├─ publisher.py              # 原子入库、备份与失败回滚
+   ├─ processing.py             # 抠图、动作条切分、归一化与连续性质检
    ├─ job_store.py              # 线程安全的任务持久化边界
    ├─ review_store.py           # 乐观锁版本化审核存储
    └─ session_store.py          # 不落盘的会话级 API 凭据
@@ -80,13 +84,16 @@ flowchart LR
   API --> HTTP["app.py 路由"]
   HTTP --> App["GenerationApplication"]
   App --> Store["JobStore / ReviewStore"]
-  App --> Session["ProviderSession"]
-  Session --> Provider["QnAIGC Provider"]
-  Provider --> Generate["生成步骤"]
-  Generate --> Process["抠图与归一化"]
+  App --> Executor["GenerationExecutor"]
+  App --> Publisher["AssetPublisher"]
+  Executor --> Session["ProviderSession snapshot"]
+  Executor --> Pipeline["ActionPipeline"]
+  Pipeline --> Provider["QnAIGC Provider"]
+  Pipeline --> Process["抠图、切帧与归一化"]
   Process --> Candidate["候选任务目录"]
   Candidate --> Review["人工采用"]
-  Review --> Assets["正式资产 + 备份"]
+  Review --> Publisher
+  Publisher --> Assets["正式资产 + 备份"]
   Assets --> Cocos["Cocos Runtime"]
 ```
 
@@ -137,7 +144,11 @@ queued → generating → awaiting_review → approved
 
 ### 增加角色
 
-内建角色加到前后端目录；用户生成角色通过 `/api/characters/generations` 创建，确认后由后端写入运行时角色库。角色母版、动作候选和正式帧必须保持不同目录。
+内建角色加到目录；用户角色通过 `/api/characters/generations` 创建。默认角色包包含母版、side/idle 和 side/walk；`AssetPublisher` 在临时目录完成全部复制后再原子入库。角色母版、动作候选和正式帧必须保持不同目录。
+
+### 更换整套动作策略
+
+完整动作默认走 `sheet`：一次生成八相位动作条，确定性切帧、归一化并做几何连续性质检。单帧退回走 `frames` 修复；动作条格式不合法时执行器可回退逐帧生成。策略只在 `ActionPipeline` 内变化，页面、发布器和 Cocos 不感知模型调用方式。
 
 ### 更换生成供应商
 

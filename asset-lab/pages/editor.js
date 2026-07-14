@@ -22,7 +22,16 @@ import { EditorView } from './editor-view.js';
 export function bootstrapEditor() {
   const els = collectEditorElements();
   const api = createApiClient();
-  const session = new EditorSession(characterCatalog);
+  const requested = new URLSearchParams(location.search);
+  const requestedCharacter = requested.get('character');
+  const initialCharacter = characterCatalog[requestedCharacter] ? requestedCharacter : 'lamplighter';
+  const requestedView = requested.get('view');
+  const initialView = characterCatalog[initialCharacter].library[requestedView] ? requestedView : 'side';
+  const session = new EditorSession(characterCatalog, {
+    characterId: initialCharacter,
+    view: initialView,
+    action: requested.get('action') || 'idle',
+  });
   const reviewStore = new ReviewStore(globalThis.localStorage, 'windup-review-state', api);
   const playback = new PlaybackClock(FIXED_FPS);
   const view = new EditorView(els, session, reviewStore);
@@ -161,6 +170,12 @@ export function bootstrapEditor() {
       const result = await api.get('/api/characters');
       mergeCharacterRecords(result.characters, (path) => api.assetUrl(path));
       view.renderCharacterOptions();
+      if (requestedCharacter && characterCatalog[requestedCharacter]) {
+        session.selectCharacter(requestedCharacter);
+        if (requested.get('view')) session.selectView(requested.get('view'));
+        if (requested.get('action')) session.selectAction(requested.get('action'));
+        render();
+      }
     } catch {
       // Built-in assets remain available if the generation service is offline.
     }

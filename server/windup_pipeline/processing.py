@@ -7,6 +7,11 @@ from pathlib import Path
 from PIL import Image
 
 
+def _foreground_ratio(image: Image.Image) -> float:
+    alpha = image.getchannel("A")
+    return sum(1 for value in alpha.getdata() if value > 24) / (image.width * image.height)
+
+
 def matte_chroma(source: Path, destination: Path) -> None:
     image = Image.open(source).convert("RGBA")
     pixels = image.load()
@@ -20,17 +25,37 @@ def matte_chroma(source: Path, destination: Path) -> None:
             alpha = max(0, min(255, round((distance - 18) / 110 * 255)))
             pixels[x, y] = (red, green, blue, alpha)
     destination.parent.mkdir(parents=True, exist_ok=True)
+    if _foreground_ratio(image) > 0.6:
+        # 色键没抠动（背景偏离四角键色）：回退 AI 主体分割，仍失败则拒绝出帧。
+        try:
+            from .matte import cutout
+            cutout(source, destination)
+            image = Image.open(destination).convert("RGBA")
+        except ImportError:
+            pass
+        if _foreground_ratio(image) > 0.6:
+            raise RuntimeError("背景未能去除，该帧需要重新生成")
     image.save(destination)
 
 
-def normalize_frame(source: Path, destination: Path, action: str, frame_index: int) -> None:
+def fit_scale(width: int, height: int) -> float:
+    return min(224 / width, 208 / height, 1.0)
+
+
+def normalize_frame(source: Path, destination: Path, action: str, frame_index: int, scale: float | None = None) -> None:
     image = Image.open(source).convert("RGBA")
     alpha = image.getchannel("A")
     bbox = alpha.point(lambda value: 255 if value > 24 else 0).getbbox()
     if not bbox:
         raise RuntimeError("该帧没有可见角色")
     subject = image.crop(bbox)
-    subject.thumbnail((224, 208), Image.Resampling.NEAREST)
+    if scale is None:
+        scale = fit_scale(subject.width, subject.height)
+    if scale < 1:
+        subject = subject.resize(
+            (max(1, round(subject.width * scale)), max(1, round(subject.height * scale))),
+            Image.Resampling.NEAREST,
+        )
     canvas = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
     left = round((256 - subject.width) / 2)
     jump_offsets = [0, 18, 42, 62, 38, 0, 0, 0]
@@ -50,18 +75,24 @@ def split_action_sheet(
     """Split one horizontal strip and normalize every panel to the runtime spec."""
     image = Image.open(source).convert("RGBA")
     width, height = image.size
-    if frame_count != 8 or width < height * 2 or width // frame_count < 32:
+    # 3:1 是保住竖长格子合法条(契约测试 800×240)的同时能拒掉多行网格(≤2:1)的最紧阈值。
+    if frame_count != 8 or width < height * 3 or width // frame_count < 32:
         raise RuntimeError("生成结果不是可切分的 8 帧横向动作条")
     destination.mkdir(parents=True, exist_ok=True)
+    crops = [
+        image.crop((round(index * width / frame_count), 0, round((index + 1) * width / frame_count), height))
+        for index in range(frame_count)
+    ]
+    # 整条动作共用一个缩放系数：逐帧各自适配会让宽姿势帧被缩小，破坏跨帧比例一致性。
+    boxes = [crop.getchannel("A").point(lambda value: 255 if value > 24 else 0).getbbox() for crop in crops]
+    scale = min((fit_scale(box[2] - box[0], box[3] - box[1]) for box in boxes if box), default=1.0)
     outputs = []
-    for frame_index in range(frame_count):
-        left = round(frame_index * width / frame_count)
-        right = round((frame_index + 1) * width / frame_count)
+    for frame_index, crop in enumerate(crops):
         panel = destination / f".{action}-{frame_index + 1:02d}-panel.png"
         output = destination / f"{action}-{frame_index + 1:02d}.png"
-        image.crop((left, 0, right, height)).save(panel)
+        crop.save(panel)
         try:
-            normalize_frame(panel, output, action, frame_index)
+            normalize_frame(panel, output, action, frame_index, scale)
         finally:
             panel.unlink(missing_ok=True)
         outputs.append(output)
@@ -105,6 +136,8 @@ def sequence_quality(frames: list[Path], action: str = "") -> dict:
     warnings = []
     if len(visible) != len(frames):
         warnings.append("存在不可见帧")
+    if any(metric and metric["coverage"] > 0.5 for metric in metrics):
+        warnings.append("疑似存在背景未去除的帧")
     if visible:
         median_height = statistics.median(metric["height"] for metric in visible)
         height_spread = (max(metric["height"] for metric in visible) - min(metric["height"] for metric in visible)) / max(1, median_height)

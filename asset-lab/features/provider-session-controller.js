@@ -1,6 +1,7 @@
 /** Owns provider connection state for every generation surface. */
 export function providerIsReady(payload) {
-  return payload?.verified === true
+  return payload?.demo === true
+    || payload?.verified === true
     || (payload?.configured === true && payload?.verified !== false);
 }
 
@@ -12,6 +13,7 @@ export class ProviderSessionController {
     this.onConnected = onConnected;
     this.connected = false;
     this.busy = false;
+    this.contractVersion = '';
   }
 
   get model() { return this.els.model.value; }
@@ -56,6 +58,7 @@ export class ProviderSessionController {
         { 'X-Windup-Request': 'studio' },
       );
       this.connected = providerIsReady(result);
+      this.contractVersion = result.contractVersion || this.contractVersion;
       this.els.apiKey.value = '';
       this.els.connectBtn.textContent = '重新连接';
       this.status('ready', '已验证', `${result.model} · 当前后端会话`);
@@ -84,11 +87,12 @@ export class ProviderSessionController {
     }
     if (healthResult.status === 'fulfilled') {
       const health = healthResult.value;
+      this.contractVersion = health.contractVersion || '';
       this.connected = providerIsReady(health);
       this.els.serviceState.textContent = '生成后端已连接';
       if (this.connected) {
         this.els.connectBtn.textContent = '重新连接';
-        this.status('ready', '已验证', `${health.model} · 当前后端会话`);
+        this.status('ready', health.demo ? '演示模式' : '已验证', `${health.model} · ${health.demo ? '不调用外部 API' : '当前后端会话'}`);
       } else {
         this.status(health.providerError ? 'error' : '', '未连接', health.providerError || '输入 Key 后进行真实验证。');
       }

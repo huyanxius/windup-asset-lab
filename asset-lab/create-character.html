@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Windup · 创建角色</title>
-  <link rel="stylesheet" href="./create-character.css?v=1">
+  <link rel="stylesheet" href="./create-character.css?v=4">
 </head>
 <body>
   <header class="app-header">
@@ -15,12 +15,12 @@
   <main class="creator-layout">
     <aside class="guide-panel">
       <small>NEW CHARACTER</small>
-      <h1>创建角色母版</h1>
-      <p>从一个清晰的角色定义开始，生成独立于现有角色的新母版。确认后才会写入资产库。</p>
+      <h1>创建可用角色包</h1>
+      <p>一次完成角色母版、待机与行走动作。整体确认后再写入资产库，入库即可预览和编辑。</p>
       <ol id="workflowSteps">
         <li class="active" data-step="connect"><i>1</i><span><b>连接服务</b><small>验证 Key 并选择模型</small></span></li>
-        <li data-step="define"><i>2</i><span><b>定义角色</b><small>确定身份与视觉约束</small></span></li>
-        <li data-step="review"><i>3</i><span><b>审核母版</b><small>确认后加入角色库</small></span></li>
+        <li data-step="define"><i>2</i><span><b>定义角色包</b><small>身份、风格与基础动作</small></span></li>
+        <li data-step="review"><i>3</i><span><b>整体审核</b><small>母版与动作一起入库</small></span></li>
       </ol>
       <p class="security-note">API Key 只保留在当前后端进程，不写入浏览器、文件或 Git。</p>
     </aside>
@@ -37,24 +37,35 @@
       </section>
 
       <form id="createForm">
-        <div class="section-title"><span><b>角色定义</b><small>可以从模板起步，再自由修改</small></span></div>
+        <div class="section-title"><span><b>角色定义</b><small>按步骤填写，或从模板一键起步</small></span></div>
         <div class="templates" aria-label="角色模板">
           <button type="button" data-template="literary">文艺少年</button>
           <button type="button" data-template="courier">雾港邮差</button>
           <button type="button" data-template="herbalist">林间药师</button>
         </div>
-        <label><span>资产名称</span><input id="assetName" maxlength="40" placeholder="为角色命名" required></label>
-        <label><span>角色定义</span><textarea id="description" maxlength="800" placeholder="描述年龄、身形、发型、服装、克制配色、道具和气质…" required></textarea></label>
-        <div class="spec-row"><span>256 × 256</span><span>透明背景</span><span>中性站姿</span><span>像素风格</span></div>
-        <button id="createBtn" class="primary" type="submit" disabled>连接服务后生成角色母版</button>
+        <label><span>① 视觉风格 · 留空则交给模型</span>
+          <div class="field-dice"><input id="styleInput" maxlength="120" placeholder="如：暗黑哥特像素 / 明快卡通像素"><button type="button" class="dice" data-dice="style">随机</button></div>
+        </label>
+        <label><span>② 整体配色 · 发色、衣着、点缀色</span>
+          <div class="field-dice"><input id="paletteInput" maxlength="120" placeholder="如：黑发、深蓝外套、暗红围巾点缀"><button type="button" class="dice" data-dice="palette">随机</button></div>
+        </label>
+        <label><span>③ 资产名称</span><input id="assetName" maxlength="40" placeholder="为角色命名" required></label>
+        <label><span>④ 身份描述 · 年龄、身形、发型、道具、气质</span><textarea id="description" maxlength="800" placeholder="描述这个角色是谁：年龄、身形、发型、服装、道具和气质…" required></textarea></label>
+        <fieldset class="starter-pack">
+          <legend><b>⑤ 基础动作包</b><small>整条生成后自动切成 8 帧</small></legend>
+          <label><input id="starterIdle" type="checkbox" value="idle" checked><span><b>呼吸待机</b><small>8 帧循环</small></span></label>
+          <label><input id="starterWalk" type="checkbox" value="walk" checked><span><b>行走</b><small>8 帧循环</small></span></label>
+        </fieldset>
+        <div class="spec-row"><span>母版 + 16 帧</span><span>3 次模型调用</span><span>8 FPS</span><span>透明背景</span></div>
+        <button id="createBtn" class="primary" type="submit" disabled>连接服务后生成角色包</button>
       </form>
     </section>
 
     <section class="result-panel" id="resultPanel">
-      <header><div><small>MASTER PREVIEW</small><h2>候选母版</h2></div><span id="jobPercent">—</span></header>
-      <div class="result-stage">
+      <header><div><small>PACKAGE PREVIEW</small><h2>候选角色包</h2></div><span id="jobPercent">—</span></header>
+      <div class="result-stage package-stage">
         <div id="emptyResult" class="empty-result"><i>◇</i><b>等待生成</b><span>候选结果会在这里出现</span></div>
-        <img id="candidateImage" alt="候选角色母版" hidden>
+        <div id="resultGrid" class="package-grid" hidden></div>
       </div>
       <div class="job-state">
         <div class="progress"><i id="jobProgress"></i></div>
@@ -63,10 +74,11 @@
         <div class="result-actions">
           <button id="acceptBtn" class="primary" type="button" hidden>确认并加入角色库</button>
           <a id="libraryLink" href="./characters.html" hidden>前往角色资产库 →</a>
+          <a id="editorLink" href="./" hidden>在审核台中打开 →</a>
         </div>
       </div>
     </section>
   </main>
-  <script type="module" src="./create-character.js?v=2"></script>
+  <script type="module" src="./create-character.js?v=5"></script>
 </body>
 </html>
