@@ -119,6 +119,9 @@ export function bindEditorEvents({ elements: els, session, view, onboarding, dra
 
   window.addEventListener('keydown', (event) => {
     if (!onboarding.complete || TEXT_INPUTS.has(document.activeElement?.tagName)) return;
+    // Ignore OS key auto-repeat: held movement is driven by motion `held` state and the
+    // motion loop, so repeated keydowns would only restart the playback clock and stall frames.
+    if (event.repeat) return;
     const motion = getMotion();
     if (motion.animation === AnimationState.PAUSED && event.code.startsWith('Arrow')) {
       const delta = {
