@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Windup · 待机眨眼实验</title>
+  <link rel="stylesheet" href="./create-character.css?v=4">
+  <link rel="stylesheet" href="./generate.css?v=3">
+  <link rel="stylesheet" href="./idle-blink-test.css?v=1">
+</head>
+<body>
+  <header class="app-header">
+    <a class="wordmark" href="./"><i>W</i><span><b>Windup</b><small>IDLE BLINK EXPERIMENT</small></span></a>
+    <nav><span id="serviceState">正在检查生成服务…</span><a href="./">返回审核台</a></nav>
+  </header>
+
+  <main class="creator-layout">
+    <aside class="guide-panel">
+      <small>EXPERIMENT</small>
+      <h1>待机 · 眨眼最小方案</h1>
+      <p>只生成 1 张新图(闭眼帧)，其余 7 个槽位复用角色已有母版，8 帧序列在浏览器里按 8 FPS 循环播放，用来验证"只留眨眼这一个变化维度"是否足够稳定、够不够明显。</p>
+      <p class="security-note">不写入契约、不产生正式资产，独立于生成主流程。</p>
+    </aside>
+
+    <section class="form-panel">
+      <header><div><small>GENERATION SETUP</small><h2>实验设置</h2></div><span id="providerState" class="status">未连接</span></header>
+      <section class="provider-card">
+        <div class="section-title"><span><b>七牛云 QnAIGC</b><small>凭据仅保留在当前后端会话</small></span><i id="providerDot"></i></div>
+        <label><span>API Key</span><input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…"></label>
+        <label><span>图像模型</span><select id="model"><option value="">正在读取模型…</option></select></label>
+        <button id="connectBtn" class="secondary" type="button">验证并连接</button>
+        <p id="connectionMessage" class="message" aria-live="polite"></p>
+      </section>
+
+      <form id="experimentForm">
+        <div class="section-title"><span><b>选角色</b><small>复用已有正式母版，不重新生成母版</small></span></div>
+        <div class="identity-row"><img id="characterPortrait" alt="角色母版"><label><span>角色</span><select id="character"></select></label></div>
+        <button id="startBtn" class="primary" type="submit" disabled>连接服务后开始生成</button>
+      </form>
+    </section>
+
+    <section class="result-panel">
+      <header><div><small>RESULT</small><h2>结果</h2></div><span id="jobPercent">—</span></header>
+      <div id="resultBody">
+        <div class="empty-result"><i>◇</i><b>等待生成</b><span>点左侧按钮开始</span></div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./idle-blink-test.js?v=1"></script>
+</body>
+</html>
