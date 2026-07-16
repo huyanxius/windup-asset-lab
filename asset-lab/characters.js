@@ -29,16 +29,16 @@ function editorUrl(characterId, asset) {
     query.set('view', asset.view);
     query.set('action', asset.action);
   }
-  return `./?${query}`;
+  return `./review.html?${query}`;
 }
 
 function generationUrl(characterId, asset) {
-  const query = new URLSearchParams({ character: characterId, mode: 'full' });
+  const query = new URLSearchParams({ character: characterId, source: 'existing' });
   if (asset) {
     query.set('view', asset.view);
     query.set('action', asset.action);
   }
-  return `./generate.html?${query}`;
+  return `./#/studio?${query}`;
 }
 
 function compactViewLabel(view) {
@@ -49,7 +49,7 @@ function compactViewLabel(view) {
 
 function typeLabel(character) {
   if (character.custom) return '自建角色';
-  if (character.id === 'lamplighter') return '项目角色';
+  if (character.id === 'lamplighter') return '旧试验资产';
   return '导入角色';
 }
 

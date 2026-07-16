@@ -17,7 +17,7 @@ function braceBalance(source) {
 }
 
 test('editor loads an ordered, valid CSS module stack without inline styles', async () => {
-  const html = await readFile(new URL('index.html', root), 'utf8');
+  const html = await readFile(new URL('review.html', root), 'utf8');
   assert.doesNotMatch(html, /\sstyle=/);
   assert.doesNotMatch(html, /styles\.css/);
 

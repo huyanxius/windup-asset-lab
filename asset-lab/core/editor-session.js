@@ -1,9 +1,10 @@
 import { FIXED_FPS, actionOrder } from '../data/character-catalog.js';
+import { DEFAULT_DEMO_CHARACTER_ID } from '../data/default-demo-character.js';
 
 const DEFAULT_ANCHOR = Object.freeze({ x: 128, y: 238 });
 
 export class EditorSession {
-  constructor(catalog, { characterId = 'lamplighter', view = 'side', action = 'idle' } = {}) {
+  constructor(catalog, { characterId = DEFAULT_DEMO_CHARACTER_ID, view = 'side', action = 'idle' } = {}) {
     this.catalog = catalog;
     this.characterId = characterId;
     this.view = view;

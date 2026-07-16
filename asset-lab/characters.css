@@ -77,15 +77,12 @@ a {
 }
 
 .wordmark > i {
-  display: grid;
+  display: block;
   width: 34px;
   height: 34px;
-  place-items: center;
-  border-radius: 10px;
   background: var(--ink);
-  color: var(--white);
-  font: 700 15px/1 Inter, sans-serif;
-  font-style: normal;
+  mask: url('./brand/windup-mark.svg') center / contain no-repeat;
+  -webkit-mask: url('./brand/windup-mark.svg') center / contain no-repeat;
 }
 
 .wordmark > i::after {

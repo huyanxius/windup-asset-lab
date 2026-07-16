@@ -9,17 +9,17 @@
 </head>
 <body>
   <header class="app-header">
-    <a class="wordmark" href="./characters.html" aria-label="返回 Windup 项目资产库">
-      <i>W</i>
+    <a class="wordmark" href="./#/projects/windup-demo/assets" aria-label="返回 Windup 产品首页">
+      <i class="wordmark-bird" aria-hidden="true"></i>
       <span><b>Windup</b><small>ASSET LIBRARY</small></span>
     </a>
     <div class="project-name" aria-label="当前项目">
       <span>当前项目</span>
-      <b>点灯人 · MVP</b>
+      <b>Windup · 角色项目</b>
     </div>
     <div class="header-actions">
       <span id="serviceState" class="service-state" aria-live="polite">正在读取…</span>
-      <a class="create-link" href="./create-character.html"><span>＋</span> 新建资产</a>
+      <a class="create-link" href="./#/studio"><span>＋</span> 新建资产</a>
     </div>
   </header>
 
@@ -31,8 +31,8 @@
       </header>
 
       <div class="project-node">
-        <span class="project-mark">灯</span>
-        <span><b>点灯人 · MVP</b><small>项目工作区</small></span>
+        <span class="project-mark">角</span>
+        <span><b>Windup · 角色项目</b><small>项目工作区</small></span>
       </div>
 
       <label class="tree-search" for="characterSearch">
@@ -47,12 +47,12 @@
         <i>◇</i>
         <b id="libraryStateTitle">还没有角色</b>
         <p id="libraryStateCopy">创建第一个角色，资产会从这里开始生长。</p>
-        <a id="libraryStateAction" href="./create-character.html">创建角色</a>
+        <a id="libraryStateAction" href="./#/studio">创建角色</a>
         <button id="retryLibraryBtn" type="button" hidden>重新读取</button>
       </div>
 
       <footer class="tree-footer">
-        <a href="./create-character.html"><span>＋</span>新建角色</a>
+        <a href="./#/studio"><span>＋</span>新建角色</a>
       </footer>
     </aside>
 
@@ -63,7 +63,7 @@
           <h1 id="outfitTitle">默认造型</h1>
           <p id="outfitDescription">选择角色后查看这套造型已经拥有的资产。</p>
         </div>
-        <a id="primaryActionLink" class="primary-action" href="./generate.html">生成动作</a>
+        <a id="primaryActionLink" class="primary-action" href="./#/studio?source=existing">生成动作</a>
       </header>
 
       <section class="master-section" aria-labelledby="masterTitle">
@@ -99,6 +99,6 @@
     </section>
   </main>
 
-  <script type="module" src="./characters.js?v=6"></script>
+  <script type="module" src="./characters.js?v=7"></script>
 </body>
 </html>
