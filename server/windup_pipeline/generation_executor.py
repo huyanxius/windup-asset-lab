@@ -138,7 +138,7 @@ class GenerationExecutor:
                 self.update(job_id, progress=24, message="正在去背景与统一母版画布")
                 processing.matte_chroma(raw, cutout)
             else:
-                source = self.root / self.catalog["lamplighter"]["base"]
+                source = self.root / self.catalog["boy"]["base"]
                 shutil.copy2(source, raw)
                 shutil.copy2(source, cutout)
             processing.normalize_frame(cutout, output, "idle", 0)

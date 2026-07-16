@@ -13,14 +13,13 @@ from .generated_contract import (
 
 CATALOG = {
     "lamplighter": {
-        "label": "点灯少年",
+        "label": "旧试验角色 · 独立样例",
         "base": "assets/resources/character/frames/walk-01.png",
         "description": "young chibi pixel-art lamplighter, tousled black hair, navy coat, red scarf, charcoal trousers, brown boots, warm brass fasteners",
     },
     "boy": {
-        "label": "Boy",
+        "label": "少年 · 默认角色",
         "base": "assets/resources/characters/boy/base.png",
-        "card": "artifacts/characters/boy/card.json",
         "description": "young slender pixel-art boy with messy black hair, dark blue long coat, brown vest, white shirt, red scarf, brown trousers and boots",
     },
     "skeleton": {

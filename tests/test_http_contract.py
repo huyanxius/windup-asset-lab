@@ -23,6 +23,10 @@ class HttpContractTest(unittest.TestCase):
         frame_root = self.root / "assets/resources/character/frames"
         frame_root.mkdir(parents=True)
         shutil.copy2(PROJECT_ROOT / "assets/resources/character/frames/walk-01.png", frame_root / "walk-01.png")
+        shutil.copytree(
+            PROJECT_ROOT / "assets/resources/characters/boy",
+            self.root / "assets/resources/characters/boy",
+        )
         self.application = GenerationApplication(self.root, demo=True)
         self.application.prepare()
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), create_handler(self.application, self.root))
