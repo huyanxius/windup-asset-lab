@@ -41,6 +41,11 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
             self._set_session_cookie = False
             super().__init__(*args, directory=str(root), **kwargs)
 
+        def end_headers(self) -> None:
+            if not urlparse(self.path).path.startswith("/api/"):
+                self.send_header("Cache-Control", "no-store")
+            super().end_headers()
+
         def origin_allowed(self, origin: str) -> bool:
             return origin in configured_origins if configured_origins else bool(LOCAL_ORIGIN.fullmatch(origin))
 
