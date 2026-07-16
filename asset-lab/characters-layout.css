@@ -1,26 +1,51 @@
-.layout {
-  grid-template-columns: 280px minmax(0, 1fr);
+@media (max-width: 1180px) {
+  .library-shell {
+    grid-template-columns: 238px minmax(0, 1fr);
+  }
+
+  .outfit-workspace {
+    padding-right: 26px;
+    padding-left: 26px;
+  }
+
+  .action-shelf {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
 }
 
-.header-actions .create-link {
-  border-color: #1d1d1f;
-  background: #1d1d1f;
-  color: #fff;
-}
+@media (max-width: 980px) {
+  .app-header {
+    grid-template-columns: 1fr auto;
+  }
 
-.preview-copy {
-  display: grid;
-  gap: 5px;
-}
+  .project-name {
+    display: none;
+  }
 
-.preview-copy > span {
-  color: #1d1d1f;
-  font-size: 9px;
-  font-weight: 650;
-}
+  .library-shell {
+    grid-template-columns: 218px minmax(0, 1fr);
+    width: calc(100% - 24px);
+    margin: 12px auto;
+  }
 
-.preview-links {
-  display: flex;
-  gap: 7px;
-  flex: none;
+  .outfit-workspace {
+    padding: 24px 22px 34px;
+  }
+
+  .outfit-header {
+    align-items: flex-start;
+  }
+
+  .outfit-heading > p:last-child {
+    max-width: 430px;
+  }
+
+  .actions-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .action-shelf {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
 }

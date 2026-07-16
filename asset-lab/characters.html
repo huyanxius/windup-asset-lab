@@ -3,31 +3,102 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Windup · 角色资产中心</title>
-  <link rel="stylesheet" href="./characters.css?v=1">
-  <link rel="stylesheet" href="./characters-layout.css?v=3">
+  <title>Windup · 项目资产库</title>
+  <link rel="stylesheet" href="./characters.css?v=5">
+  <link rel="stylesheet" href="./characters-layout.css?v=5">
 </head>
 <body>
   <header class="app-header">
-    <a class="wordmark" href="./"><i>W</i><span><b>Windup</b><small>CHARACTER ASSETS</small></span></a>
-    <div class="header-actions"><span id="serviceState">正在读取角色库…</span><a class="create-link" href="./create-character.html">＋ 创建新角色</a><a href="./">返回审核台</a></div>
+    <a class="wordmark" href="./characters.html" aria-label="返回 Windup 项目资产库">
+      <i>W</i>
+      <span><b>Windup</b><small>ASSET LIBRARY</small></span>
+    </a>
+    <div class="project-name" aria-label="当前项目">
+      <span>当前项目</span>
+      <b>点灯人 · MVP</b>
+    </div>
+    <div class="header-actions">
+      <span id="serviceState" class="service-state" aria-live="polite">正在读取…</span>
+      <a class="create-link" href="./create-character.html"><span>＋</span> 新建资产</a>
+    </div>
   </header>
-  <main class="layout">
-    <aside class="catalog-panel">
-      <div class="panel-title"><div><small>LIBRARY</small><h1>角色资产</h1></div><b id="assetCount">0</b></div>
-      <div id="characterList" class="character-list"></div>
+
+  <main id="libraryShell" class="library-shell" aria-busy="true">
+    <aside class="asset-tree" aria-labelledby="treeTitle">
+      <header class="tree-heading">
+        <div><small>PROJECT ASSETS</small><h1 id="treeTitle">资产</h1></div>
+        <b id="assetCount">0</b>
+      </header>
+
+      <div class="project-node">
+        <span class="project-mark">灯</span>
+        <span><b>点灯人 · MVP</b><small>项目工作区</small></span>
+      </div>
+
+      <label class="tree-search" for="characterSearch">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.5"></circle><path d="m13 13 4 4"></path></svg>
+        <input id="characterSearch" type="search" placeholder="搜索角色" autocomplete="off">
+      </label>
+
+      <div id="characterList" class="character-list" aria-label="角色与造型"></div>
+      <p id="searchEmpty" class="search-empty" hidden>没有找到匹配的角色</p>
+
+      <div id="libraryState" class="library-state" hidden>
+        <i>◇</i>
+        <b id="libraryStateTitle">还没有角色</b>
+        <p id="libraryStateCopy">创建第一个角色，资产会从这里开始生长。</p>
+        <a id="libraryStateAction" href="./create-character.html">创建角色</a>
+        <button id="retryLibraryBtn" type="button" hidden>重新读取</button>
+      </div>
+
+      <footer class="tree-footer">
+        <a href="./create-character.html"><span>＋</span>新建角色</a>
+      </footer>
     </aside>
 
-    <section class="preview-panel">
-      <div class="preview-meta"><div><small>MASTER PREVIEW</small><h2 id="previewName">选择角色</h2></div><span id="previewType">—</span></div>
-      <div class="preview-stage"><div class="halo"></div><img id="previewImage" alt="角色母版"><span class="baseline"></span></div>
-      <div class="preview-footer">
-        <div class="preview-copy"><p id="previewDescription">角色母版是后续视角和动作生成的一致性基准。</p><span id="previewActions">尚未读取动作</span></div>
-        <div class="preview-links"><a id="previewEditorLink" href="./" hidden>打开审核台</a><a id="previewActionLink" href="./generate.html">继续生成动作 ↗</a></div>
-      </div>
-    </section>
+    <section id="outfitWorkspace" class="outfit-workspace" aria-labelledby="outfitTitle">
+      <header class="outfit-header">
+        <div class="outfit-heading">
+          <p class="breadcrumb"><span id="characterCrumb">角色</span><i>／</i><b>默认造型</b></p>
+          <h1 id="outfitTitle">默认造型</h1>
+          <p id="outfitDescription">选择角色后查看这套造型已经拥有的资产。</p>
+        </div>
+        <a id="primaryActionLink" class="primary-action" href="./generate.html">生成动作</a>
+      </header>
 
+      <section class="master-section" aria-labelledby="masterTitle">
+        <div class="section-heading">
+          <div><small>OUTFIT MASTER</small><h2 id="masterTitle">造型母版</h2></div>
+          <span id="masterState" class="master-state">只读基准</span>
+        </div>
+        <div class="master-card">
+          <div class="master-preview">
+            <span class="baseline"></span>
+            <img id="masterImage" alt="当前造型母版">
+            <div id="masterPlaceholder" class="master-placeholder" hidden><i>◇</i><span>母版不可用</span></div>
+          </div>
+          <div class="master-copy">
+            <small>身份与造型基准</small>
+            <h3 id="characterName">选择角色</h3>
+            <p id="masterDescription">母版用于约束后续视角和动作的一致性。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="actions-section" aria-labelledby="actionsTitle">
+        <div class="actions-heading">
+          <div>
+            <small>ACTION ASSETS</small>
+            <h2 id="actionsTitle">动作资产</h2>
+            <p id="viewSummary">选择一个视角查看动作。</p>
+          </div>
+          <div id="viewTabs" class="view-tabs" role="tablist" aria-label="视角"></div>
+        </div>
+        <div id="actionShelf" class="action-shelf" aria-live="polite"></div>
+      </section>
+    </section>
   </main>
-  <script type="module" src="./characters.js?v=3"></script>
+
+  <script type="module" src="./characters.js?v=6"></script>
 </body>
 </html>
