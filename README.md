@@ -1,247 +1,982 @@
-# Windup
+# WindUp Asset Lab
 
-### Character Asset Studio for Generation, Review and Cocos Delivery
+> **Character Asset Studio for Generation, Review, and Cocos Delivery**
 
-Windup 是一套面向 2D 游戏角色的资产工作流原型。它将角色生成、动作分帧、几何质检、人工审核与 Cocos Creator 运行时验证连成一条可追溯的交付链路。
+WindUp is a specialized workflow prototype for 2D game character asset production. It connects AI role generation, frame-by-frame action division, geometric quality inspection, human review, and Cocos Creator runtime verification into a single traceable delivery pipeline.
 
-> 目标不是生成“一组看起来不错的图”，而是交付“一组经过审核、可修复、可追溯、进入引擎即可播放的角色资产”。
+Every asset goes through **candidate isolation → automated geometric QA → human semantic review → atomic promotion → Cocos runtime verification** before becoming part of the official game library.
 
-## Three repositories, one product
+---
 
-Windup 是本次比赛主项目的角色资产子系统，由三个队内仓库协同构成。主仓库管理比赛项目整体交付，本仓库负责产品化工作台，队友仓库负责角色生成管线。
+## Table of Contents
 
-| Repository | Ownership | Responsibility |
-|---|---|---|
-| **[game-asset-character](https://github.com/huyanxius/game-asset-character)** | 比赛主仓库 | 项目总入口、整体产品交付与比赛材料组织 |
-| **[windup-asset-lab](https://github.com/huyanxius/windup-asset-lab)** | 当前子系统 | 生成入口、资产管理、逐帧审核、质检门禁、导出与 Cocos 联调 |
-| **[windup-pipeline](https://github.com/johnnyzhang-eng/windup-pipeline)** | 队友管线 | 角色资产生成与处理、动作帧组织及资产实验实现 |
+- [Overview](#overview)
+- [Features](#features)
+- [Technical Stack](#technical-stack)
+- [System Requirements](#system-requirements)
+- [Directory Structure](#directory-structure)
+- [Quick Start](#quick-start)
+  - [Demo Mode (Zero Cost)](#demo-mode-zero-cost)
+  - [Production Mode (With AI Provider)](#production-mode-with-ai-provider)
+- [Complete Workflow](#complete-workflow)
+  - [1. Character Generation](#1-character-generation)
+  - [2. Action Generation](#2-action-generation)
+  - [3. Quality Inspection](#3-quality-inspection)
+  - [4. Human Review](#4-human-review)
+  - [5. Asset Promotion](#5-asset-promotion)
+  - [6. Cocos Runtime Verification](#6-cocos-runtime-verification)
+- [Architecture](#architecture)
+  - [Core Design Principles](#core-design-principles)
+  - [Module Boundaries & Dependency Direction](#module-boundaries--dependency-direction)
+  - [State Ownership](#state-ownership)
+  - [Data Lifecycle](#data-lifecycle)
+  - [Product Contract](#product-contract)
+  - [Architecture Gate Automation](#architecture-gate-automation)
+- [API Reference](#api-reference)
+  - [Health & Status](#health--status)
+  - [Provider Connection](#provider-connection)
+  - [Character Management](#character-management)
+  - [Action Generation](#action-generation)
+  - [Review & Approval](#review--approval)
+  - [Asset Promotion](#asset-promotion)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [Security](#security)
+- [Troubleshooting](#troubleshooting)
+- [Known Asset Gaps](#known-asset-gaps)
+- [Future Evolution Triggers](#future-evolution-triggers)
+- [Contributing](#contributing)
+- [Architecture Decision Records](#architecture-decision-records)
 
-本仓库中的 `Boy`、`Skeleton` 和 `Lirael` 演示角色用于验证队友管线产物的导入、展示与播放。`Boy` 只保留当前正式母版、待机与行走资产；其余角色的历史角色卡和 provenance 保留在 `artifacts/characters/`。集成适配层位于 `server/windup_pipeline/`。
+---
 
-### Collaboration contract
+## Overview
 
-- 管线输出必须保留角色标识、视角、动作、帧序号与生成溯源。
-- 横向 sprite sheet 按原始单元格无损切分，不二次缩放，不引入居中偏移。
-- 工作台不直接覆盖正式资产；候选帧通过人工审核后才能进入 Cocos 交付目录。
-- 后续集成应使用固定版本的 package 或 API 契约，避免两个仓库的内部实现强耦合。
+### Why WindUp?
 
-## Product status
+AI image generation for game assets is inherently unstable. A single character sprite might look great in isolation, but producing a coherent 8-frame walk cycle, ensuring geometric consistency across frames, verifying proper anchoring, and confirming runtime behavior in the actual game engine requires a structured pipeline.
 
-| Capability | Status |
-|---|---|
-| 多角色资产目录 | Available |
-| 从文字创建“母版 + 基础动作”的可用角色包 | Available |
-| 横屏侧视 / 俯视 / 2.5D 资产分组 | Available |
-| 固定 8 FPS 播放与逐帧检查 | Available |
-| 键盘控制与自动巡走 | Available |
-| 洋葱皮、脚底线和锚点对齐 | Available |
-| 一次生成动作条、自动切帧与单帧修复 | Available |
-| Alpha、主体高度、质心和循环接缝质检 | Available |
-| 逐帧通过 / 退回、版本化同步与导出门禁 | Available |
-| Cocos Creator Web 运行时同步 | Available |
-| 分布式任务队列与生产级账户系统 | Planned |
+WindUp addresses this by introducing:
 
-## Workflow
+1. **Candidate Isolation** — Generated assets land in a temporary job directory, never directly overwriting official assets.
+2. **Automated Geometric QA** — Deterministic post-processing (chroma-key matting, frame splitting, normalization) ensures frame consistency in scale, position, and background removal.
+3. **Human Semantic Review** — Artists review frames for semantic correctness (pose, anatomy, style consistency) that automated checks cannot judge.
+4. **Atomic Promotion** — Only after all frames pass review are assets moved to the official library with backup and rollback support.
+5. **Runtime Verification** — Assets are tested in a Cocos Creator environment to confirm they play correctly at the target 8 FPS.
 
-```mermaid
-flowchart LR
-  A["Character Master"] --> B["View & Action Spec"]
-  B --> C["Generate 8-Phase Strip"]
-  C --> D["Matte, Split & Normalize"]
-  D --> E["Automated QA"]
-  E --> F["Candidate Assets"]
-  F --> G["Frame Review"]
-  G --> H["Cocos Delivery"]
-  G -. "Reject One Frame / Repair" .-> C
+### Supported Views
+
+| View | Label | Description |
+|------|-------|-------------|
+| `side` | 横屏侧视资产 | True side-view sprite sequence |
+| `topdown` | 真实俯视资产 | Independent top-down rendering under master constraints |
+| `isometric` | 真实 2.5D 资产 | Independent 3/4 perspective rendering under master constraints |
+
+### Supported Actions
+
+| Action | Type | Loop | Description |
+|--------|------|------|-------------|
+| `idle` | Standard | Yes | Breathing standby — 8 phases with micro vertical offsets to prevent pixel-identical frames |
+| `walk` | Standard | Yes | Full walk cycle — 8 phases driven by deterministic OpenPose skeletons |
+| `run` | Standard | Yes | Running cycle — 8 phases including flight and compression |
+| `jump` | Standard | No | Jump sequence — anticipation, launch, rise, apex, fall, land, recovery |
+| `lantern` | Custom | No | Lantern lighting — 8 phases from held-low to maximum glow |
+
+---
+
+## Features
+
+- **Multi-View Generation**: Side, top-down, and isometric character views with independent assets (no CSS rotation tricks).
+- **Dual Generation Routes**:
+  - **Sheet Route** (default): Generates one 8-panel horizontal strip via a single API call, then deterministically splits into individual frames. Reduces 8 API calls to 1.
+  - **Frame Route**: Generates frames individually for repair or specific poses. Used for `walk` actions (deterministic skeleton conditioning) and single-frame rejection repair.
+- **Deterministic Post-Processing**: Chroma key matting (magenta #FF00FF background), frame splitting, and 256×256 normalization with unified foot anchor.
+- **Geometric Quality Assurance**: Automatic measurement of height consistency, center drift, foot baseline stability, and coverage ratios.
+- **Optimistic Concurrency Control**: Review states are versioned with conflict detection (HTTP 409) and automatic merge on concurrent edits.
+- **Cocos Creator Integration**: Real-time preview and control of assets within an iframe via `postMessage` protocol.
+- **Full Provenance Tracking**: Every generation is logged with model, prompt, elapsed time, and provider mode.
+- **Demo Mode**: Zero-cost local testing using existing assets without API calls.
+
+---
+
+## Technical Stack
+
+| Layer | Technology | Details |
+|-------|------------|---------|
+| **Frontend** | HTML, CSS, Vanilla JavaScript (ES Modules) | No build step, no framework |
+| **Backend** | Python 3.10+ `ThreadingHTTPServer` | Stdlib only, no third-party HTTP framework |
+| **Game Engine** | Cocos Creator 3.8.8 (TypeScript) | 8 FPS fixed, nearest-neighbor texture filtering |
+| **Image Processing** | Pillow (Python stdlib) | Chroma key, cropping, scaling, normalization |
+| **AI Provider** | 七牛云 QnAIGC (OpenAI-compatible) | Gemini 2.5/3.1 Flash Image models |
+| **Testing** | Node.js `node:test`, Python `unittest`/`pytest` | 22 frontend tests, 8 backend tests |
+
+---
+
+## System Requirements
+
+- **Python** 3.10+ (stdlib only, no `pip install` needed)
+- **Node.js** 18+ (for frontend tests and contract generation)
+- **Cocos Creator** 3.8.8 (for runtime verification)
+- **Browser**: Modern Chrome/Firefox/Edge with ES Module support
+- **Environment Variable**: `QNAIGC_KEY` (production mode) or use `--demo` flag
+
+---
+
+## Directory Structure
+
+```
+windup-asset-lab/
+├── asset-lab/                          # Frontend Character Asset Studio
+│   ├── app.js                          # Ultra-thin review entry point
+│   ├── pages/                          # Page components (composition roots)
+│   │   ├── editor.js                   # Editor composition root
+│   │   ├── editor-view.js              # DOM rendering (reads state, never modifies)
+│   │   ├── editor-bindings.js          # Mouse, keyboard, button event adaptation
+│   │   ├── editor-elements.js          # DOM ID contract and startup validation
+│   │   ├── generate.html/js            # Standalone action generation page
+│   │   ├── create-character.html/js    # Standalone character creation page
+│   │   └── characters.html/js          # Standalone character asset management
+│   ├── core/                           # State owners and infrastructure ports
+│   │   ├── editor-session.js           # Unique owner: character/view/action/frame/offset/anchor
+│   │   ├── motion-state.js             # Pure action FSM: pause/play/auto/manual
+│   │   ├── playback-clock.js           # Unique 8 FPS timer
+│   │   ├── api-client.js               # Unique HTTP client with session isolation
+│   │   ├── runtime-config.js           # API, Cocos, and message namespace config
+│   │   ├── job-poller.js               # Generation task lifecycle polling
+│   │   └── review-store.js             # Local instant feedback + server version sync
+│   ├── features/                       # Reusable interaction capabilities
+│   │   ├── quality-check.js            # Frame geometry QA display
+│   │   ├── sprite-packer.js            # Cocos atlas and metadata generation
+│   │   ├── game-bridge.js              # Studio ↔ Cocos message protocol
+│   │   ├── drawer-controller.js        # Left sidebar drawer lifecycle
+│   │   ├── onboarding-controller.js    # Spotlight, mode selection, click guide
+│   │   ├── provider-session-controller.js # Shared Key/model connection state
+│   │   └── workflow-stepper.js         # Generation flow step state
+│   ├── data/                           # Constants and generated boundaries
+│   │   ├── generated-contract.js       # Auto-generated frontend domain constants
+│   │   ├── generated-contract.d.ts     # Auto-generated frontend type boundaries
+│   │   └── character-catalog.js        # Character/frame directory (no duplicate action specs)
+│   └── styles/                         # Seven-layer CSS (fixed order, not Cascade Layers)
+│       ├── foundation.css              # Design variables and base components (Layer 1)
+│       ├── surface.css                 # Black/white professional surfaces
+│       ├── drawer.css                  # macOS frosted glass drawer structure
+│       ├── workspace.css               # Full-screen stage and floating layout
+│       ├── components.css              # Inspector, atlas, and other parts
+│       ├── integrations.css            # Character and generation entry styles
+│       └── motion.css                  # Animations and reduced-motion fallback
+│
+├── server/                             # Backend Service
+│   ├── app.py                          # Thin HTTP adapter: routing, cookies, CORS, static files
+│   └── windup_pipeline/                # Core business logic
+│       ├── application.py              # Application use cases (create job, promote, health)
+│       ├── config.py                   # Environment config and image processing specs
+│       ├── domain.py                   # Built-in catalog + generated contract exports
+│       ├── generated_contract.py       # Auto-generated backend domain constants
+│       ├── provider.py                 # QnAIGC authentication, requests, retries, error mapping
+│       ├── generate.py                 # Image model request assembly (text + refs → PNG)
+│       ├── generation_executor.py      # Background task execution, progress, provenance
+│       ├── action_pipeline.py          # Sheet/frame dual routes with fallback strategy
+│       ├── processing.py               # Matting, splitting, normalization, geometry QA
+│       ├── publisher.py                # Atomic promotion with backup and rollback
+│       ├── review_store.py             # Optimistic lock versioned review storage
+│       ├── job_store.py                # Thread-safe task persistence boundary
+│       ├── session_store.py            # Non-persistent session-level API credentials
+│       ├── asset_catalog.py            # Formal asset discovery and manifest generation
+│       ├── skeleton_gen.py             # Deterministic OpenPose skeleton generation for walk
+│       ├── describe.py                 # VLM-based character view/facing validation
+│       ├── matte.py                    # AI-based background cutout fallback
+│       └── time_utils.py               # ISO timestamp utilities
+│
+├── assets/                             # Official Character Assets (Cocos-ready)
+│   ├── resources/
+│   │   ├── character/                  # Built-in character frames
+│   │   └── characters/                 # Custom character frames (boy, skeleton, lirael)
+│   └── scripts/
+│       └── GameRoot.ts                 # Cocos game main logic: keyboard, animation, bridge
+│
+├── contracts/                          # Versioned product contracts
+│   ├── windup.schema.json              # Contract validation schema
+│   └── windup.v1.json                  # Source of truth: views, actions, FPS, phases, models
+│
+├── tests/                              # Unit and integration tests
+│   ├── *.test.mjs                      # Frontend Node.js tests
+│   └── test_*.py                       # Backend Python tests
+│
+├── tools/                              # Utility scripts
+│   ├── generate-contract.mjs           # Generate JS/TS/Python constants from windup.v1.json
+│   ├── check-boundaries.mjs            # Architecture gate: dependency direction, fetch, intervals
+│   ├── format-css.mjs                  # CSS module formatter
+│   ├── verify-architecture.sh          # Full verification: contract + boundaries + tests + lint
+│   └── verify-architecture.bat         # Windows equivalent
+│
+├── docs/                               # Architecture and process documentation
+│   ├── ARCHITECTURE.md                 # Module boundaries, state ownership, extension guide
+│   ├── ENGINEERING_PLAYBOOK.md         # End-to-end workflow, data lifecycle, failure handling
+│   ├── DECISIONS.md                    # Architecture Decision Records (ADR-001 through ADR-007)
+│   └── HANDOFF.md                      # Project handoff notes and asset gaps
+│
+├── generation-data/                    # Runtime data (NOT committed to Git)
+│   ├── jobs/                           # Candidate assets per generation job
+│   ├── reviews/                        # Versioned review decisions
+│   ├── backups/                        # Pre-promotion backups
+│   ├── characters/                     # Custom character cards and frames
+│   └── provenance.jsonl                # Immutable generation audit log
+│
+├── AGENTS.md                           # AI agent collaboration rules
+├── CONTRIBUTING.md                     # Human contributor guidelines
+├── HANDOFF.md                          # Project handoff document
+├── README.md                           # This file
+└── .gitignore                          # Exclusion rules for secrets and generated data
 ```
 
-跨视角一致性不只依赖提示词，而是依赖同一角色母版、固定角色描述、显式动作相位、统一脚底基线、局部修复与人工准入。
+---
 
-## Core experience
+## Quick Start
 
-### Generate
+### Demo Mode (Zero Cost)
 
-- 整套动作默认一次生成 8 相位横向动作条，再确定性切为 8 张 256×256 帧。
-- 新角色默认生成母版、呼吸待机和行走，3 次模型调用完成原本需要 17 次调用的角色包。
-- 被退回的坏帧可单独修复，不需要重新生成整条动作。
-- 生成过程通过后端代理，API Key 不进入浏览器。
-- 候选资产与已发布资产隔离，采用前自动备份原帧。
-
-### Review
-
-- 固定 8 FPS 播放，支持逐帧、循环、洋葱皮和键盘控制。
-- 自动质检识别画布错误、脚底漂移、主体比例波动与循环断层。
-- 人工审核负责语义问题：步态、解剖、衣装细节、跨帧风格一致性。
-
-### Deliver
-
-- 所有帧通过后解锁导出。
-- 当前角色、视角和动作可通过 `postMessage` 同步到 Cocos Web 运行时。
-- 工作台与游戏构建均可作为静态前端部署。
-
-## Quick start
-
-### Requirements
-
-- Python 3.11+
-- Pillow
-- Cocos Creator 3.8.8（仅编辑原始工程时需要）
-
-### Run the studio
+Start the backend in demo mode — no API key needed, uses existing assets:
 
 ```bash
-python3 -m pip install -r server/requirements.txt
-python3 -m server.app --demo
+cd windup-asset-lab-codex-issue-14-workflow-skeleton
+python server/app.py --demo
 ```
 
-Demo 模式不调用外部生成 API，可使用仓库内的演示资产跑通完整工作流。
+Open the studio in your browser:
 
-### Run the Cocos target
-
-```bash
-python3 -m http.server 4173 --bind 127.0.0.1 --directory build/lamplighter-mvp
+```
+http://127.0.0.1:4174/asset-lab/
 ```
 
-| Surface | URL |
-|---|---|
-| Windup Asset Lab | <http://127.0.0.1:4174/asset-lab/> |
-| Cocos Web Runtime | <http://127.0.0.1:4173/> |
+Available pages:
 
-### Enable a generation provider
+| Page | URL | Purpose |
+|------|-----|---------|
+| **Review Studio** | `/asset-lab/` | Frame-by-frame review, playback, Cocos bridge |
+| **Action Generation** | `/asset-lab/generate.html` | Generate actions for existing characters |
+| **Character Creation** | `/asset-lab/create-character.html` | Create new characters with starter packs |
+| **Character Management** | `/asset-lab/characters.html` | Browse and manage all characters |
 
-API 凭据可以在生成界面中连接，仅保留在当前后端进程内存，并按 HttpOnly 浏览器会话隔离；生成任务只接收凭据快照，不会写入任务 JSON。也可通过环境变量注入。凭据不得写入前端源码、浏览器存储、Cocos 资产或 Git 记录。
+### Production Mode (With AI Provider)
 
-```bash
-QNAIGC_KEY="your-key" python3 -m server.app
+1. **Set your API key** (choose one method):
+
+   ```bash
+   # Method 1: Environment variable
+   export QNAIGC_KEY="your_api_key_here"
+   
+   # Method 2: Configure in the UI (persisted per browser session via HttpOnly cookie)
+   ```
+
+   Optional overrides:
+   ```bash
+   export QNAIGC_BASE="https://api.qnaigc.com/v1"   # Default
+   export QNAIGC_IMAGE_MODEL="gemini-2.5-flash-image" # Default
+   ```
+
+2. **Start the backend**:
+
+   ```bash
+   python server/app.py
+   ```
+
+3. **Connect your API key** in the UI:
+   - Navigate to the Generation page (`/asset-lab/generate.html`)
+   - Enter your API key and select a model
+   - Click "Connect" — the system validates credentials against the provider
+
+4. **Start Cocos Creator** (for runtime verification):
+   ```bash
+   open -a CocosCreator /path/to/project
+   # Or serve the built web version:
+   python -m http.server 4173 --bind 127.0.0.1 --directory build/lamplighter-mvp
+   ```
+
+---
+
+## Complete Workflow
+
+### 1. Character Generation
+
+Creates a new character from a text description.
+
+**Input**: Name, Description, Style, Palette, Model Selection, Starter Actions (1–3 actions).
+
+**Process**:
+1. **Master Sprite Generation**: AI generates a full-body character sprite in pseudo-side 3/4 view facing right.
+2. **View & Facing Validation**: A VLM (Visual Language Model) checks that the master sprite has the correct view (profile/pseudo-side/three-quarter) and faces right. If not, regenerates up to 2 times.
+3. **Chroma Key Matting**: Removes the solid magenta (#FF00FF) background. Falls back to AI segmentation if chroma key fails.
+4. **Normalization**: Cropped to bounding box, scaled to fit within 224×208, placed on a 256×256 canvas with unified foot anchor at Y=238.
+5. **Starter Action Generation**: Generates the requested starter actions (default: `idle` + `walk`) using the same sheet/frame pipeline.
+
+**Output**: Base sprite and starter action frames stored in `generation-data/jobs/<job_id>/normalized/`.
+
+**Key Details**:
+- Default background color is magenta (`#FF00FF`) — chosen to avoid clashing with character palettes.
+- No shadows are generated (cleaner matting).
+- The master sprite serves as the identity reference for all subsequent action frames.
+
+### 2. Action Generation
+
+Generates animation frames for a character's action.
+
+**Input**: Character ID, View, Action Type, Route (sheet/frame), Mode (full/single).
+
+**Route Selection Logic**:
+
+```
+mode == "single"  → frames route (repair)
+action == "walk"  → frames route (deterministic skeleton conditioning)
+else              → sheet route (default, 1 API call for 8 frames)
 ```
 
-| Variable | Purpose | Default |
-|---|---|---|
-| `QNAIGC_KEY` | 七牛云 QnAIGC API credential | none |
-| `QNAIGC_BASE` | API base URL | `https://api.qnaigc.com/v1` |
-| `QNAIGC_IMAGE_MODEL` | Image generation model | `gemini-2.5-flash-image` |
-| `WINDUP_ALLOWED_ORIGINS` | 逗号分隔的生产前端 Origin 白名单 | local origins |
+#### Sheet Route (Default)
 
-部署时无需修改源码。页面加载前设置运行配置即可覆盖 API 与 Cocos 地址：
+1. **Single API Call**: Generates one ultra-wide horizontal strip (~8:1 aspect ratio) containing all 8 phases.
+2. **Deterministic Splitting**: Crops each panel equally, computes a shared scale factor, normalizes all frames.
+3. **Fallback**: If the sheet format fails validation (wrong aspect ratio, wrong panel count), retries once. On second failure, falls back to frame-by-frame generation.
 
-```html
-<script>
-window.WINDUP_CONFIG = {
-  apiBase: 'https://api.example.com',
-  gameOrigin: 'https://game.example.com',
-  gamePath: '/build/',
-};
-</script>
+#### Frame Route (Walk / Repair)
+
+1. **Skeleton Conditioning** (walk only): Generates deterministic OpenPose skeleton images from sine-wave phase definitions. White dots mark joints; bright colors = near-side limbs; dark = far-side.
+2. **Contextual Prompting**: Each frame prompt includes:
+   - Identity reference (master sprite)
+   - Previous frame cutout (prevents costume/color drift)
+   - Pose description (from contract phases)
+   - Skeleton image (for walk actions)
+   - Creator constraints (optional custom prompt)
+3. **Progressive Reference**: Uses the cutout (matte) of the previous frame as the reference for the next — not the raw magenta-background image.
+
+**Output**: Candidate frames in `generation-data/jobs/<job_id>/normalized/`.
+
+### 3. Quality Inspection
+
+Automatic geometric QA runs after generation completes.
+
+**Metrics Measured**:
+
+| Metric | Threshold | Warning |
+|--------|-----------|---------|
+| Frame visibility | All 8 frames must have visible characters | "存在不可见帧" |
+| Background removal | No frame >50% coverage | "疑似存在背景未去除的帧" |
+| Height consistency | Spread <28% of median height | "主体高度波动过大" |
+| Center drift | Horizontal spread <42px | "主体水平中心漂移过大" |
+| Foot baseline | Spread <5px (non-jump/idle) | "脚底基线不连续" |
+| Idle foot stability | Spread <3px | "待机帧脚底波动过大" |
+
+**Scoring**: `geometryContinuity = max(0, 100 - heightSpread*90 - centerSpread*0.8 - footSpread*2)`
+
+> Note: Automated QA measures geometry only. Semantic motion quality (pose correctness, anatomy, style consistency) requires human review.
+
+### 4. Human Review
+
+The review studio presents frames in a timeline view with playback controls.
+
+**Interface Components**:
+- **Left Drawer**: macOS-style frosted glass sidebar showing asset filmstrip
+- **Center Stage**: Full-screen frame preview with playback controls
+- **Right Inspector**: Frame details, quality metrics, review actions
+
+**Review Actions**:
+- **Pass**: Mark frame as approved
+- **Reject**: Mark frame as needing regeneration
+- **Nudge**: Adjust frame position (vertical offset)
+
+**Concurrency Control**:
+- Reviews are versioned (starts at version 1)
+- Concurrent edits detect conflicts (HTTP 409)
+- Conflicts show the current state for manual merge
+
+### 5. Asset Promotion
+
+When all frames pass review, the asset can be promoted to the official library.
+
+**Process**:
+1. **Validation**: Checks that the job is in `awaiting_review` status and all outputs are present.
+2. **Staging**: Copies candidate assets to a temporary staging directory (`.{character_id}-{job_id}.tmp`).
+3. **Backup**: If official assets already exist at the target paths, they are backed up to `generation-data/backups/<job_id>/`.
+4. **Atomic Move**: The staging directory is renamed to the final character directory (atomic on most filesystems).
+5. **Catalog Registration**: The character card is written and the in-memory catalog is updated.
+6. **Cleanup**: On failure, backups are restored and staging is cleaned up.
+
+**Character Pack Promotion** (new characters):
+- Validates base sprite + all starter action frames are present.
+- Checks for existing character with the same ID (prevents overwrites).
+- Creates the full directory structure: `base.png`, `views/<view>/<action>-NN.png`.
+
+### 6. Cocos Runtime Verification
+
+The studio can send preview payloads to a running Cocos Creator instance via `postMessage`.
+
+**Protocol**:
+```javascript
+// From Studio → Cocos
+{ type: 'windup:preview-animation', character: 'skeleton', action: 'walk', view: 'side', fps: 8, loop: true }
+
+// From Cocos → Studio
+{ type: 'windup:preview-ready' }
+{ type: 'windup:preview-applied', character, action, view, frames: 8 }
+{ type: 'windup:preview-error', reason: '...' }
 ```
 
-## Generation API
+**Cocos Side** (`GameRoot.ts`):
+- Receives preview messages and loads the corresponding frame directory.
+- Applies nearest-neighbor texture filtering for pixel-perfect rendering.
+- Supports keyboard input (A/D, Arrow keys) for character movement.
+- Space toggles lantern mode.
+- Preview origin is configurable via `window.WINDUP_CONFIG.previewOrigin` (defaults to `'*'` for local dev).
 
-```text
-POST /api/generations
-  character   lamplighter | boy | skeleton | lirael
-  view        side | topdown | isometric
-  action      idle | walk | run | jump | lantern
-  mode        full | single
-  route       sheet | frames  (full defaults to sheet)
-  frameIndex  0..7
-
-POST /api/characters/generations
-  name, description, model
-  starterActions  idle | walk  (defaults to both)
-
-queued -> generating -> awaiting_review -> approved
-                    \-> failed
-```
-
-- 任务状态：`generation-data/jobs/`
-- 审核状态：`generation-data/reviews/`（乐观锁版本控制）
-- 正式采用前的原帧备份：`generation-data/backups/`
-- 溯源数据：模型、提示、耗时、生成模式和批次信息
-
-## Import teammate assets
-
-队友管线输出的横向 sprite sheet 可通过内置适配器导入：
-
-```bash
-node tools/import-windup-sheet.js \
-  /path/to/walk_sheet.png \
-  assets/resources/characters/<character>/views/side \
-  8 walk
-```
-
-适配器保留原始像素和单元格尺寸，避免二次插值造成的边缘污染、尺寸抽动和脚底偏移。
+---
 
 ## Architecture
 
-详细工程入口：
+### Core Design Principles
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：系统结构、模块边界与状态所有权。
-- [`docs/ENGINEERING_PLAYBOOK.md`](docs/ENGINEERING_PLAYBOOK.md)：从需求、生成、审核到发布的完整流程与升级触发条件。
-- [`docs/DECISIONS.md`](docs/DECISIONS.md)：关键架构决策及其不可随意破坏的原因。
-- [`CONTRIBUTING.md`](CONTRIBUTING.md)：新人进入、改动位置、完成标准与 Review 顺序。
+1. **One State, One Owner** — Character playback and movement are decided solely by `motion-state.js`. Pages compose capabilities but never duplicate state machines.
+2. **Pages Assemble, Don't Implement** — Network, polling, review storage, QA, atlases, and game communication are provided by independent modules.
+3. **Candidate-Formal Isolation** — Generated assets enter a job directory first; only explicit promotion moves them to the official library with backup.
+4. **Single External Boundary** — API keys, auth, timeouts, retries, and upstream errors are handled exclusively in `provider.py`. Credentials are isolated per browser session.
+5. **Single Contract Source** — Actions, views, 8 FPS, loop semantics, phases, and models come from `contracts/windup.v1.json`. Both frontend and backend files are generated from this single source.
+6. **Replaceable Infrastructure** — HTTP pages never read tasks or review JSON directly; future migrations to SQLite, object storage, or queues require no changes to the interface layer.
 
-| Layer | Implementation | Responsibility |
-|---|---|---|
-| Studio UI | HTML / CSS / Vanilla JS | 生成入口、播放、逐帧审核、候选采用与导出 |
-| Service | Python `ThreadingHTTPServer` + Application Service | 薄 HTTP 适配、会话隔离、任务校验与用例编排 |
-| Execution | `GenerationExecutor` + `ActionPipeline` | 后台生成、整条/单帧路由、进度、质检与溯源 |
-| Assets | `AssetCatalog` + `AssetPublisher` | 正式目录清单、原子角色包入库、动作备份与失败回滚 |
-| Processing | Pillow | 去背景、动作条切分、256×256 归一化与几何连续性 |
-| QA | Canvas + Node tools | 几何连续性分析和可导出审计报告 |
-| Runtime | Cocos Creator 3.8.8 | SpriteFrame 加载、8 FPS 播放和游戏内联调 |
+### Module Boundaries & Dependency Direction
 
-## Repository map
+```
+Frontend:
+  HTML / app entry → pages → features → core/data
 
-```text
-.
-├─ asset-lab/                     # 角色资产中心、审核与导出工作台
-├─ assets/
-│  ├─ resources/character/       # 点灯少年正式角色资产
-│  ├─ resources/characters/      # 队友管线的多角色演示资产
-│  └─ scripts/GameRoot.ts        # Cocos 运行时与联调协议
-├─ artifacts/characters/           # 角色卡和 provenance
-├─ contracts/                       # 版本化产品契约与 Schema
-├─ server/
-│  ├─ app.py                     # 薄 HTTP 适配层
-│  └─ windup_pipeline/           # 应用、执行器、动作管线、目录、发布、会话与供应商边界
-├─ docs/ARCHITECTURE.md           # 模块边界、状态所有权与扩展约定
-├─ tools/                          # 切帧、归一化和动画审计工具
-├─ build/lamplighter-mvp/          # 可静态部署的 Cocos Web 构建
-├─ reports/                        # 质检数据与实测报告
-├─ GAME_SPEC.md                    # MVP 游戏与角色规格
-└─ HANDOFF.md                      # 当前交接状态
+Backend:
+  server/app.py (HTTP adapter) → GenerationApplication → Stores / Executor / Publisher
+                                               ↓
+                                    ActionPipeline / Provider / Processing
+                                               ↓
+                                          External (QnAIGC / filesystem)
 ```
 
-## Quality boundary
+**Strict dependency rules**:
+- `core` cannot import `pages` or `features`
+- `features` cannot import `pages`
+- HTTP routes delegate to `GenerationApplication`; they don't implement business logic
+- All browser HTTP goes through `api-client.js`
+- All editor animation intervals go through `PlaybackClock`
 
-自动质检适合发现尺寸跳变、脚底漂移、主体面积突变和循环断层，但不能可靠判断步态语义、解剖正确性、衣装细节和“是否变脸”。
+### State Ownership
 
-Windup 保留三个人工决策点：
+| State | Unique Owner | How Pages Use It |
+|-------|-------------|------------------|
+| Character, view, action, frame, per-frame offset, anchor | `EditorSession` | Call explicit select/adjust methods |
+| Play/pause, auto/manual movement, direction, position | `motion-state.js` (pure reducer) | Send events to the reducer |
+| 8 FPS timer | `PlaybackClock` | Start/stop a clock, don't create intervals directly |
+| Review decisions | Frontend `ReviewStore` + Backend `ReviewStore` | Local instant update, server version sync, 409 merge |
+| API credentials | `ProviderSessionStore` | HttpOnly cookie isolation; task threads receive credential snapshots only |
+| DOM presentation | `EditorView` | Read state and render, never modify domain state |
+| Browser input | `editor-bindings.js` | Translate events to application commands |
 
-1. 角色母版锁定。
-2. 候选资产采用。
-3. 逐帧通过与导出准入。
+### Data Lifecycle
 
-## Deployment and security
+| Data | Owner | Lifetime | Storage |
+|------|-------|----------|---------|
+| Character/view/action/frame | `EditorSession` | Page session | Browser memory |
+| Playback & movement | motion reducer | Page session | Browser memory |
+| API credentials | `ProviderSessionStore` | Backend session | Process memory only |
+| Generation tasks | `JobStore` | Recoverable | `generation-data/jobs/` |
+| Review decisions | `ReviewStore` | Cross-page/collaborative | `generation-data/reviews/` |
+| Candidate assets | job | Pre-review | Job directory |
+| Formal assets | `AssetCatalog` / `AssetPublisher` | Long-term | `assets/resources/`, `generation-data/characters/` |
+| Provenance & backups | promotion flow | Audit long-term | `generation-data/provenance.jsonl`, backups/ |
 
-- `asset-lab/` 与 `build/lamplighter-mvp/` 可部署为静态站点。
-- 启用真实生成时，必须同时部署后端或将 `/api` 转发到等价服务。
-- 工作台与 Cocos 跨域部署时，通过 `window.WINDUP_CONFIG` 配置地址，并在后端设置 `WINDUP_ALLOWED_ORIGINS`。
-- 生成任务可能包含用户参考图和提示；生产环境应配置访问控制、数据生命周期和对象存储。
-- 任何 API Key、App ID、凭据或私有生成资产均不得进入 Git。
+### Product Contract
 
-## Roadmap
+The product contract (`contracts/windup.v1.json`) is the single source of truth for:
 
-- 补齐三视角通用动作矩阵。
-- 将单帧退回、相邻帧约束和候选替换闭环为稳定产品流程。
-- 将模型、提示版本、成本、耗时和质检结果收敛到统一批次记录。
-- 将本地文件任务管理升级为持久化队列与对象存储。
-- 以版本化 package 或 API 稳定三仓库协作边界。
+- **Views**: `side`, `topdown`, `isometric` with labels and truth descriptions
+- **Actions**: `idle`, `walk`, `run`, `jump`, `lantern` with loop semantics and 8 phase descriptions
+- **FPS**: Fixed at 8 throughout the entire pipeline
+- **Image Models**: `gemini-2.5-flash-image`, `gemini-3.1-flash-image-preview`, `gemini-3.0-pro-image-preview`
+- **Generation**: Routes (`sheet`, `frames`), default route, sheet dimensions (8 columns × 1 row), starter pack (side view, idle + walk)
 
-## Credits
+**Regeneration**: After modifying the contract, run:
+```bash
+node tools/generate-contract.mjs
+```
+This generates:
+- `asset-lab/data/generated-contract.js` — Frontend constants
+- `asset-lab/data/generated-contract.d.ts` — Frontend TypeScript types
+- `server/windup_pipeline/generated_contract.py` — Backend constants
 
-- **Competition project and primary entry:** [huyanxius/game-asset-character](https://github.com/huyanxius/game-asset-character)
-- **Asset generation pipeline and teammate assets:** [johnnyzhang-eng/windup-pipeline](https://github.com/johnnyzhang-eng/windup-pipeline)
-- **Asset studio, review workflow and Cocos integration:** [huyanxius/windup-asset-lab](https://github.com/huyanxius/windup-asset-lab)
+**Never hand-edit generated files.** Changes must flow through the versioned contract.
 
-Windup 当前产品契约版本为 `1.1.0`；契约变更必须更新 `contracts/windup.v1.json` 并重新生成两端定义。升级后需重启 Python 服务，再重新连接 API Key。
+### Architecture Gate Automation
+
+`tools/check-boundaries.mjs` automatically verifies:
+- No reverse dependencies: `core → pages/features` or `features → pages`
+- No bypass of `api-client`: detects direct browser `fetch` calls
+- No bypass of `PlaybackClock`: detects animation intervals not managed by the clock
+- HTTP adapter doesn't absorb business/storage logic or exceed reasonable size
+- No global API key writes, hardcoded runtime addresses, or contract drift
+
+Run the full verification suite:
+```bash
+./tools/verify-architecture.sh
+```
+
+This executes:
+1. Contract generation and validation
+2. Boundary checking
+3. Frontend Node.js tests
+4. Backend Python tests
+5. Python syntax compilation check
+6. JavaScript syntax validation
+7. Git diff whitespace check
+
+---
+
+## API Reference
+
+Base URL: `http://127.0.0.1:4174`
+
+All API responses include `Cache-Control: no-store`. Sessions use `HttpOnly` cookies (`WINDUP_SESSION`).
+
+### Health & Status
+
+```http
+GET /api/health
+```
+
+Returns provider status, demo mode, contract version, and character summaries.
+
+**Response**:
+```json
+{
+  "ok": true,
+  "configured": true,
+  "verified": true,
+  "demo": false,
+  "provider": "七牛云 QnAIGC",
+  "contractVersion": "1.1.0",
+  "fps": 8,
+  "characters": [{"id": "lamplighter", "label": "旧试验角色 · 独立样例"}]
+}
+```
+
+### Provider Connection
+
+```http
+POST /api/provider/session
+Content-Type: application/json
+X-Windup-Request: studio
+```
+
+Connect and validate an API key.
+
+**Request**:
+```json
+{
+  "apiKey": "your_qnaigc_api_key",
+  "model": "gemini-2.5-flash-image"
+}
+```
+
+**Response**:
+```json
+{
+  "ok": true,
+  "configured": true,
+  "verified": true,
+  "providerError": "",
+  "model": "gemini-2.5-flash-image",
+  "storage": "isolated-process-session"
+}
+```
+
+### Model List
+
+```http
+GET /api/provider/models
+```
+
+Returns available image models from the contract.
+
+### Character Management
+
+```http
+GET /api/characters
+```
+
+Returns all registered characters with their manifests.
+
+### Create Character Job
+
+```http
+POST /api/characters/generations
+Content-Type: application/json
+```
+
+Create a new character with starter actions.
+
+**Request**:
+```json
+{
+  "name": "Hero Knight",
+  "description": "A brave knight in dark armor with a red cape",
+  "style": "pixel art, chibi proportions",
+  "palette": "dark fantasy",
+  "model": "gemini-2.5-flash-image",
+  "starterActions": ["idle", "walk"]
+}
+```
+
+**Response** (202 Accepted):
+```json
+{
+  "id": "abc123def456",
+  "batch": "C-20260716-120000",
+  "status": "queued",
+  "progress": 0,
+  "message": "新角色与基础动作包已进入队列"
+}
+```
+
+### Create Action Job
+
+```http
+POST /api/generations
+Content-Type: application/json
+```
+
+Generate action frames for an existing character.
+
+**Request**:
+```json
+{
+  "character": "boy",
+  "view": "side",
+  "action": "run",
+  "mode": "full",
+  "route": "sheet",
+  "customPrompt": "Add a sword in the right hand",
+  "model": "gemini-2.5-flash-image"
+}
+```
+
+**Response** (202 Accepted):
+```json
+{
+  "id": "def789ghi012",
+  "batch": "G-20260716-120500",
+  "status": "queued",
+  "progress": 0,
+  "message": "已进入生成队列"
+}
+```
+
+### Poll Job Status
+
+```http
+GET /api/generations/{job_id}
+```
+
+Poll for generation progress. States: `queued` → `generating` → `awaiting_review` (success) or `failed`.
+
+### Review Management
+
+```http
+GET /api/reviews?key={key}&length=8&initial=pending
+```
+
+Get or initialize review records for a job.
+
+```http
+POST /api/reviews
+Content-Type: application/json
+```
+
+Submit review decisions.
+
+**Request**:
+```json
+{
+  "key": "abc123def456-side-walk",
+  "expectedVersion": 1,
+  "reviews": ["pass", "pass", "pass", "pass", "pass", "pass", "pass", "pass"]
+}
+```
+
+**Response** (409 Conflict if version mismatch):
+```json
+{
+  "error": "审核记录已被其他会话更新",
+  "current": {"key": "...", "version": 2, "reviews": [...]}
+}
+```
+
+### Asset Promotion
+
+```http
+POST /api/generations/{job_id}/promote
+```
+
+Promote candidate assets to the official library.
+
+**Response**:
+```json
+{
+  "message": "候选帧已采用，正式资产已备份",
+  "promoted": ["assets/resources/characters/boy/views/side/walk-01.png", ...]
+}
+```
+
+---
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `QNAIGC_KEY` / `SUFY_KEY` | `""` | API key for image generation provider |
+| `QNAIGC_BASE` / `SUFY_BASE` | `https://api.qnaigc.com/v1` | Provider API base URL |
+| `QNAIGC_IMAGE_MODEL` / `SUFY_IMAGE_MODEL` | `gemini-2.5-flash-image` | Default image generation model |
+| `SUFY_VLM_MODEL` | `gemini-2.5-flash` | Vision language model for quality checks |
+| `WINDUP_ALLOWED_ORIGINS` | `localhost/127.0.0.1 only` | Comma-separated list of allowed CORS origins |
+| `WINDUP_DEMO` | `""` | Set to `"1"` to enable demo mode |
+
+### Server Startup
+
+```bash
+# Demo mode (zero cost, uses existing assets)
+python server/app.py --demo
+
+# Production mode
+python server/app.py
+
+# Custom host/port
+python server/app.py --host 0.0.0.0 --port 8080
+```
+
+### CSS Layer Order (Fixed)
+
+Editor styles MUST be loaded in this exact order. Do not use Cascade Layers or bulk-change precedence:
+
+1. `foundation.css` — Design variables, base components
+2. `surface.css` — Professional black/white surfaces
+3. `drawer.css` — Frosted glass sidebar
+4. `workspace.css` — Full-screen stage layout
+5. `components.css` — Inspector, atlas, parts
+6. `integrations.css` — Character and generation entry
+7. `motion.css` — Animations, reduced-motion fallback
+
+---
+
+## Testing
+
+### Frontend Tests
+
+```bash
+node --test tests/*.test.mjs
+```
+
+22 tests covering:
+- API client session isolation
+- Contract version and drift detection
+- CSS layer contract compliance
+- Editor DOM ID contract
+- Layout constraints (no scrollable overflow)
+- Motion state machine transitions
+- Playback clock 8 FPS timing
+- Provider session isolation
+- Review store concurrency (409 conflict handling)
+- Runtime config and workflow routing
+
+### Backend Tests
+
+```bash
+python -m pytest tests/
+# or
+python -m unittest discover -s tests -p 'test_*.py'
+```
+
+8+ tests covering:
+- Job store thread safety and recovery
+- Review store versioned updates and conflicts
+- Session store isolation
+- Processing pipeline (matting, splitting, normalization)
+- HTTP contract compliance
+- Demo vs production mode behavior
+
+### Full Verification
+
+```bash
+./tools/verify-architecture.sh
+# or on Windows:
+tools\verify-architecture.bat
+```
+
+Runs: contract generation, boundary checking, frontend tests, backend tests, Python compilation, JavaScript syntax validation, and git diff whitespace check.
+
+---
+
+## Security
+
+### API Key Protection
+
+- API keys are submitted once per browser session via the provider connection endpoint.
+- Stored in **HttpOnly cookies** (`WINDUP_SESSION`) and process memory only.
+- **Never** stored in: browser localStorage, task JSON files, logs, or Git.
+- Each browser session has isolated credentials — one session cannot overwrite another's key or model.
+- Keys are validated with a non-producing probe (`__windup_auth_probe__`) before acceptance.
+
+### CORS Protection
+
+- In production, set `WINDUP_ALLOWED_ORIGINS` to restrict allowed origins.
+- Without this variable, CORS defaults to `localhost` and `127.0.0.1` only.
+- A startup warning is printed if `WINDUP_ALLOWED_ORIGINS` is not set in non-demo mode.
+
+### Path Validation
+
+- Candidate asset paths are validated to prevent directory traversal (`..` check).
+- Absolute paths in asset references are rejected.
+- Character IDs must match `^[a-z0-9-]+$`.
+
+### Asset Safety
+
+- Candidate assets never overwrite formal assets directly.
+- Promotion always creates backups before overwriting.
+- Failed promotions restore backups automatically.
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Idle animation appears static | Missing breathing offset table | Fixed in `processing.py` — idle breath offsets `[0,1,1,0,-1,-1,-1,0]` applied during normalization |
+| Frame color bleed between frames | `prev_path` using raw (magenta) instead of cutout | Fixed — `gen_frame` now passes cutout path as previous reference |
+| Background not removed | Chroma key fails when background color differs from corner sample | Falls back to AI segmentation (`matte.py`); if both fail, frame is rejected |
+| Sheet generation fails twice | AI returns wrong aspect ratio or multi-row grid | Retries once, then falls back to frame-by-frame generation |
+| Walk frames have wrong poses | Not using skeleton conditioning | Walk actions always use the frame route with deterministic OpenPose skeletons |
+| CORS errors from Cocos | `WINDUP_ALLOWED_ORIGINS` not configured | Set the environment variable or ensure Cocos serves from localhost |
+| Review conflicts (409) | Multiple tabs/editors reviewing the same job | Merge the conflicting reviews manually or reload the review page |
+| Service restart loses tasks | Active jobs marked as `interrupted` | User must explicitly resend the job |
+| Contract drift detected | Generated files out of sync with `windup.v1.json` | Run `node tools/generate-contract.mjs` |
+
+### Debugging Tips
+
+1. **Check provenance log**: `generation-data/provenance.jsonl` shows every API call with model, prompt, elapsed time, and provider mode.
+2. **Inspect job directory**: `generation-data/jobs/<job_id>/` contains `raw/`, `cutout/`, and `normalized/` subdirectories for debugging.
+3. **Verify architecture**: Run `./tools/verify-architecture.sh` before submitting changes.
+4. **Check CSS order**: Use `node tools/format-css.mjs asset-lab/styles/*.css` after style changes.
+
+---
+
+## Known Asset Gaps
+
+| Gap | Priority | Description |
+|-----|----------|-------------|
+| Top-down / Isometric actions | Medium | Need idle, jump, lantern for topdown and isometric views |
+| Side view additional actions | Low | Can add attack, hit, death, interaction poses |
+| View angle differentiation | Medium | Top-down and isometric angles need further distinction |
+| Geometric QA semantics | Ongoing | Automated QA cannot judge foot semantics, anatomy, or style consistency — human review remains essential |
+
+---
+
+## Future Evolution Triggers
+
+Don't introduce heavy infrastructure prematurely. Upgrade when these thresholds are reached:
+
+| Trigger Condition | Upgrade Action | Upward Contract Stays |
+|-------------------|---------------|----------------------|
+| Frequent task queuing or lost execution state on restart | Background threads → Redis/cloud task queue | Generation job API/status |
+| Thousands of task/review files needing queries | JSON Store → SQLite/PostgreSQL | Store methods and version semantics |
+| Multi-member remote access or billing involved | Memory sessions → accounts, RBAC, key hosting | Provider session API |
+| Assets too large for Git/local disk | File directories → object storage + CDN | Asset URL resolver |
+| Frontend domain model grows significantly | Generated `.d.ts` → full TypeScript migration | Versioned product contract |
+| Three repositories need independent releases | Relative directory integration → versioned package/API | Character/action manifest |
+
+---
+
+## Contributing
+
+Please read `AGENTS.md`, `CONTRIBUTING.md`, and `docs/ARCHITECTURE.md` before making changes.
+
+### Development Workflow
+
+1. **Start with `git status`** — preserve all user-owned or unrelated changes.
+2. **Work on a focused branch** — submit through a PR; never push directly to `main`.
+3. **Keep commits reviewable** — separated by concern.
+4. **Before handoff**: run `./tools/verify-architecture.sh` and `git diff --check`.
+5. **Do not use browser screenshot automation** — visual acceptance is manual.
+
+### Adding an Action
+
+1. Add action name, loop semantics, and 8 phases to `contracts/windup.v1.json`.
+2. Run `node tools/generate-contract.mjs` to regenerate frontend constants, types, and backend constants.
+3. Add asset directory entries in `data/character-catalog.js`.
+4. Write pure function tests for new state transitions — don't modify multiple states in DOM events.
+
+### Definition of Done
+
+- Feature has one clear state owner, no second set of equivalent state.
+- Errors, empty states, retries, and recovery paths are defined.
+- API keys, user prompts, and candidate assets don't enter Git.
+- New public contracts have version or compatibility strategies.
+- Related logic tests and `./tools/verify-architecture.sh` pass.
+- README/HANDOFF/architecture docs synced only when facts change.
+- PR has a single theme, commits split by concern, author can explain data flow and failure paths.
+
+### Review Priority
+
+Review in this order by risk, not file order:
+1. Security & data coverage
+2. Contract compatibility
+3. State ownership
+4. Concurrency & failure recovery
+5. Testability
+6. UI presentation
+
+At least one teammate review required before merge.
+
+---
+
+## Architecture Decision Records
+
+### ADR-001: Single Source for Product Contract
+- **Decision**: `contracts/windup.v1.json` is the sole source for actions, views, FPS, loops, phases, and models.
+- **Reason**: Prevents frontend/backend divergence causing generation, review, and playback semantic drift.
+- **Result**: JS constants/types and Python constants are auto-generated; CI checks for drift.
+
+### ADR-002: Candidate Assets Reviewed Before Adoption
+- **Decision**: Generation results only enter job directories; explicit `promote` required before writing to the formal directory.
+- **Reason**: Model output is unstable; automated QA cannot judge complete semantics.
+- **Result**: Generation, review, and formal delivery can fail and retry without breaking existing assets.
+
+### ADR-003: API Key Session Isolation, No Persistence
+- **Decision**: Pages submit the key once; backend saves it in process memory keyed by HttpOnly session ID; jobs receive credential snapshots only.
+- **Reason**: Avoids browser storage, task files, and multi-user global overwrite key leaks.
+- **Result**: Service restart requires reconnect; production account system can replace `ProviderSessionStore`.
+
+### ADR-004: MVP Uses File Stores, Upper Layers Depend Only on Interfaces
+- **Decision**: Jobs and reviews use atomic JSON files with thread locks.
+- **Reason**: Local competition prototype needs no database ops, but requires recovery and concurrency protection.
+- **Result**: Replacing stores at scale threshold doesn't change routes or page use cases.
+
+### ADR-005: State Ownership Prioritized Over Frameworks
+- **Decision**: Continue with small ES Modules; use `EditorSession`, pure reducers, controllers, and generation types for clear boundaries.
+- **Reason**: Current complexity doesn't need a large frontend framework; the problem is state competition, not rendering libraries.
+- **Result**: Migrate to TypeScript when cross-page domain models grow significantly, without changing product contracts.
+
+### ADR-006: Full Actions Prefer Action Strips, Single Frames for Repair
+- **Decision**: Full 8-frame actions default to one horizontal strip with deterministic splitting; rejected frames continue with independent generation.
+- **Reason**: Per-frame generation needs 8 model calls (slower, style drift); strips share one composition context.
+- **Result**: Full actions typically drop from 8 calls to 1; strip format anomalies fall back to per-frame; provider errors fail directly.
+
+### ADR-007: Catalog, Execution, and Formal Release Are Independent Boundaries
+- **Decision**: `AssetCatalog` reads formal assets only; `GenerationExecutor` runs candidate tasks only; `AssetPublisher` handles formal adoption with backups only.
+- **Reason**: Combining directory scanning, model calls, task state, and file overwrites in one service creates multiple risk domains.
+- **Result**: `GenerationApplication` only validates and orchestrates; new characters assemble completely in temp directories before atomic入库; action adoption failure restores backups.
+
+---
+
+*WindUp Asset Lab — Character generation, review, and delivery pipeline.*
