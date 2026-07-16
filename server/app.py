@@ -137,6 +137,9 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 if path == "/api/characters/generations":
                     self.send_json(application.create_character_job(self.session_id(), self.read_json()), 202)
                     return
+                if path == "/api/experiments/idle-blink":
+                    self.send_json(application.run_idle_blink_experiment(self.session_id(), self.read_json()))
+                    return
                 if path == "/api/generations":
                     self.send_json(application.create_job(self.session_id(), self.read_json()), 202)
                     return

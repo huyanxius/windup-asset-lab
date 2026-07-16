@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from . import config, provider
+from . import config, idle_blink_experiment, provider
 from .asset_catalog import AssetCatalog
 from .domain import (
     ACTIONS,
@@ -177,6 +177,34 @@ class GenerationApplication:
         self.jobs.add(job)
         threading.Thread(target=self.executor.run_character, args=(job_id, credentials.api_key), daemon=True).start()
         return job
+
+    def run_idle_blink_experiment(self, session_id: str, payload: dict) -> dict:
+        """Standalone reliability experiment: 1 generated blink frame + the
+        existing master reused for the other 7 slots. Not part of the
+        production contract or job store."""
+        credentials = self._credentials(session_id)
+        character_id = str(payload.get("character", ""))
+        if character_id not in self.catalog:
+            raise ValueError("角色不存在")
+        record = self.catalog[character_id]
+        model = str(payload.get("model", credentials.model or config.IMAGE_MODEL)).strip()
+        if model not in IMAGE_MODELS:
+            raise ValueError("请选择有效的图像模型")
+        job_id = uuid.uuid4().hex[:12]
+        job_root = self.data_root / "experiments" / "idle-blink" / job_id
+        base_path = self.root / record["base"]
+        blink_path = idle_blink_experiment.run(job_root, base_path, record["description"], model, credentials.api_key)
+        blink_url = str(blink_path.relative_to(self.root).as_posix())
+        outputs = [
+            {
+                "kind": "frame", "action": "idle", "frameIndex": index,
+                "slot": slot,
+                "url": record["base"] if slot == "open" else blink_url,
+                "file": "base.png" if slot == "open" else "idle-blink.png",
+            }
+            for index, slot in enumerate(idle_blink_experiment.SLOT_PATTERN)
+        ]
+        return {"id": job_id, "character": character_id, "sourceCallCount": 1, "outputs": outputs}
 
     def create_job(self, session_id: str, payload: dict) -> dict:
         credentials = self._credentials(session_id)
