@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 610 256" role="img" aria-labelledby="title description">
+  <title id="title">Windup</title>
+  <desc id="description">Windup 侧视机械小鸟标志与字标</desc>
+  <defs>
+    <mask id="bird" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
+      <rect width="256" height="256" fill="#000"/>
+      <path fill="#fff" d="M25 179c20-15 33-34 42-56 11-28 34-45 63-50 8-22 27-36 51-35 27 1 49 20 54 47l21 12-22 16c-6 29-25 53-51 68-34 19-76 17-106-7l-50 19 26-36-28 22Z"/>
+      <path d="M91 132c24-24 60-30 94-14-13 29-38 50-72 58-12-13-20-28-22-44Z" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="199" cy="76" r="6" fill="#000"/>
+      <circle cx="111" cy="129" r="8" fill="#000"/>
+    </mask>
+  </defs>
+  <rect width="256" height="256" fill="#191b18" mask="url(#bird)"/>
+  <text x="278" y="158" fill="#191b18" font-family="Inter, Arial, sans-serif" font-size="88" font-weight="640" letter-spacing="-5">Windup</text>
+</svg>

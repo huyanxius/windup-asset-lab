@@ -1,0 +1,36 @@
+#///////////////////////////
+# Cocos Creator 本地缓存与用户级产物
+#///////////////////////////
+
+/library/
+/temp/
+/local/
+/profiles/
+/native/engine/android/**/*/assets
+
+# 构建产物默认不入库；例外放行可直接运行的 Web 版，README 的引擎联调依赖它
+/build/*
+!/build/lamplighter-mvp/
+
+#///////////////////////////
+# 依赖与编辑器
+#///////////////////////////
+
+node_modules/
+.vscode/
+.idea/
+
+#///////////////////////////
+# 系统与备份垃圾
+#///////////////////////////
+
+.DS_Store
+*.bak
+assets/resources/character.zip.meta
+__pycache__/
+*.pyc
+
+# Generation runtime may contain API-produced images, prompts and character cards.
+/generation-data/
+.env
+.env.*

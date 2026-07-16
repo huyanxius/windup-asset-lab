@@ -1,0 +1,9 @@
+{
+  "name": "lamplighter-pixel-mvp",
+  "version": "0.1.0",
+  "description": "Cocos Creator pixel-art style MVP for The Lamplighter.",
+  "creator": {
+    "version": "3.8.8"
+  },
+  "uuid": "caa1626f-7f62-4e2a-95d5-bc278ee69dc4"
+}
