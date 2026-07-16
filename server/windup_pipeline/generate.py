@@ -3,8 +3,10 @@
 - 参考图 + 文字约束 → 生成图（route A：保"单帧可独立重画"）。
 - key 从环境变量读（见 config.py）。
 """
-import base64, json, re
+import base64, json, logging, re
 from . import config, provider
+
+logger = logging.getLogger(__name__)
 
 
 def _call(text, ref_paths, out_path, timeout=200, model=None, api_key=None):
@@ -34,7 +36,7 @@ def _call(text, ref_paths, out_path, timeout=200, model=None, api_key=None):
                 with open(out_path, "wb") as image:
                     image.write(data)
                 return True
-        print(f"    · 返回无有效图，重试 {attempt+1}/3")
+        logger.warning("No valid image in response, retrying %d/3", attempt + 1)
     raise provider.ProviderError("模型调用成功，但响应中没有可用图像")
 
 

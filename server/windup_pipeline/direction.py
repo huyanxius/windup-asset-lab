@@ -14,9 +14,12 @@
 
 这是我们做得又快又好、竞品不做的"最后一公里"能力之一。
 """
+import logging
 import os, glob, base64, json, re
 from PIL import Image
 from . import config, provider
+
+logger = logging.getLogger(__name__)
 
 
 def facing_vlm(path, model=None):
@@ -35,7 +38,7 @@ def facing_vlm(path, model=None):
         if m:
             return json.loads(m.group(0)).get("facing")
     except Exception as e:
-        print(f"    · 朝向判定失败 {os.path.basename(path)}: {str(e)[:60]}")
+        logger.warning("Facing detection failed for %s: %s", os.path.basename(path), str(e)[:60])
     return None
 
 

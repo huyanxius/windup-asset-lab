@@ -20,14 +20,14 @@ class ProviderError(RuntimeError):
         self.status = status
 
 
-def require_key(api_key=None):
+def require_key(api_key: str | None = None) -> str:
     key = api_key or config.API_KEY
     if not key:
         raise ProviderError("请先连接七牛云 API Key")
     return key
 
 
-def _error_message(raw, fallback):
+def _error_message(raw: str, fallback: str) -> str:
     try:
         data = json.loads(raw)
         error = data.get("error", data)
@@ -38,7 +38,15 @@ def _error_message(raw, fallback):
         return fallback
 
 
-def request_json(method, path, body=None, *, api_key=None, retries=3, timeout=180):
+def request_json(
+    method: str,
+    path: str,
+    body: object | None = None,
+    *,
+    api_key: str | None = None,
+    retries: int = 3,
+    timeout: int = 180,
+) -> object:
     """Call QnAIGC without hiding authentication, quota or model errors."""
     key = require_key(api_key)
     payload = None if body is None else json.dumps(body).encode("utf-8")
@@ -70,7 +78,7 @@ def request_json(method, path, body=None, *, api_key=None, retries=3, timeout=18
     raise ProviderError(f"无法连接七牛云：{last_error}")
 
 
-def verify_key(api_key):
+def verify_key(api_key: str) -> bool:
     """Validate credentials with an invalid-model probe that creates no image."""
     try:
         request_json(
@@ -88,10 +96,10 @@ def verify_key(api_key):
     return True
 
 
-def list_models(api_key=None):
+def list_models(api_key: str | None = None) -> list[str]:
     result = request_json("GET", "/models", api_key=api_key, retries=2, timeout=20)
     return [str(item.get("id")) for item in result.get("data", []) if item.get("id")]
 
 
-def post_json(path, body, retries=4, timeout=180, api_key=None):
+def post_json(path: str, body: object, retries: int = 4, timeout: int = 180, api_key: str | None = None) -> object:
     return request_json("POST", path, body, retries=retries, timeout=timeout, api_key=api_key)

@@ -7,7 +7,7 @@ from pathlib import Path
 from PIL import Image
 
 
-def _foreground_ratio(image: Image.Image) -> float:
+def _foreground_ratio(image: "Image.Image") -> float:
     alpha = image.getchannel("A")
     return sum(1 for value in alpha.getdata() if value > 24) / (image.width * image.height)
 
@@ -58,8 +58,16 @@ def normalize_frame(source: Path, destination: Path, action: str, frame_index: i
         )
     canvas = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
     left = round((256 - subject.width) / 2)
+    # Per-frame vertical offsets for non-standard actions.
+    # Jump: simulates air displacement (larger offsets).
+    # Idle: simulates breathing (tiny offsets to prevent pixel-identical frames).
     jump_offsets = [0, 18, 42, 62, 38, 0, 0, 0]
-    vertical_offset = jump_offsets[frame_index] if action == "jump" and frame_index < len(jump_offsets) else 0
+    idle_breath = [0, 1, 1, 0, -1, -1, -1, 0]  # ±1px breathing wobble
+    vertical_offset = 0
+    if action == "jump" and frame_index < len(jump_offsets):
+        vertical_offset = jump_offsets[frame_index]
+    elif action == "idle" and frame_index < len(idle_breath):
+        vertical_offset = idle_breath[frame_index]
     top = 238 - subject.height - vertical_offset
     canvas.alpha_composite(subject, (left, top))
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -147,8 +155,10 @@ def sequence_quality(frames: list[Path], action: str = "") -> dict:
             warnings.append("主体高度波动过大")
         if center_spread > 42:
             warnings.append("主体水平中心漂移过大")
-        if action != "jump" and foot_spread > 5:
+        if action != "jump" and action != "idle" and foot_spread > 5:
             warnings.append("脚底基线不连续")
+        elif action == "idle" and foot_spread > 3:
+            warnings.append("待机帧脚底波动过大")
     else:
         height_spread = center_spread = foot_spread = 0
     return {

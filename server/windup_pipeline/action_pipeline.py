@@ -249,15 +249,19 @@ class ActionPipeline:
                 )
                 if custom_prompt:
                     frame_prompt += f"; creator constraints: {custom_prompt}"
+                # Pass the cutout (background-removed) of the previous frame as reference,
+                # not the raw magenta-background image. This prevents background color
+                # bleed into costume inference on subsequent frames.
+                prev_ref = previous
                 generate.gen_frame(
                     str(base), description, frame_prompt, str(raw),
                     skeleton_path=skeletons[index] if skeletons else None,
-                    prev_path=str(previous) if previous else None,
+                    prev_path=prev_ref,
                     model=model, api_key=api_key,
                 )
                 processing.matte_chroma(raw, cutout)
                 provider_mode = "live-frame"
-                previous = raw
+                previous = str(cutout)
             processing.normalize_frame(cutout, output, action, index)
             provenance(index, pose, time.time() - started, provider_mode)
             outputs.append(self._output(job_id, output, index, pose, view, action))

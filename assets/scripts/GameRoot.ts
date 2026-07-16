@@ -55,14 +55,19 @@ export class GameRoot extends Component {
   private previewFps = 8;
   private previewLoop = true;
   private previewToken = 0;
+  private previewOrigin: string = '*';
 
   onLoad(): void {
     view.setDesignResolutionSize(this.designWidth, this.designHeight, ResolutionPolicy.SHOW_ALL);
     this.createStage();
     this.registerInput();
+    // Read preview origin from WINDUP_CONFIG or fall back to '*' for local dev.
+    if (typeof window !== 'undefined' && window.WINDUP_CONFIG?.previewOrigin) {
+      this.previewOrigin = String(window.WINDUP_CONFIG.previewOrigin);
+    }
     if (typeof window !== 'undefined') {
       window.addEventListener('message', this.onPreviewMessage);
-      this.postPreviewMessage({ type: 'windup:preview-ready' });
+      this.postPreviewMessage({ type: 'windup:preview-ready' }, this.previewOrigin);
     }
   }
 
@@ -215,14 +220,14 @@ export class GameRoot extends Component {
     resources.loadDir(base, SpriteFrame, (error, loadedFrames) => {
       if (token !== this.previewToken) return;
       if (error) {
-        this.postPreviewMessage({ type: 'windup:preview-error', reason: String(error) });
+        this.postPreviewMessage({ type: 'windup:preview-error', reason: String(error) }, this.previewOrigin);
         return;
       }
       const matches = loadedFrames
         .filter((frame) => frame.name.startsWith(`${request.action}-`))
         .sort((a, b) => a.name.localeCompare(b.name));
       if (!matches.length) {
-        this.postPreviewMessage({ type: 'windup:preview-error', reason: '资产未找到' });
+        this.postPreviewMessage({ type: 'windup:preview-error', reason: '资产未找到' }, this.previewOrigin);
         return;
       }
       matches.forEach((frame) => frame.texture.setFilters(Texture2D.Filter.NEAREST, Texture2D.Filter.NEAREST));
@@ -233,14 +238,14 @@ export class GameRoot extends Component {
       this.frameTime = 0;
       this.applyFrame();
       if (this.characterNode) tween(this.characterNode).to(0.22, { scale: new Vec3(this.direction, 1, 1) }).start();
-      this.postPreviewMessage({ type: 'windup:preview-applied', character, action: request.action, view: request.view, frames: matches.length });
+      this.postPreviewMessage({ type: 'windup:preview-applied', character, action: request.action, view: request.view, frames: matches.length }, this.previewOrigin);
     });
   };
 
-  private postPreviewMessage(message: Record<string, unknown>): void {
+  private postPreviewMessage(message: Record<string, unknown>, targetOrigin: string = '*'): void {
     if (typeof window === 'undefined') return;
-    window.parent?.postMessage(message, '*');
-    window.opener?.postMessage(message, '*');
+    window.parent?.postMessage(message, targetOrigin);
+    window.opener?.postMessage(message, targetOrigin);
   }
 
   update(deltaTime: number): void {

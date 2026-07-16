@@ -130,7 +130,7 @@ class GenerationApplication:
     def character_asset_manifest(self, character_id: str) -> dict:
         return self.assets.manifest(character_id)
 
-    def _update_job(self, job_id: str, **changes) -> dict:
+    def _update_job(self, job_id: str, **changes: object) -> dict:
         return self.jobs.update(job_id, updatedAt=now_iso(), **changes)
 
     def _credentials(self, session_id: str) -> ProviderSession:

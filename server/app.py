@@ -183,6 +183,17 @@ def main() -> None:
     args = parser.parse_args()
     application = GenerationApplication(ROOT, demo=os.environ.get("WINDUP_DEMO") == "1" or args.demo)
     application.prepare()
+
+    # Warn if running in production-like mode without origin restrictions.
+    allowed = os.environ.get("WINDUP_ALLOWED_ORIGINS", "").strip()
+    if not allowed and not args.demo:
+        print(
+            "⚠️  WARNING: WINDUP_ALLOWED_ORIGINS is not set. "
+            "CORS will default to localhost/127.0.0.1 only. "
+            "Set this environment variable in production to restrict allowed origins.",
+            flush=True,
+        )
+
     server = ThreadingHTTPServer((args.host, args.port), create_handler(application))
     print(f"Windup Asset Lab: http://{args.host}:{args.port}/asset-lab/")
     print(f"Generation provider: {'demo' if application.demo else 'session-isolated'}")
