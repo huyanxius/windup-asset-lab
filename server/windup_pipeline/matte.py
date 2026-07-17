@@ -10,14 +10,14 @@ _session = None
 def _get_session():
     global _session
     if _session is None:
-        from rembg import new_session
+        from rembg import new_session  # pyright: ignore[reportMissingImports]
         _session = new_session("u2net")
     return _session
 
 
 def cutout(in_path, out_path):
     """去背景，输出透明 PNG。"""
-    from rembg import remove
+    from rembg import remove  # pyright: ignore[reportMissingImports]
     im = Image.open(in_path).convert("RGBA")
     remove(im, session=_get_session()).save(out_path)
     return out_path

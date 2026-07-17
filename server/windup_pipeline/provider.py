@@ -8,6 +8,7 @@ import json
 import time
 import urllib.error
 import urllib.request
+from typing import Any
 
 from . import config
 
@@ -46,7 +47,7 @@ def request_json(
     api_key: str | None = None,
     retries: int = 3,
     timeout: int = 180,
-) -> object:
+) -> Any:
     """Call QnAIGC without hiding authentication, quota or model errors."""
     key = require_key(api_key)
     payload = None if body is None else json.dumps(body).encode("utf-8")
@@ -101,5 +102,5 @@ def list_models(api_key: str | None = None) -> list[str]:
     return [str(item.get("id")) for item in result.get("data", []) if item.get("id")]
 
 
-def post_json(path: str, body: object, retries: int = 4, timeout: int = 180, api_key: str | None = None) -> object:
+def post_json(path: str, body: object, retries: int = 4, timeout: int = 180, api_key: str | None = None) -> Any:
     return request_json("POST", path, body, retries=retries, timeout=timeout, api_key=api_key)

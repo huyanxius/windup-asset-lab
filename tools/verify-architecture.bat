@@ -9,6 +9,12 @@ if errorlevel 1 exit /b %errorlevel%
 node tools\check-boundaries.mjs
 if errorlevel 1 exit /b %errorlevel%
 
+python tools\check_python_orphans.py
+if errorlevel 1 exit /b %errorlevel%
+
+python -m pyright
+if errorlevel 1 exit /b %errorlevel%
+
 node --test tests\*.test.mjs
 if errorlevel 1 exit /b %errorlevel%
 
