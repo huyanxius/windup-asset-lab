@@ -107,6 +107,9 @@ class HttpContractTest(unittest.TestCase):
         _, approved = self.request(f"/api/generations/{job['id']}/promote", {})
         self.assertEqual(approved["status"], "approved")
         character_id = approved["character"]["id"]
+        self.assertNotIn("\\", approved["character"]["base"])
+        self.assertNotIn("\\", approved["character"]["root"])
+        self.assertTrue(all("\\" not in path for path in approved["promoted"]))
         self.assertEqual(len(approved["character"]["assets"]["side"]["idle"]["frames"]), 8)
         self.assertEqual(len(approved["character"]["assets"]["side"]["walk"]["frames"]), 8)
 
