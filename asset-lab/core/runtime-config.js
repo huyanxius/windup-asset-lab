@@ -5,18 +5,18 @@ function clean(value) {
 }
 
 export function resolveRuntimeConfig(
-  locationLike = globalThis.location || { hostname: 'localhost', port: '4174', origin: '' },
+  locationLike = globalThis.location || { hostname: 'localhost', port: '5174', origin: '' },
   overrides = globalThis.WINDUP_CONFIG || {},
 ) {
   const local = LOCAL_HOSTS.has(locationLike.hostname);
   const apiBase = clean(
     overrides.apiBase
       ?? globalThis.WINDUP_API_BASE
-      ?? (local && locationLike.port !== '4174' ? 'http://127.0.0.1:4174' : ''),
+      ?? (local && locationLike.port !== '5174' ? 'http://127.0.0.1:5174' : ''),
   );
   const gameOrigin = clean(
     overrides.gameOrigin
-      ?? (local ? 'http://127.0.0.1:4173' : locationLike.origin),
+      ?? (local ? 'http://127.0.0.1:5173' : locationLike.origin),
   );
   const gamePath = String(overrides.gamePath ?? '/');
   return Object.freeze({

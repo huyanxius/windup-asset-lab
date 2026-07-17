@@ -34,6 +34,16 @@ test('manual input has one deterministic start and stop path', () => {
   assert.equal(state.locomotion, LocomotionState.IDLE);
 });
 
+test('keyboard repeat keeps manual input state stable instead of restarting playback', () => {
+  const held = reduceMotion(createMotionState(), { type: 'MANUAL_INPUT', direction: 'right', pressed: true });
+  const repeated = reduceMotion(held, { type: 'MANUAL_INPUT', direction: 'right', pressed: true });
+  assert.equal(repeated, held);
+
+  const released = reduceMotion(held, { type: 'MANUAL_INPUT', direction: 'right', pressed: false });
+  const repeatedRelease = reduceMotion(released, { type: 'MANUAL_INPUT', direction: 'right', pressed: false });
+  assert.equal(repeatedRelease, released);
+});
+
 test('movement stays inside the stage and turns around at the edge', () => {
   const state = createMotionState({ animation: AnimationState.PLAYING, locomotion: LocomotionState.AUTO, x: 99, direction: 1 });
   const next = advanceMotion(state, 0.1, 100);
