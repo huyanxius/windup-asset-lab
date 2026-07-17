@@ -6,6 +6,11 @@ export {
   viewLabels,
 } from './generated-contract.js';
 import {
+  DEFAULT_DEMO_ASSET_VERSION,
+  DEFAULT_DEMO_CHARACTER_ASSETS,
+  DEFAULT_DEMO_CHARACTER_LABEL,
+} from './default-demo-character.js';
+import {
   FIXED_FPS,
   actionLabels,
   actionLoops,
@@ -13,6 +18,9 @@ import {
 } from './generated-contract.js';
 export const CHARACTER_ROOT = '../assets/resources/character';
 export const TEAMMATE_ROOT = '../assets/resources/characters';
+function versionAsset(url, version = '') {
+  return version ? `${url}?v=${version}` : url;
+}
 
 export function makeFrames(base, prefix, count = 8) {
   return Array.from(
@@ -58,18 +66,22 @@ const lamplighterLibrary = {
   },
 };
 
-function teammateLibrary(character, count = 8) {
+function teammateLibrary(character, count = 8, actions = ['walk'], version = '') {
+  const side = {
+    label: '横屏侧视资产',
+    truth: '队友 Windup 管线生成 · 保留溯源',
+  };
+  actions.forEach((action) => {
+    side[action] = asset(
+      actionLabels[action]?.[0] || action,
+      action,
+      makeFrames(`${TEAMMATE_ROOT}/${character}/views/side`, action, count)
+        .map((url) => versionAsset(url, version)),
+      `TEAM-${character.toUpperCase()}-${action.toUpperCase()}`,
+    );
+  });
   return {
-    side: {
-      label: '横屏侧视资产',
-      truth: '队友 Windup 管线生成 · 保留溯源',
-      walk: asset(
-        '行走',
-        'walk',
-        makeFrames(`${TEAMMATE_ROOT}/${character}/views/side`, 'walk', count),
-        `TEAM-${character.toUpperCase()}-WALK`,
-      ),
-    },
+    side,
     topdown: { label: '真实俯视资产', truth: '尚未生成：不使用伪透视替代' },
     isometric: { label: '真实 2.5D 资产', truth: '尚未生成：不使用伪透视替代' },
   };
@@ -77,14 +89,14 @@ function teammateLibrary(character, count = 8) {
 
 export const characterCatalog = {
   lamplighter: {
-    label: '点灯少年',
+    label: '旧试验角色 · 独立样例',
     base: `${CHARACTER_ROOT}/frames/walk-01.png`,
     library: lamplighterLibrary,
   },
   boy: {
-    label: 'Boy · 队友资产',
-    base: `${TEAMMATE_ROOT}/boy/base.png`,
-    library: teammateLibrary('boy'),
+    label: `${DEFAULT_DEMO_CHARACTER_LABEL} · 默认角色`,
+    base: DEFAULT_DEMO_CHARACTER_ASSETS.base,
+    library: teammateLibrary('boy', 8, ['idle', 'walk'], DEFAULT_DEMO_ASSET_VERSION),
   },
   skeleton: {
     label: 'Skeleton · 队友资产',

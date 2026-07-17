@@ -1,6 +1,7 @@
 import { createApiClient } from './core/api-client.js';
 import { createJobPoller } from './core/job-poller.js';
 import { characterCatalog, mergeCharacterRecords } from './data/character-catalog.js';
+import { DEFAULT_DEMO_CHARACTER_ID } from './data/default-demo-character.js';
 import { ProviderSessionController } from './features/provider-session-controller.js';
 import { WorkflowStepper } from './features/workflow-stepper.js';
 import { generationDefaults } from './data/generated-contract.js';
@@ -134,7 +135,7 @@ async function acceptGeneration() {
     renderJob(job);
     els.jobMessage.textContent = '候选资产已采用，正式资产已备份，可返回审核台。';
     const query = new URLSearchParams({ character: job.request.character, view: job.request.view, action: job.request.action });
-    els.editorLink.href = `./?${query}`;
+    els.editorLink.href = `./review.html?${query}`;
   } catch (error) {
     els.acceptBtn.disabled = false;
     els.jobMessage.textContent = error.message;
@@ -156,7 +157,9 @@ async function boot() {
     mergeCharacterRecords(charactersResult.value.characters, (path) => api.assetUrl(path));
   }
   els.character.replaceChildren(...Object.entries(characterCatalog).map(([id, item]) => new Option(item.label, id)));
-  els.character.value = characterCatalog[query.get('character')] ? query.get('character') : 'lamplighter';
+  els.character.value = characterCatalog[query.get('character')]
+    ? query.get('character')
+    : DEFAULT_DEMO_CHARACTER_ID;
   syncCharacter();
   if (provider.connected) stepper.select('define');
   syncControls();

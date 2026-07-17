@@ -112,6 +112,14 @@
   font-weight: 750;
 }
 
+.sidebar-reveal .brand-reveal-mark {
+  width: 23px;
+  height: 23px;
+  background: #1d1d1f;
+  mask: url('../brand/windup-mark.svg') center / contain no-repeat;
+  -webkit-mask: url('../brand/windup-mark.svg') center / contain no-repeat;
+}
+
 .sidebar-reveal i {
   font-style: normal;
   color: #8e8e93;

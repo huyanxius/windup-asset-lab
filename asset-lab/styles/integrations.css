@@ -41,7 +41,7 @@
 
 .character-manager-entry:hover {
   transform: translateX(2px);
-  background: #fff;
+  background: var(--workspace-white);
 }
 
 .character-manager-entry span {
@@ -101,7 +101,7 @@
 .review-actions .regenerate-btn {
   grid-column: 1 / -1;
   border-color: #1d1d1f !important;
-  background: #fff;
+  background: var(--workspace-white);
   color: #1d1d1f;
   font-weight: 650;
 }

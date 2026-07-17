@@ -6,7 +6,7 @@ const assetLab = new URL('../asset-lab/', import.meta.url);
 
 test('editor preserves the collapsed drawer, left filmstrip and full-screen stage contract', async () => {
   const [html, drawerController, workspace] = await Promise.all([
-    readFile(new URL('index.html', assetLab), 'utf8'),
+    readFile(new URL('review.html', assetLab), 'utf8'),
     readFile(new URL('features/drawer-controller.js', assetLab), 'utf8'),
     readFile(new URL('styles/workspace.css', assetLab), 'utf8'),
   ]);
@@ -16,5 +16,5 @@ test('editor preserves the collapsed drawer, left filmstrip and full-screen stag
   assert.match(workspace, /\.workspace\s*{[\s\S]*?position: fixed !important;[\s\S]*?inset: 0 !important/);
   assert.match(workspace, /\.timeline-panel\s*{[\s\S]*?left: 20px !important;[\s\S]*?width: 96px !important/);
   assert.doesNotMatch(html, /styles\/editor\.css/);
-  assert.match(html, /styles\/workspace\.css\?v=4/);
+  assert.match(html, /styles\/workspace\.css\?v=5/);
 });

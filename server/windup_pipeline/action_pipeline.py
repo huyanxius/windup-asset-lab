@@ -162,8 +162,8 @@ class ActionPipeline:
             for index in range(len(phases)):
                 source = self.official_frame(character_id, view, action, index)
                 if not source.exists():
-                    source = self.official_frame("lamplighter", view, action, index)
-                sources.append(source if source.exists() else base)
+                    source = base
+                sources.append(source)
             processing.make_action_sheet(sources, raw_sheet)
             shutil.copy2(raw_sheet, cutout_sheet)
             provider_mode = "demo-sheet"

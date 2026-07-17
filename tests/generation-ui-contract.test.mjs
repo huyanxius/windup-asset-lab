@@ -28,12 +28,19 @@ test('full action generation selects the coherent sheet route and reports its co
   assert.match(source, /sourceCallCount/);
 });
 
-test('character library only offers direct editor entry when actions exist', async () => {
+test('character library keeps one outfit and one view in focus', async () => {
   const [html, source] = await Promise.all([
     readFile(new URL('characters.html', assetLab), 'utf8'),
     readFile(new URL('characters.js', assetLab), 'utf8'),
   ]);
-  assert.match(html, /id="previewEditorLink"[^>]*hidden/);
-  assert.match(source, /previewEditorLink\.hidden = !inventory\.entries\.length/);
-  assert.match(source, /尚无动作/);
+  assert.match(html, /id="outfitWorkspace"/);
+  assert.match(html, /id="viewTabs"/);
+  assert.match(html, /id="actionShelf"/);
+  assert.match(html, /id="characterSearch"[^>]*type="search"/);
+  assert.match(html, /id="libraryState"/);
+  assert.doesNotMatch(html, /workflow-rail|projectRoleCount|assetMatrix|nextPanel/);
+  assert.match(source, /viewAssets\(character, activeView\)/);
+  assert.match(source, /history\.replaceState/);
+  assert.match(source, /characterSearch\.addEventListener\('input', filterCharacters\)/);
+  assert.match(source, /setLibraryState\('error'/);
 });

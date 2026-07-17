@@ -73,6 +73,7 @@ server/
    ├─ processing.py             # 抠图、动作条切分、归一化与连续性质检
    ├─ job_store.py              # 线程安全的任务持久化边界
    ├─ review_store.py           # 乐观锁版本化审核存储
+   ├─ workflow_store.py         # 可复用生产流程模板与运行计数
    └─ session_store.py          # 不落盘的会话级 API 凭据
 ```
 
@@ -84,6 +85,7 @@ flowchart LR
   API --> HTTP["app.py 路由"]
   HTTP --> App["GenerationApplication"]
   App --> Store["JobStore / ReviewStore"]
+  App <--> Workflow["WorkflowTemplateStore"]
   App --> Executor["GenerationExecutor"]
   App --> Publisher["AssetPublisher"]
   Executor --> Session["ProviderSession snapshot"]
@@ -104,6 +106,8 @@ queued → generating → awaiting_review → approved
                     ↘ failed
 服务重启中的活动任务 → interrupted
 ```
+
+可复用流程不是另一套生成管线。`WorkflowTemplateStore` 只保存经验证的项目和节点配置；每次复用仍通过 `GenerationApplication` 创建新 job，继续使用 `GenerationExecutor` 生成候选，并在明确 promote 前停在 `awaiting_review`。
 
 完整的“需求 → 规格 → 候选 → 质检 → 审核 → 采用 → Cocos → 发布”退出条件见 `ENGINEERING_PLAYBOOK.md`。本文件定义代码结构，Playbook 定义团队如何持续使用这套结构。
 
@@ -144,7 +148,7 @@ queued → generating → awaiting_review → approved
 
 ### 增加角色
 
-内建角色加到目录；用户角色通过 `/api/characters/generations` 创建。默认角色包包含母版、side/idle 和 side/walk；`AssetPublisher` 在临时目录完成全部复制后再原子入库。角色母版、动作候选和正式帧必须保持不同目录。
+内建角色加到目录；用户角色通过 `/api/characters/generations` 结构化创建，或通过 `/api/quick-start` 以一句自然语言开始。Quick Start 只负责把描述归一为角色任务，不建立第二条生成管线。默认角色包包含母版、side/idle 和 side/walk；`AssetPublisher` 在临时目录完成全部复制后再原子入库。角色母版、动作候选和正式帧必须保持不同目录。
 
 ### 更换整套动作策略
 

@@ -41,6 +41,11 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
             self._set_session_cookie = False
             super().__init__(*args, directory=str(root), **kwargs)
 
+        def end_headers(self) -> None:
+            if not urlparse(self.path).path.startswith("/api/"):
+                self.send_header("Cache-Control", "no-store")
+            super().end_headers()
+
         def origin_allowed(self, origin: str) -> bool:
             return origin in configured_origins if configured_origins else bool(LOCAL_ORIGIN.fullmatch(origin))
 
@@ -106,6 +111,9 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 if path == "/api/characters":
                     self.send_json(application.characters())
                     return
+                if path == "/api/workflows":
+                    self.send_json(application.workflow_templates())
+                    return
                 if path == "/api/reviews":
                     query = parse_qs(parsed.query)
                     key = str(query.get("key", [""])[0])
@@ -137,6 +145,12 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 if path == "/api/characters/generations":
                     self.send_json(application.create_character_job(self.session_id(), self.read_json()), 202)
                     return
+                if path == "/api/quick-start":
+                    self.send_json(application.create_quick_start_job(self.session_id(), self.read_json()), 202)
+                    return
+                if path == "/api/workflows":
+                    self.send_json(application.save_workflow_template(self.read_json()), 201)
+                    return
                 if path == "/api/generations":
                     self.send_json(application.create_job(self.session_id(), self.read_json()), 202)
                     return
@@ -152,6 +166,10 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 match = re.fullmatch(r"/api/generations/([a-f0-9]{12})/promote", path)
                 if match:
                     self.send_json(application.promote_job(match.group(1)))
+                    return
+                match = re.fullmatch(r"/api/workflows/([a-f0-9]{12})/runs", path)
+                if match:
+                    self.send_json(application.run_workflow_template(self.session_id(), match.group(1), self.read_json()), 202)
                     return
                 self.send_json({"error": "接口不存在"}, 404)
             except ReviewConflict as error:

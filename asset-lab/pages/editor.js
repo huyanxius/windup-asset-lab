@@ -1,4 +1,5 @@
 import { FIXED_FPS, characterCatalog, mergeCharacterRecords } from '../data/character-catalog.js';
+import { DEFAULT_DEMO_CHARACTER_ID } from '../data/default-demo-character.js';
 import { createApiClient } from '../core/api-client.js';
 import { EditorSession } from '../core/editor-session.js';
 import {
@@ -24,7 +25,9 @@ export function bootstrapEditor() {
   const api = createApiClient();
   const requested = new URLSearchParams(location.search);
   const requestedCharacter = requested.get('character');
-  const initialCharacter = characterCatalog[requestedCharacter] ? requestedCharacter : 'lamplighter';
+  const initialCharacter = characterCatalog[requestedCharacter]
+    ? requestedCharacter
+    : DEFAULT_DEMO_CHARACTER_ID;
   const requestedView = requested.get('view');
   const initialView = characterCatalog[initialCharacter].library[requestedView] ? requestedView : 'side';
   const session = new EditorSession(characterCatalog, {

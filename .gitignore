@@ -32,6 +32,8 @@ __pycache__/
 .DS_Store
 *.bak
 assets/resources/character.zip.meta
+__pycache__/
+*.pyc
 
 # Generation runtime may contain API-produced images, prompts and character cards.
 /generation-data/

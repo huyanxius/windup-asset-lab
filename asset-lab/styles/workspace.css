@@ -98,8 +98,11 @@
 }
 
 .sidebar .brand-mark {
-  color: #fff !important;
+  border: 0 !important;
+  border-radius: 0 !important;
   background: #111 !important;
+  mask: url('../brand/windup-mark.svg') center / contain no-repeat;
+  -webkit-mask: url('../brand/windup-mark.svg') center / contain no-repeat;
 }
 
 .sidebar .tree-row:hover, .sidebar .action-item:hover {

@@ -96,8 +96,8 @@ function renderJob(job) {
   els.editorLink.hidden = job.status !== 'approved';
   if (job.status === 'approved' && job.character) {
     const character = encodeURIComponent(job.character.id);
-    els.libraryLink.href = `./characters.html?character=${character}`;
-    els.editorLink.href = `./?character=${character}`;
+    els.libraryLink.href = './#/projects/windup-demo/assets';
+    els.editorLink.href = `./review.html?character=${character}`;
   }
   if (job.status === 'awaiting_review') stepper.select('review');
   if (job.status === 'awaiting_review' && !completePackage) {
