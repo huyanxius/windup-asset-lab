@@ -32,53 +32,16 @@ const SOURCE_BY_ID = Object.freeze(Object.fromEntries(
 
 export const DEMO_PRODUCTION_STEPS = Object.freeze([
   Object.freeze({
-    id: 'identity',
-    label: '锁定角色定义',
-    title: '角色定义已锁定',
-    copy: '姓名、定位、轮廓和配色成为这一轮生产的身份基准。',
-    duration: 2200,
+    id: 'master', label: '生成角色母版', title: '正在生成角色母版', duration: 9000,
   }),
   Object.freeze({
-    id: 'master',
-    label: '建立身份母版',
-    title: '侧视身份母版已建立',
-    copy: '角色素材进入 256 × 256 透明画布，并锁定朝向与脚底基线。',
-    duration: 2400,
+    id: 'keyframe', label: '生成动作首帧', title: '正在生成动作首帧', duration: 7000,
   }),
   Object.freeze({
-    id: 'action',
-    label: '生成基础动作',
-    title: '待机与行走动作已生成',
-    copy: '待机与行走序列沿用同一身份母版，按动作批次依次产出。',
-    duration: 2800,
+    id: 'animation', label: '生成动画', title: '正在生成八帧动画', duration: 15000,
   }),
   Object.freeze({
-    id: 'slice',
-    label: '切分与归一化',
-    title: '两套动作已整理为 16 帧',
-    copy: '候选图像正按相位逐帧切分，同步统一尺寸、透明底、锚点和命名。',
-    duration: 2500,
-  }),
-  Object.freeze({
-    id: 'quality',
-    label: '自动质量检查',
-    title: '自动质检已通过',
-    copy: '画布、Alpha、脚底线、主体高度、相邻位移和循环接缝均已检查。',
-    duration: 2600,
-  }),
-  Object.freeze({
-    id: 'promote',
-    label: '采用正式资产',
-    title: '候选资产已正式采用',
-    copy: '候选与正式资产保持隔离；版本记录和入库状态已保存。',
-    duration: 2300,
-  }),
-  Object.freeze({
-    id: 'package',
-    label: '生成引擎包',
-    title: 'Cocos 资源包已就绪',
-    copy: '待机与行走透明 PNG、8 FPS metadata、Sprite Sheet 与微信小游戏交付说明已齐备。',
-    duration: 2400,
+    id: 'publish', label: '写入正式资产', title: '正在写入项目资产', duration: 2500,
   }),
 ]);
 
@@ -88,6 +51,7 @@ export const DEFAULT_DEMO_PROFILE = Object.freeze({
   description: '短发、轻便旅行装、清晰侧面轮廓。动作轻快，但不夸张。',
   style: '低饱和文艺像素风，深灰蓝主色，少量暖色点缀',
   action: 'side / idle + walk / 8 FPS',
+  sourceAsset: '',
 });
 
 function cleanProfile(profile = {}) {
@@ -99,14 +63,14 @@ function cleanProfile(profile = {}) {
 
 function metadataFor(profile, source) {
   return {
-    character: { id: 'demo-aran', name: profile.name, role: profile.role },
+    character: { id: 'demo-aran', name: profile.name, role: profile.role, sourceAsset: profile.sourceAsset },
     assets: [
       { view: 'side', action: 'idle', frames: 8, fps: 8, loop: true },
       { view: 'side', action: 'walk', frames: 8, fps: 8, loop: true },
     ],
     canvas: { width: 256, height: 256, alpha: true, anchor: 'feet-center' },
     target: ['Cocos Creator', '微信小游戏'],
-    source: source?.id || 'demonstration',
+    source: source?.id || 'internal',
     sourceLabel: source?.label || '内置角色素材',
   };
 }
@@ -117,146 +81,214 @@ export class DemoProductionController {
     this.onChange = options.onChange || (() => {});
     this.profile = cleanProfile();
     this.sourceId = null;
-    this.status = 'draft';
-    this.stepIndex = -1;
+    this.master = 'idle';
+    this.masterCandidate = null;
+    this.actions = {
+      idle: { keyframe: 'locked', animation: 'locked', brief: '', fps: null },
+      walk: { keyframe: 'locked', animation: 'locked', brief: '', fps: null },
+    };
+    this.status = 'editing';
+    this.jobs = new Map();
+    this.completed = false;
+    this.workflow = null;
     this.runToken = 0;
   }
 
   snapshot() {
-    const completed = this.status === 'completed';
-    const activeStep = DEMO_PRODUCTION_STEPS[Math.max(0, this.stepIndex)];
-    const fixedProgress = {
-      action_review: 72,
-      action_setup: 36,
-      draft: 0,
-      master_review: 28,
-    }[this.status];
+    const jobs = [...this.jobs.values()].map(({ token, ...job }) => ({ ...job }));
     return {
-      activeStep,
-      completed,
-      gate: ['master_review', 'action_setup', 'action_review'].includes(this.status)
-        ? this.status
-        : null,
+      actions: {
+        idle: { ...this.actions.idle },
+        walk: { ...this.actions.walk },
+      },
+      completed: this.completed,
+      job: jobs.at(-1) || null,
+      jobs,
+      master: this.master,
+      masterCandidate: this.masterCandidate,
       profile: { ...this.profile },
       source: SOURCE_BY_ID[this.sourceId] || null,
       sourceId: this.sourceId,
-      progress: completed
-        ? 100
-        : fixedProgress ?? Math.round((this.stepIndex + 1) / DEMO_PRODUCTION_STEPS.length * 100),
       status: this.status,
-      stepIndex: this.stepIndex,
-      steps: DEMO_PRODUCTION_STEPS,
+      workflow: this.workflow ? { ...this.workflow } : null,
     };
   }
 
+  applyWorkflowTemplate(template) {
+    const pipeline = template?.pipeline || {};
+    const sourceId = SOURCE_BY_ID[pipeline.source] ? pipeline.source : 'zero';
+    if (!template?.id || !['automatic', 'guided'].includes(template?.execution?.mode)) return this.snapshot();
+    this.reset();
+    this.sourceId = sourceId;
+    this.workflow = {
+      briefs: { ...(pipeline.briefs || {}) },
+      fps: [8, 12, 16].includes(Number(pipeline.fps)) ? Number(pipeline.fps) : 8,
+      id: template.id,
+      mode: template.execution.mode,
+      name: template.name,
+      status: 'ready',
+    };
+    this.emit();
+    return this.snapshot();
+  }
+
+  startWorkflowRun() {
+    if (!this.workflow || this.workflow.mode !== 'automatic' || !this.sourceId || this.jobs.size) return this.snapshot();
+    this.workflow.status = 'running';
+    return this.startMaster();
+  }
+
   configure(profile) {
-    this.runToken += 1;
     this.profile = cleanProfile(profile);
-    this.status = 'draft';
-    this.stepIndex = -1;
     this.emit();
     return this.snapshot();
   }
 
   selectSource(sourceId) {
     if (!SOURCE_BY_ID[sourceId]) return this.snapshot();
-    this.runToken += 1;
     this.sourceId = sourceId;
-    this.status = 'draft';
-    this.stepIndex = -1;
     this.emit();
     return this.snapshot();
-  }
-
-  clearSource() {
-    this.runToken += 1;
-    this.sourceId = null;
-    this.status = 'draft';
-    this.stepIndex = -1;
-    this.emit();
-    return this.snapshot();
-  }
-
-  start() {
-    return this.startMaster();
   }
 
   startMaster() {
-    if (!this.sourceId || this.status === 'running') return this.snapshot();
-    return this.runFrom(0);
+    if (!this.sourceId || this.jobs.size) return this.snapshot();
+    this.master = 'generating';
+    this.masterCandidate = null;
+    this.actions.idle = { keyframe: 'locked', animation: 'locked', brief: '', fps: null };
+    this.actions.walk = { keyframe: 'locked', animation: 'locked', brief: '', fps: null };
+    return this.runJob('master', null, DEMO_PRODUCTION_STEPS[0], () => {
+      this.master = 'review';
+    });
+  }
+
+  selectMasterCandidate(candidateId) {
+    if (this.master !== 'review') return this.snapshot();
+    this.masterCandidate = candidateId;
+    this.emit();
+    return this.snapshot();
   }
 
   confirmMaster() {
-    if (this.status !== 'master_review') return this.snapshot();
-    this.runToken += 1;
-    this.status = 'action_setup';
+    if (this.master !== 'review' || !this.masterCandidate) return this.snapshot();
+    this.master = 'confirmed';
+    this.actions.idle.keyframe = 'ready';
+    this.actions.walk.keyframe = 'ready';
     this.emit();
     return this.snapshot();
   }
 
-  startActions() {
-    if (!['action_setup', 'action_review'].includes(this.status)) return this.snapshot();
-    return this.runFrom(2);
+  generateKeyframe(action, options = {}) {
+    const branch = this.actions[action];
+    const brief = String(options.brief || '').trim();
+    if (!branch || !brief || this.master !== 'confirmed' || !['ready', 'review'].includes(branch.keyframe)) return this.snapshot();
+    branch.brief = brief;
+    branch.keyframe = 'generating';
+    branch.animation = 'locked';
+    return this.runJob('keyframe', action, DEMO_PRODUCTION_STEPS[1], () => {
+      branch.keyframe = 'review';
+    });
   }
 
-  approveActions() {
-    if (this.status !== 'action_review') return this.snapshot();
-    return this.runFrom(5);
-  }
-
-  regenerateMaster() {
-    if (!['master_review', 'action_setup'].includes(this.status)) return this.snapshot();
-    return this.runFrom(0);
-  }
-
-  regenerateActions() {
-    if (this.status !== 'action_review') return this.snapshot();
-    return this.runFrom(2);
-  }
-
-  reset() {
-    this.runToken += 1;
-    this.status = 'draft';
-    this.stepIndex = -1;
+  confirmKeyframe(action) {
+    const branch = this.actions[action];
+    if (!branch || branch.keyframe !== 'review') return this.snapshot();
+    branch.keyframe = 'confirmed';
+    branch.animation = 'ready';
     this.emit();
     return this.snapshot();
   }
 
-  runFrom(stepIndex) {
+  generateAnimation(action, options = {}) {
+    const branch = this.actions[action];
+    const fps = Number(options.fps);
+    if (!branch || ![8, 12, 16].includes(fps) || branch.keyframe !== 'confirmed' || !['ready', 'review'].includes(branch.animation)) return this.snapshot();
+    branch.fps = fps;
+    branch.animation = 'generating';
+    return this.runJob('animation', action, DEMO_PRODUCTION_STEPS[2], () => {
+      branch.animation = 'review';
+    });
+  }
+
+  confirmAnimation(action) {
+    const branch = this.actions[action];
+    if (!branch || branch.animation !== 'review') return this.snapshot();
+    branch.animation = 'confirmed';
+    this.emit();
+    return this.snapshot();
+  }
+
+  publish() {
+    const ready = Object.values(this.actions).every((branch) => branch.animation === 'confirmed');
+    if (!ready || this.jobs.size || this.completed) return this.snapshot();
+    return this.runJob('publish', null, DEMO_PRODUCTION_STEPS[3], () => {
+      this.completed = true;
+      if (this.workflow) this.workflow.status = 'completed';
+    });
+  }
+
+  runJob(kind, action, step, complete) {
     const token = ++this.runToken;
+    const key = `${kind}:${action || 'global'}`;
+    if (this.jobs.has(key)) return this.snapshot();
     this.status = 'running';
-    this.stepIndex = stepIndex;
+    this.jobs.set(key, { action, duration: step.duration, kind, title: step.title, token });
     this.emit();
-    this.scheduleNext(token);
+    this.schedule(() => {
+      if (this.jobs.get(key)?.token !== token) return;
+      complete();
+      this.jobs.delete(key);
+      this.status = this.jobs.size ? 'running' : this.completed ? 'completed' : 'editing';
+      this.advanceWorkflow();
+      this.emit();
+    }, step.duration);
     return this.snapshot();
   }
 
-  advance(token = this.runToken) {
-    if (token !== this.runToken || this.status !== 'running') return this.snapshot();
-    if (this.stepIndex === 1) {
-      this.status = 'master_review';
-      this.emit();
-      return this.snapshot();
+  advanceWorkflow() {
+    if (this.workflow?.status !== 'running' || this.jobs.size) return;
+    if (this.master === 'review') {
+      this.masterCandidate = 'boy';
+      this.master = 'confirmed';
+      this.actions.idle.keyframe = 'ready';
+      this.actions.walk.keyframe = 'ready';
+      for (const action of ['walk', 'idle']) {
+        this.generateKeyframe(action, {
+          brief: this.workflow.briefs[action] || (action === 'walk' ? '轻快、重心稳定的侧向行走' : '平稳呼吸、轮廓清晰的待机'),
+        });
+      }
+      return;
     }
-    if (this.stepIndex === 4) {
-      this.status = 'action_review';
-      this.emit();
-      return this.snapshot();
+    const branches = Object.values(this.actions);
+    if (branches.every((branch) => branch.keyframe === 'review')) {
+      for (const branch of branches) {
+        branch.keyframe = 'confirmed';
+        branch.animation = 'ready';
+      }
+      for (const action of ['walk', 'idle']) this.generateAnimation(action, { fps: this.workflow.fps });
+      return;
     }
-    if (this.stepIndex >= DEMO_PRODUCTION_STEPS.length - 1) {
-      this.status = 'completed';
-      this.emit();
-      return this.snapshot();
+    if (branches.every((branch) => branch.animation === 'review')) {
+      for (const branch of branches) branch.animation = 'confirmed';
+      this.workflow.status = 'awaiting_review';
+      return;
     }
-    this.stepIndex += 1;
-    this.emit();
-    this.scheduleNext(token);
-    return this.snapshot();
   }
 
-  scheduleNext(token) {
-    const step = DEMO_PRODUCTION_STEPS[this.stepIndex];
-    this.schedule(() => this.advance(token), step.duration);
+  reset({ notify = true } = {}) {
+    this.runToken += 1;
+    this.profile = cleanProfile();
+    this.sourceId = null;
+    this.master = 'idle';
+    this.masterCandidate = null;
+    this.actions.idle = { keyframe: 'locked', animation: 'locked', brief: '', fps: null };
+    this.actions.walk = { keyframe: 'locked', animation: 'locked', brief: '', fps: null };
+    this.status = 'editing';
+    this.jobs.clear();
+    this.completed = false;
+    this.workflow = null;
+    if (notify) this.emit();
+    return this.snapshot();
   }
 
   metadata() {

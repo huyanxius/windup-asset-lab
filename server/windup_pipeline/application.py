@@ -6,6 +6,7 @@ handlers, cookies or transport details.
 
 from __future__ import annotations
 
+import re
 import threading
 import uuid
 from datetime import datetime
@@ -28,6 +29,7 @@ from .publisher import AssetPublisher
 from .review_store import ReviewStore
 from .session_store import ProviderSession, ProviderSessionStore
 from .time_utils import now_iso
+from .workflow_store import WorkflowTemplateStore
 
 
 class GenerationApplication:
@@ -37,9 +39,11 @@ class GenerationApplication:
         self.jobs_root = self.data_root / "jobs"
         self.backups_root = self.data_root / "backups"
         self.characters_root = self.data_root / "characters"
+        self.workflows_root = self.data_root / "workflows"
         self.demo = demo
         self.jobs = JobStore(self.jobs_root)
         self.reviews = ReviewStore(self.data_root / "reviews")
+        self.workflows = WorkflowTemplateStore(self.workflows_root)
         self.sessions = ProviderSessionStore(config.API_KEY, config.IMAGE_MODEL)
         self.assets = AssetCatalog(root, self.characters_root)
         self.catalog = self.assets.records
@@ -60,10 +64,11 @@ class GenerationApplication:
         )
 
     def prepare(self) -> None:
-        for path in (self.jobs_root, self.backups_root, self.characters_root):
+        for path in (self.jobs_root, self.backups_root, self.characters_root, self.workflows_root):
             path.mkdir(parents=True, exist_ok=True)
         self.assets.load_custom()
         self.jobs.load(now_iso())
+        self.workflows.load()
         if config.API_KEY and not self.demo:
             try:
                 provider.verify_key(config.API_KEY)
@@ -124,6 +129,122 @@ class GenerationApplication:
     def characters(self) -> dict:
         return self.assets.characters()
 
+    def workflow_templates(self) -> dict:
+        return {"workflows": self.workflows.list()}
+
+    def save_workflow_template(self, payload: dict) -> dict:
+        name = str(payload.get("name", "")).strip()
+        description = str(payload.get("description", "")).strip()
+        project = payload.get("project", {})
+        pipeline = payload.get("pipeline", {})
+        execution = payload.get("execution", {})
+        graph = payload.get("graph", {})
+        if not 1 <= len(name) <= 48:
+            raise ValueError("流程名称需要 1–48 字")
+        if len(description) > 240 or not isinstance(project, dict) or not isinstance(pipeline, dict) or not isinstance(execution, dict) or not isinstance(graph, dict):
+            raise ValueError("流程模板格式不合法")
+        view = str(project.get("view", "side"))
+        directions = str(project.get("directions", "1"))
+        canvas_size = str(project.get("canvasSize", "256"))
+        style = str(project.get("style", "")).strip()
+        source = str(pipeline.get("source", "zero"))
+        actions = list(dict.fromkeys(str(action) for action in pipeline.get("actions", ["idle", "walk"])))
+        fps = int(pipeline.get("fps", FPS))
+        briefs = pipeline.get("briefs", {})
+        mode = str(execution.get("mode", "automatic"))
+        if view not in VIEWS or directions not in {"1", "4", "8"} or canvas_size not in {"128", "256", "512"}:
+            raise ValueError("项目约束不合法")
+        if len(style) > 240 or source not in {"zero", "upload", "existing"}:
+            raise ValueError("素材来源或美术约束不合法")
+        if set(actions) != {"idle", "walk"}:
+            raise ValueError("当前画布流程需要同时保留待机和行走动作")
+        if fps not in {8, 12, 16} or not isinstance(briefs, dict) or mode not in {"automatic", "guided"}:
+            raise ValueError("流程执行配置不合法")
+        clean_briefs = {action: str(briefs.get(action, "")).strip()[:180] for action in actions}
+        clean_graph = self._clean_workflow_graph(graph)
+        return self.workflows.create({
+            "name": name,
+            "description": description,
+            "project": {
+                "view": view,
+                "directions": directions,
+                "canvasSize": canvas_size,
+                "style": style,
+            },
+            "pipeline": {
+                "source": source,
+                "actions": actions,
+                "fps": fps,
+                "briefs": clean_briefs,
+            },
+            "graph": clean_graph,
+            "execution": {
+                "mode": mode,
+                "approval": "final_asset" if mode == "automatic" else "every_stage",
+            },
+        }, now_iso())
+
+    @staticmethod
+    def _clean_workflow_graph(graph: dict) -> dict:
+        allowed_edges = {
+            ("project", "source"), ("source", "master-gen"), ("master-gen", "master"),
+            ("master", "walk-key"), ("master", "idle-key"), ("master", "custom-action"),
+            ("walk-key", "walk-animation"), ("idle-key", "idle-animation"),
+            ("walk-animation", "publish"), ("idle-animation", "publish"),
+        }
+        allowed_nodes = {node for edge in allowed_edges for node in edge}
+        nodes = list(dict.fromkeys(str(node) for node in graph.get("nodes", []) if str(node) in allowed_nodes))
+        connections = []
+        for edge in graph.get("connections", []):
+            if isinstance(edge, list) and len(edge) == 2 and tuple(str(value) for value in edge) in allowed_edges:
+                clean_edge = [str(edge[0]), str(edge[1])]
+                if clean_edge not in connections:
+                    connections.append(clean_edge)
+        positions = {}
+        for node, point in graph.get("positions", {}).items():
+            if str(node) not in allowed_nodes or not isinstance(point, dict):
+                continue
+            try:
+                x = max(0, min(6000, round(float(point.get("x", 0)))))
+                y = max(0, min(4000, round(float(point.get("y", 0)))))
+            except (TypeError, ValueError):
+                continue
+            positions[str(node)] = {"x": x, "y": y}
+        viewport = graph.get("viewport", {})
+        try:
+            viewport = {
+                "x": max(-6000, min(6000, round(float(viewport.get("x", 80))))),
+                "y": max(-4000, min(4000, round(float(viewport.get("y", 120))))),
+                "scale": max(0.5, min(1.2, round(float(viewport.get("scale", 1)), 2))),
+            }
+        except (AttributeError, TypeError, ValueError):
+            viewport = {"x": 80, "y": 120, "scale": 1}
+        return {"version": 1, "nodes": nodes, "connections": connections, "positions": positions, "viewport": viewport}
+
+    def run_workflow_template(self, session_id: str, template_id: str, payload: dict) -> dict:
+        template = self.workflows.get(template_id)
+        if not template:
+            raise ValueError("流程模板不存在")
+        pipeline = template["pipeline"]
+        project = template["project"]
+        session = self.session(session_id)
+        workflow_run = {
+            "templateId": template["id"],
+            "templateName": template["name"],
+            "templateVersion": template["version"],
+            "executionMode": template["execution"]["mode"],
+        }
+        job = self.create_character_job(session_id, {
+            "name": payload.get("name"),
+            "description": payload.get("description"),
+            "style": str(payload.get("style", "")).strip() or project.get("style", ""),
+            "palette": payload.get("palette", ""),
+            "model": str(payload.get("model", "")).strip() or session.model or config.IMAGE_MODEL,
+            "starterActions": pipeline["actions"],
+        }, workflow_run=workflow_run)
+        self.workflows.record_run(template_id, now_iso())
+        return job
+
     def official_frame(self, character_id: str, view: str, action: str, frame_index: int) -> Path:
         return self.assets.official_frame(character_id, view, action, frame_index)
 
@@ -139,7 +260,58 @@ class GenerationApplication:
             raise ValueError("请先验证七牛云 API Key")
         return session
 
-    def create_character_job(self, session_id: str, payload: dict) -> dict:
+    @staticmethod
+    def _quick_start_name(prompt: str) -> str:
+        match = re.search(
+            r"(?:名叫(?:做)?|叫做|角色名(?:是|为)?)[：:\s“\"']*"
+            r"([\w\u4e00-\u9fff·-]{1,20}?)(?=的|[，,。.;；\s”\"']|$)",
+            prompt,
+        )
+        if match:
+            return match.group(1).rstrip("的")
+        return f"Quick Start {datetime.now().strftime('%m%d-%H%M')}"
+
+    @staticmethod
+    def _quick_start_actions(prompt: str) -> list[str]:
+        aliases = {
+            "idle": ("待机", "呼吸", "站立", "idle"),
+            "walk": ("行走", "走路", "步行", "walk"),
+            "run": ("奔跑", "跑步", "run"),
+            "jump": ("跳跃", "跳起", "jump"),
+            "lantern": ("提灯", "灯笼", "lantern"),
+        }
+        lowered = prompt.lower()
+        inferred = [action for action, words in aliases.items() if any(word in lowered for word in words)]
+        return inferred[:3] or list(GENERATION["starterPack"]["actions"])
+
+    def create_quick_start_job(self, session_id: str, payload: dict) -> dict:
+        prompt = str(payload.get("prompt", "")).strip()
+        if not 12 <= len(prompt) <= 800:
+            raise ValueError("Quick Start 自然语言描述需要 12–800 字")
+        raw_actions = payload.get("starterActions")
+        starter_actions = raw_actions if raw_actions is not None else self._quick_start_actions(prompt)
+        session = self.session(session_id)
+        return self.create_character_job(session_id, {
+            "name": str(payload.get("name", "")).strip() or self._quick_start_name(prompt),
+            "description": prompt,
+            "style": payload.get("style", ""),
+            "palette": payload.get("palette", ""),
+            "model": str(payload.get("model", "")).strip() or session.model or config.IMAGE_MODEL,
+            "starterActions": starter_actions,
+        }, quick_start={
+            "mode": "natural-language",
+            "prompt": prompt,
+            "inferredActions": raw_actions is None,
+        })
+
+    def create_character_job(
+        self,
+        session_id: str,
+        payload: dict,
+        *,
+        workflow_run: dict | None = None,
+        quick_start: dict | None = None,
+    ) -> dict:
         credentials = self._credentials(session_id)
         name = str(payload.get("name", "")).strip()
         description = str(payload.get("description", "")).strip()
@@ -171,6 +343,8 @@ class GenerationApplication:
                 "starterView": GENERATION["starterPack"]["view"],
                 "starterActions": starter_actions,
                 "generationRoute": GENERATION["defaultRoute"],
+                **({"workflow": workflow_run} if workflow_run else {}),
+                **({"quickStart": quick_start} if quick_start else {}),
             },
             "outputs": [], "createdAt": now_iso(), "updatedAt": now_iso(),
         }

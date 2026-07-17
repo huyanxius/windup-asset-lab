@@ -180,7 +180,7 @@ body {
 .status {
   border-radius: 999px;
   padding: 5px 9px;
-  background: white;
+  background: var(--workspace-white);
 }
 
 .spec-grid div {
@@ -314,7 +314,7 @@ input[type="range"] {
 
 .segmented button.active {
   color: #111;
-  background: #fff;
+  background: var(--workspace-white);
 }
 
 .frame-tile.active {
@@ -369,7 +369,7 @@ input[type="range"], .fps-control input, .tool-toggles input, .loop-toggle input
 
 .game-preview-btn {
   border: 1px solid #d1d1d6;
-  background: #fff;
+  background: var(--workspace-white);
   color: #1d1d1f;
   border-radius: 11px;
   padding: 10px 16px;
