@@ -53,8 +53,10 @@ class AssetPublisher:
                 target = staging / "views" / output["view"] / output["file"]
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(self.candidate_path(job["id"], output), target)
-                promoted.append(str((character_root / target.relative_to(staging)).relative_to(self.root)))
-            final_base = str((character_root / "base.png").relative_to(self.root))
+                promoted.append(
+                    (character_root / target.relative_to(staging)).relative_to(self.root).as_posix()
+                )
+            final_base = (character_root / "base.png").relative_to(self.root).as_posix()
             card = {
                 "id": character_id,
                 "label": request["name"],
@@ -81,7 +83,7 @@ class AssetPublisher:
             "id": character_id,
             "label": card["label"],
             "base": card["base"],
-            "root": str(character_root.relative_to(self.root)),
+            "root": character_root.relative_to(self.root).as_posix(),
             "description": card["description"],
             "assets": self.catalog.manifest(character_id),
         }
@@ -123,7 +125,7 @@ class AssetPublisher:
             raise
         return {
             "message": "候选帧已采用，正式资产已备份",
-            "promoted": [str(target.relative_to(self.root)) for _, target in operations],
+            "promoted": [target.relative_to(self.root).as_posix() for _, target in operations],
         }
 
     def candidate_path(self, job_id: str, output: dict) -> Path:

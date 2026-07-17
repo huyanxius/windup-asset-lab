@@ -110,11 +110,22 @@ class HttpContractTest(unittest.TestCase):
         self.assertNotIn("\\", approved["character"]["base"])
         self.assertNotIn("\\", approved["character"]["root"])
         self.assertTrue(all("\\" not in path for path in approved["promoted"]))
+        self.assertTrue(all(
+            "\\" not in path
+            for action in approved["character"]["assets"]["side"].values()
+            for path in action["frames"]
+        ))
         self.assertEqual(len(approved["character"]["assets"]["side"]["idle"]["frames"]), 8)
         self.assertEqual(len(approved["character"]["assets"]["side"]["walk"]["frames"]), 8)
 
         _, library = self.request("/api/characters")
         character = next(item for item in library["characters"] if item["id"] == character_id)
+        self.assertNotIn("\\", character["root"])
+        self.assertTrue(all(
+            "\\" not in path
+            for action in character["assets"]["side"].values()
+            for path in action["frames"]
+        ))
         self.assertEqual(set(character["assets"]["side"]), {"idle", "walk"})
         self.assertTrue((self.root / character["base"]).exists())
 

@@ -41,10 +41,10 @@ class AssetCatalog:
         record = {
             "label": str(card.get("label", character_id)),
             "base": base,
-            "root": str(Path(base).parent),
+            "root": Path(base).parent.as_posix(),
             "description": str(card.get("description", "")),
             "custom": True,
-            "card": str(card_file.relative_to(self.root)),
+            "card": card_file.relative_to(self.root).as_posix(),
         }
         self.records[character_id] = record
         return record
@@ -90,7 +90,7 @@ class AssetCatalog:
                     path = self.official_frame(character_id, view, action, frame_index)
                     if not path.exists():
                         break
-                    frames.append(str(path.relative_to(self.root)))
+                    frames.append(path.relative_to(self.root).as_posix())
                 if frames:
                     actions[action] = {"frames": frames, "fps": FPS, "loop": ACTION_LOOPS[action]}
             manifest[view] = actions

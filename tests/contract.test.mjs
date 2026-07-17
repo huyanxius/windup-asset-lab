@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { promisify } from 'node:util';
 
 import {
   CONTRACT_VERSION,
@@ -11,6 +13,8 @@ import {
   viewLabels,
   generationDefaults,
 } from '../asset-lab/data/generated-contract.js';
+
+const execFileAsync = promisify(execFile);
 
 test('generated frontend contract exactly follows the versioned source', async () => {
   const source = JSON.parse(await readFile(new URL('../contracts/windup.v1.json', import.meta.url), 'utf8'));
@@ -23,4 +27,14 @@ test('generated frontend contract exactly follows the versioned source', async (
   assert.deepEqual(generationDefaults, source.generation);
   assert.equal(generationDefaults.defaultRoute, 'sheet');
   assert.deepEqual(generationDefaults.starterPack.actions, ['idle', 'walk']);
+});
+
+test('generated contract check accepts the current platform line endings', async () => {
+  const { stderr } = await execFileAsync(
+    process.execPath,
+    ['tools/generate-contract.mjs', '--check'],
+    { cwd: new URL('..', import.meta.url), windowsHide: true },
+  );
+
+  assert.equal(stderr, '');
 });
