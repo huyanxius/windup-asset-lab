@@ -1506,6 +1506,7 @@ function renderCustomActionNode() {
 
 function renderPublishNode(snapshot, focus, projectContext, workflowState = {}) {
   const running = jobIsRunning(snapshot, 'publish');
+  const upstreamReady = Object.values(snapshot.actions).every((branch) => branch.animation === 'confirmed');
   const previewHref = `./review.html?character=${encodeURIComponent(snapshot.masterCandidate || 'boy')}&view=side&action=walk`;
   return graphNode({
     id: 'publish', eyebrow: '06 · ASSET', title: snapshot.completed ? '项目资产已就绪' : '导入项目资产', x: 2250, y: 330, focus,
@@ -1534,7 +1535,16 @@ function renderPublishNode(snapshot, focus, projectContext, workflowState = {}) 
           el('button', { type: 'submit', text: workflowState.saving ? '正在保存…' : '保存流程', attributes: workflowState.saving ? { disabled: '' } : {} }),
           workflowState.message ? el('small', { text: workflowState.message }) : null,
         ]),
-      ]) : el('button', { className: 'node-action', type: 'button', text: '确认导入项目资产', attributes: { 'data-publish': '', 'data-connection-required': 'walk-animation:publish,idle-animation:publish' } }),
+      ]) : el('button', {
+        className: 'node-action',
+        type: 'button',
+        text: '确认导入项目资产',
+        attributes: {
+          'data-publish': '',
+          'data-connection-required': 'walk-animation:publish,idle-animation:publish',
+          'data-node-ready': String(upstreamReady),
+        },
+      }),
     ],
   });
 }

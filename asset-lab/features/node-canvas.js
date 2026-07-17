@@ -269,9 +269,11 @@ export class NodeCanvasController {
   syncActions() {
     this.root?.querySelectorAll('[data-connection-required]').forEach((control) => {
       const requirements = control.dataset.connectionRequired.split(',').map((requirement) => requirement.split(':'));
-      const ready = requirements.every(([from, to]) => this.hasConnection(from, to));
+      const connected = requirements.every(([from, to]) => this.hasConnection(from, to));
+      const upstreamReady = control.dataset.nodeReady !== 'false';
+      const ready = connected && upstreamReady;
       control.disabled = !ready;
-      control.title = ready ? '' : '请先连接节点端口';
+      control.title = ready ? '' : connected ? '等待上游生成与确认' : '请先连接节点端口';
       control.closest('[data-node-id]')?.classList.toggle('is-waiting-connection', !ready);
     });
     this.root?.querySelectorAll('[data-node-id]').forEach((node) => {
