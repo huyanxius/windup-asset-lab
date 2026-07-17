@@ -205,7 +205,7 @@ export class GameRoot extends Component {
   private onPreviewMessage = (event: MessageEvent): void => {
     const request = event.data as { type?: string; character?: string; action?: string; view?: string; fps?: number; loop?: boolean };
     if (request?.type !== 'windup:preview-animation' || !request.action || !request.view) return;
-    const supportedCharacters = ['lamplighter', 'boy', 'skeleton', 'lirael'];
+    const supportedCharacters = ['lamplighter', 'boy', 'skeleton', 'lirael', 'samurai'];
     const character = request.character && supportedCharacters.includes(request.character) ? request.character : 'lamplighter';
     const base = character === 'lamplighter'
       ? request.view === 'side' && request.action === 'walk' ? 'character/frames' : `character/views/${request.view}`
@@ -227,7 +227,7 @@ export class GameRoot extends Component {
       }
       matches.forEach((frame) => frame.texture.setFilters(Texture2D.Filter.NEAREST, Texture2D.Filter.NEAREST));
       this.previewFrames = matches;
-      this.previewFps = 8;
+      this.previewFps = request.fps ?? 8;
       this.previewLoop = request.loop !== false;
       this.frameIndex = 0;
       this.frameTime = 0;

@@ -67,6 +67,7 @@ export function bootstrapEditor() {
   function syncPlayback() {
     playback.stop();
     if (!session.asset || motion.animation !== AnimationState.PLAYING) return;
+    playback.setFps(session.asset.fps || FIXED_FPS);
     playback.start(() => {
       const atEnd = session.frame >= session.asset.frames.length - 1;
       if (atEnd && !els.loopToggle.checked) {
