@@ -7,69 +7,42 @@ import argparse
 import json
 import os
 import re
-from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 try:
-    from .windup_pipeline import provider
     from .windup_pipeline.application import GenerationApplication
     from .windup_pipeline.review_store import ReviewConflict
 except ImportError:  # Legacy `python server/app.py` support.
-    from windup_pipeline import provider
     from windup_pipeline.application import GenerationApplication
     from windup_pipeline.review_store import ReviewConflict
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_ORIGIN = re.compile(r"https?://(?:127\.0\.0\.1|localhost)(?::\d+)?")
-SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{20,80}$")
-
 
 def allowed_origins() -> set[str]:
     return {value.strip() for value in os.environ.get("WINDUP_ALLOWED_ORIGINS", "").split(",") if value.strip()}
-
 
 def create_handler(application: GenerationApplication, root: Path = ROOT):
     configured_origins = allowed_origins()
 
     class Handler(SimpleHTTPRequestHandler):
         server_version = "WindupGeneration/2.0"
-
         def __init__(self, *args, **kwargs):
-            self._session_id = ""
-            self._set_session_cookie = False
             super().__init__(*args, directory=str(root), **kwargs)
-
         def end_headers(self) -> None:
             if not urlparse(self.path).path.startswith("/api/"):
                 self.send_header("Cache-Control", "no-store")
             super().end_headers()
-
         def origin_allowed(self, origin: str) -> bool:
             return origin in configured_origins if configured_origins else bool(LOCAL_ORIGIN.fullmatch(origin))
-
-        def session_id(self) -> str:
-            if self._session_id:
-                return self._session_id
-            cookie = SimpleCookie(self.headers.get("Cookie", ""))
-            candidate = cookie.get("WINDUP_SESSION")
-            value = candidate.value if candidate else ""
-            if not SESSION_ID.fullmatch(value):
-                value = application.sessions.create_id()
-                self._set_session_cookie = True
-            self._session_id = value
-            application.session(value)
-            return value
-
         def send_json(self, value: dict, status: int = 200) -> None:
             body = json.dumps(value, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
-            if self._set_session_cookie:
-                self.send_header("Set-Cookie", f"WINDUP_SESSION={self._session_id}; Path=/api; HttpOnly; SameSite=Lax; Max-Age=43200")
             origin = self.headers.get("Origin", "")
             if self.origin_allowed(origin):
                 self.send_header("Access-Control-Allow-Origin", origin)
@@ -77,7 +50,6 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 self.send_header("Vary", "Origin")
             self.end_headers()
             self.wfile.write(body)
-
         def do_OPTIONS(self):
             origin = self.headers.get("Origin", "")
             self.send_response(204)
@@ -85,7 +57,7 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 self.send_header("Access-Control-Allow-Origin", origin)
                 self.send_header("Access-Control-Allow-Credentials", "true")
                 self.send_header("Vary", "Origin")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Windup-Request")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Windup-Request, X-Windup-Filename")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.end_headers()
 
@@ -98,15 +70,20 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 raise ValueError("请求体必须是对象")
             return value
 
+        def read_binary(self, maximum: int = 10 * 1024 * 1024) -> bytes:
+            length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0:
+                raise ValueError("参考图内容为空")
+            if length > maximum:
+                raise ValueError("参考图需要小于 10 MB")
+            return self.rfile.read(length)
+
         def do_GET(self):
             parsed = urlparse(self.path)
             path = parsed.path
             try:
                 if path == "/api/health":
-                    self.send_json(application.health(self.session_id()))
-                    return
-                if path == "/api/provider/models":
-                    self.send_json(application.models(self.session_id()))
+                    self.send_json(application.health())
                     return
                 if path == "/api/characters":
                     self.send_json(application.characters())
@@ -133,17 +110,20 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
         def do_POST(self):
             path = urlparse(self.path).path
             try:
-                if path == "/api/provider/session":
-                    if self.headers.get("X-Windup-Request") != "studio":
-                        self.send_json({"error": "非法请求"}, 403)
-                        return
-                    self.send_json(application.connect_provider(self.session_id(), self.read_json()))
+                reference_match = re.fullmatch(r"/api/projects/([a-z0-9][a-z0-9-]{1,63})/references", path)
+                if reference_match:
+                    self.send_json(application.upload_reference(
+                        reference_match.group(1),
+                        self.read_binary(),
+                        self.headers.get("Content-Type", ""),
+                        unquote(self.headers.get("X-Windup-Filename", "")),
+                    ), 201)
                     return
                 if path == "/api/characters/generations":
-                    self.send_json(application.create_character_job(self.session_id(), self.read_json()), 202)
+                    self.send_json(application.create_character_job(self.read_json()), 202)
                     return
                 if path == "/api/generations":
-                    self.send_json(application.create_job(self.session_id(), self.read_json()), 202)
+                    self.send_json(application.create_job(self.read_json()), 202)
                     return
                 if path == "/api/reviews":
                     payload = self.read_json()
@@ -161,9 +141,6 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 self.send_json({"error": "接口不存在"}, 404)
             except ReviewConflict as error:
                 self.send_json({"error": str(error), "current": error.current}, 409)
-            except provider.ProviderError as error:
-                status = 401 if error.status in {401, 403} else 502
-                self.send_json({"error": str(error), "upstreamStatus": error.status}, status)
             except (ValueError, json.JSONDecodeError, TypeError) as error:
                 self.send_json({"error": str(error)}, 400)
             except Exception as error:
@@ -176,27 +153,16 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Windup generation backend and static server")
+    parser = argparse.ArgumentParser(description="Windup demo API and static server")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=4174)
-    parser.add_argument("--demo", action="store_true", help="Use existing frames without API cost")
     args = parser.parse_args()
-    application = GenerationApplication(ROOT, demo=os.environ.get("WINDUP_DEMO") == "1" or args.demo)
+    application = GenerationApplication(ROOT)
     application.prepare()
-
-    # Warn if running in production-like mode without origin restrictions.
-    allowed = os.environ.get("WINDUP_ALLOWED_ORIGINS", "").strip()
-    if not allowed and not args.demo:
-        print(
-            "⚠️  WARNING: WINDUP_ALLOWED_ORIGINS is not set. "
-            "CORS will default to localhost/127.0.0.1 only. "
-            "Set this environment variable in production to restrict allowed origins.",
-            flush=True,
-        )
 
     server = ThreadingHTTPServer((args.host, args.port), create_handler(application))
     print(f"Windup Asset Lab: http://{args.host}:{args.port}/asset-lab/")
-    print(f"Generation provider: {'demo' if application.demo else 'session-isolated'}")
+    print("Generation provider: built-in demo fixtures")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

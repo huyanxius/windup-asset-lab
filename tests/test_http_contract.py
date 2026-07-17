@@ -1,4 +1,5 @@
 import http.cookiejar
+import io
 import json
 import shutil
 import tempfile
@@ -9,6 +10,7 @@ import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from PIL import Image
 
 from server.app import create_handler
 from server.windup_pipeline.application import GenerationApplication
@@ -27,7 +29,7 @@ class HttpContractTest(unittest.TestCase):
             PROJECT_ROOT / "assets/resources/characters/boy",
             self.root / "assets/resources/characters/boy",
         )
-        self.application = GenerationApplication(self.root, demo=True)
+        self.application = GenerationApplication(self.root)
         self.application.prepare()
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), create_handler(self.application, self.root))
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
@@ -55,6 +57,16 @@ class HttpContractTest(unittest.TestCase):
         with self.opener.open(request, timeout=5) as response:
             return response.status, json.load(response)
 
+    def upload(self, path, body, media_type="image/png", filename="reference.png"):
+        request = urllib.request.Request(
+            self.base + path,
+            data=body,
+            method="POST",
+            headers={"Content-Type": media_type, "X-Windup-Filename": filename},
+        )
+        with self.opener.open(request, timeout=5) as response:
+            return response.status, json.load(response)
+
     def wait_for_job(self, job_id):
         for _ in range(100):
             _, current = self.request(f"/api/generations/{job_id}")
@@ -62,6 +74,19 @@ class HttpContractTest(unittest.TestCase):
                 return current
             time.sleep(0.02)
         self.fail(f"job {job_id} did not finish")
+
+    def test_runtime_is_demo_only_and_provider_session_route_is_absent(self):
+        demo_application = GenerationApplication(self.root)
+        self.assertTrue(demo_application.demo)
+        self.assertTrue(demo_application.health()["demo"])
+
+        with self.subTest(route="session"), self.assertRaises(urllib.error.HTTPError) as missing_session:
+            self.request("/api/provider/session", {"apiKey": "must-not-be-accepted"})
+        self.assertEqual(missing_session.exception.code, 404)
+
+        with self.subTest(route="models"), self.assertRaises(urllib.error.HTTPError) as missing_models:
+            self.request("/api/provider/models")
+        self.assertEqual(missing_models.exception.code, 404)
 
     def test_versioned_contract_generation_and_review_flow(self):
         _, health = self.request("/api/health")
@@ -71,9 +96,10 @@ class HttpContractTest(unittest.TestCase):
 
         status, job = self.request("/api/generations", {
             "character": "lamplighter", "view": "side", "action": "walk",
-            "mode": "single", "frameIndex": 0, "model": "gemini-2.5-flash-image",
+            "mode": "single", "frameIndex": 0, "model": "windup-demo-fixture-v1",
         })
         self.assertEqual(status, 202)
+        self.assertEqual(job["contractVersion"], "1.1.0")
         current = self.wait_for_job(job["id"])
         self.assertEqual(current["status"], "awaiting_review")
         self.assertEqual(len(current["outputs"]), 1)
@@ -92,9 +118,11 @@ class HttpContractTest(unittest.TestCase):
 
     def test_new_character_is_promoted_with_a_readable_starter_action_pack(self):
         status, job = self.request("/api/characters/generations", {
+            "projectId": "windup-demo",
+            "referenceAssetId": None,
             "name": "Test Hero",
             "description": "A restrained literary pixel-art hero with a dark coat and clear silhouette.",
-            "model": "gemini-2.5-flash-image",
+            "model": "windup-demo-fixture-v1",
             "starterActions": ["idle", "walk"],
         })
         self.assertEqual(status, 202)
@@ -103,22 +131,67 @@ class HttpContractTest(unittest.TestCase):
         self.assertEqual(len(current["outputs"]), 17)
         self.assertEqual(current["generationRoute"], "frames,sheet")
         self.assertEqual(current["sourceCallCount"], 0)
+        self.assertEqual(current["contractVersion"], "1.1.0")
 
         _, approved = self.request(f"/api/generations/{job['id']}/promote", {})
         self.assertEqual(approved["status"], "approved")
+        self.assertEqual(approved["contractVersion"], "1.1.0")
         character_id = approved["character"]["id"]
         self.assertEqual(len(approved["character"]["assets"]["side"]["idle"]["frames"]), 8)
         self.assertEqual(len(approved["character"]["assets"]["side"]["walk"]["frames"]), 8)
 
         _, library = self.request("/api/characters")
+        self.assertEqual(library["contractVersion"], "1.1.0")
         character = next(item for item in library["characters"] if item["id"] == character_id)
         self.assertEqual(set(character["assets"]["side"]), {"idle", "walk"})
+        self.assertEqual(character["cardData"]["contractVersion"], "1.1.0")
         self.assertTrue((self.root / character["base"]).exists())
+
+    def test_uploaded_reference_is_validated_and_attached_to_character_job(self):
+        stream = io.BytesIO()
+        Image.new("RGBA", (96, 128), (30, 60, 90, 255)).save(stream, "PNG")
+        status, reference = self.upload(
+            "/api/projects/windup-demo/references",
+            stream.getvalue(),
+        )
+        self.assertEqual(status, 201)
+        self.assertRegex(reference["id"], r"^ref-[a-f0-9]{12}$")
+
+        status, job = self.request("/api/characters/generations", {
+            "projectId": "windup-demo",
+            "referenceAssetId": reference["id"],
+            "name": "Reference Hero",
+            "description": "A reference-driven pixel-art traveller with a clear side silhouette.",
+            "model": "windup-demo-fixture-v1",
+            "starterActions": ["walk"],
+        })
+        self.assertEqual(status, 202)
+        self.assertEqual(job["request"]["referenceAssetId"], reference["id"])
+        self.assertEqual(job["request"]["sourceType"], "uploaded_reference")
+        current = self.wait_for_job(job["id"])
+        self.assertEqual(current["status"], "awaiting_review")
+
+    def test_character_creation_rejects_json_null_in_text_and_project_fields(self):
+        base = {
+            "name": "Valid Hero",
+            "description": "A complete character description that is long enough.",
+            "style": "pixel art",
+            "palette": "blue",
+            "projectId": "windup-demo",
+            "model": "windup-demo-fixture-v1",
+            "starterActions": ["idle"],
+        }
+        for field in ("name", "style", "palette", "projectId"):
+            payload = dict(base)
+            payload[field] = None
+            with self.subTest(field=field), self.assertRaises(urllib.error.HTTPError) as rejected:
+                self.request("/api/characters/generations", payload)
+            self.assertEqual(rejected.exception.code, 400)
 
     def test_full_walk_uses_skeleton_frames_route_and_promotes_eight_frames(self):
         status, job = self.request("/api/generations", {
             "character": "lamplighter", "view": "side", "action": "walk",
-            "mode": "full", "route": "sheet", "model": "gemini-2.5-flash-image",
+            "mode": "full", "route": "sheet", "model": "windup-demo-fixture-v1",
         })
         self.assertEqual(status, 202)
         current = self.wait_for_job(job["id"])

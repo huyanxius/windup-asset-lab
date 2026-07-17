@@ -11,6 +11,7 @@ from pathlib import Path
 
 class JobStore:
     ACTIVE_STATES = {"queued", "generating", "processing"}
+    REVIEWABLE_STATES = ACTIVE_STATES | {"awaiting_review"}
 
     def __init__(self, root: Path):
         self.root = root
@@ -46,13 +47,22 @@ class JobStore:
             self._write(job)
             return dict(job)
 
-    def load(self, interrupted_at: str) -> None:
+    def load(self, interrupted_at: str, contract_version: str | None = None) -> None:
         if not self.root.exists():
             return
         for job_file in self.root.glob("*/job.json"):
             try:
                 job = json.loads(job_file.read_text(encoding="utf-8"))
-                if job.get("status") in self.ACTIVE_STATES:
+                if contract_version and job.get("contractVersion") != contract_version:
+                    job["compatible"] = False
+                    if job.get("status") in self.REVIEWABLE_STATES:
+                        job.update(
+                            status="incompatible",
+                            message=f"任务合约版本不兼容，请使用 {contract_version} 重新生成",
+                            updatedAt=interrupted_at,
+                        )
+                    self._write(job)
+                elif job.get("status") in self.ACTIVE_STATES:
                     job.update(
                         status="interrupted",
                         message="服务重启，请重新发起该任务",

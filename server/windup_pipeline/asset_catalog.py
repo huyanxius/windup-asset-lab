@@ -33,7 +33,7 @@ class AssetCatalog:
 
     def register(self, card: dict, card_file: Path) -> dict:
         character_id = str(card.get("id", ""))
-        base = str(card.get("base", ""))
+        base = str(card.get("base", "")).replace("\\", "/")
         if not SAFE_ID.fullmatch(character_id):
             raise ValueError("角色 ID 不合法")
         if not base.startswith("generation-data/characters/") or not (self.root / base).exists():

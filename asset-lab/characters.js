@@ -1,4 +1,5 @@
-import { createApiClient } from './core/api-client.js';
+import { createDemoApiClient } from './core/demo-api-client.js';
+import { characterRecords } from './core/api-contract.js';
 import {
   characterSummary,
   expectedFrameCount,
@@ -6,7 +7,7 @@ import {
   viewOrder,
   viewSummary,
 } from './features/asset-library-model.js';
-import { viewLabels } from './data/generated-contract.js';
+import { CONTRACT_VERSION, viewLabels } from './data/generated-contract.js';
 
 const $ = (id) => document.getElementById(id);
 const els = Object.fromEntries([
@@ -18,7 +19,7 @@ const els = Object.fromEntries([
   'masterDescription', 'viewTabs', 'viewSummary', 'actionShelf',
 ].map((id) => [id, $(id)]));
 
-const api = createApiClient();
+const api = createDemoApiClient();
 let characters = [];
 let activeCharacter = null;
 let activeView = viewOrder[0];
@@ -270,15 +271,15 @@ async function boot() {
   els.serviceState.className = 'service-state loading';
   try {
     const data = await api.get('/api/characters');
-    renderCharacters(Array.isArray(data.characters) ? data.characters : []);
-    els.serviceState.textContent = '已同步';
+    renderCharacters(characterRecords(data, CONTRACT_VERSION));
+    els.serviceState.textContent = api.mode === 'memory-fallback' ? '演示保底' : '演示已保存';
     els.serviceState.className = 'service-state ready';
   } catch (error) {
     characters = [];
     els.assetCount.textContent = '0';
-    setLibraryState('error', error.message);
-    els.serviceState.textContent = '连接失败';
-    els.serviceState.className = 'service-state error';
+    renderCharacters(characterRecords(await createDemoApiClient({ storage: null }).get('/api/characters'), CONTRACT_VERSION));
+    els.serviceState.textContent = '内置保底';
+    els.serviceState.className = 'service-state ready';
   } finally {
     els.libraryShell.setAttribute('aria-busy', 'false');
   }

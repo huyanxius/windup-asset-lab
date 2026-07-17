@@ -14,10 +14,10 @@ Read this file, `HANDOFF.md`, `docs/ARCHITECTURE.md`, and `CONTRIBUTING.md` befo
 
 - `contracts/windup.v1.json` is the only source for views, actions, 8 FPS, loop behavior, pose phases and image models. Run `node tools/generate-contract.mjs`; never hand-edit generated files.
 - Frontend dependency direction is `app entry → pages → features → core/data`. `core` cannot import `pages` or `features`; `features` cannot import `pages`.
-- All browser HTTP goes through `asset-lab/core/api-client.js`. All editor animation intervals go through `PlaybackClock`.
-- `server/app.py` is an HTTP adapter only. Business use cases live in `GenerationApplication`; provider, storage and processing remain replaceable boundaries.
+- The browser runtime is demo-only: all generation, library and review calls go through `asset-lab/core/demo-api-client.js`; browser `fetch` and configurable generation API origins are forbidden. All editor animation intervals go through `PlaybackClock`.
+- `server/app.py` exposes static files and demo-only compatibility routes. Business use cases live in `GenerationApplication`; storage and processing remain replaceable boundaries.
 - A candidate asset never overwrites a formal asset until explicit promotion, and promotion must retain a backup.
-- API keys never enter source, browser storage, task JSON, logs or Git. Provider credentials are session-isolated in memory.
+- API keys and external provider sessions are not part of this product mode. Do not add credential fields, provider connection routes or paid-model calls.
 - Editor styles use the fixed order `foundation → surface → drawer → workspace → components → integrations → motion`. Do not bulk-change precedence, remove `!important`, merge files, or introduce Cascade Layers without explicit manual visual acceptance of the drawer, filmstrip and full-screen layout.
 
 ## Scope safety

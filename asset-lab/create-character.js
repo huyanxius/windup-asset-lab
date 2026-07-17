@@ -1,31 +1,31 @@
-import { createApiClient } from './core/api-client.js';
+import { createDemoApiClient } from './core/demo-api-client.js';
+import { generationJob } from './core/api-contract.js';
 import { createJobPoller } from './core/job-poller.js';
-import { ProviderSessionController } from './features/provider-session-controller.js';
 import { WorkflowStepper } from './features/workflow-stepper.js';
 import { CONTRACT_VERSION, generationDefaults } from './data/generated-contract.js';
 import { renderAssetPackage } from './features/asset-package-preview.js';
 
 const $ = (id) => document.getElementById(id);
 const els = Object.fromEntries([
-  'serviceState','providerState','providerDot','apiKey','model','connectBtn','connectionMessage',
+  'serviceState',
   'createForm','assetName','description','styleInput','paletteInput','createBtn','workflowSteps','resultPanel','jobPercent',
   'jobProgress','jobTitle','jobMessage','emptyResult','resultGrid','acceptBtn','libraryLink','editorLink',
-  'starterIdle','starterWalk',
+  'starterIdle','starterWalk','referenceField','referenceInput','referencePreview','referenceMessage',
 ].map((id) => [id, $(id)]));
 
-const api = createApiClient();
+const api = createDemoApiClient();
 const poller = createJobPoller(api);
-const state = { busy: false, job: null };
-const stepper = new WorkflowStepper(els.workflowSteps, ['connect', 'define', 'review']);
-const provider = new ProviderSessionController({
-  api,
-  elements: els,
-  onChange: syncControls,
-  onConnected: () => {
-    stepper.select('define');
-    els.assetName.focus();
-  },
-});
+const query = new URLSearchParams(location.search);
+const referenceRequired = query.get('source') === 'upload';
+const state = {
+  busy: false,
+  job: null,
+  model: '',
+  ready: false,
+  reference: null,
+  previewUrl: '',
+};
+const stepper = new WorkflowStepper(els.workflowSteps, ['demo', 'define', 'review']);
 
 const templates = {
   literary: {
@@ -61,18 +61,18 @@ const dicePools = {
 };
 
 function syncControls() {
-  const contractReady = provider.contractVersion === CONTRACT_VERSION;
-  const ready = provider.connected && contractReady && !state.busy && Boolean(provider.model);
+  const referenceReady = !referenceRequired || Boolean(els.referenceInput.files[0]);
+  const ready = state.ready && referenceReady && !state.busy;
   els.createBtn.disabled = !ready;
   els.createBtn.textContent = state.busy
-    ? '正在生成完整角色包…'
-    : provider.connected && !contractReady
-      ? '请重启生成服务以启用角色包'
-      : provider.connected ? '生成完整角色包' : '连接服务后生成角色包';
-  els.connectBtn.disabled = state.busy || provider.busy;
+    ? '正在组装演示角色包…'
+    : !referenceReady
+      ? '请先选择角色参考图'
+      : '生成演示角色包';
 }
 
 function renderJob(job) {
+  job = generationJob(job, CONTRACT_VERSION);
   state.job = job;
   const progress = Number(job.progress || 0);
   els.jobPercent.textContent = `${progress}%`;
@@ -108,7 +108,7 @@ function renderJob(job) {
 
 async function createCharacter(event) {
   event.preventDefault();
-  if (!provider.requireConnection()) return;
+  if (!state.ready) return;
   state.busy = true;
   stepper.select('review');
   els.emptyResult.hidden = false;
@@ -119,12 +119,23 @@ async function createCharacter(event) {
   els.jobProgress.style.width = '0%';
   syncControls();
   try {
+    let referenceAssetId = null;
+    const referenceFile = els.referenceInput.files[0];
+    if (referenceFile) {
+      els.jobTitle.textContent = '正在上传参考图';
+      els.jobMessage.textContent = '正在将参考图登记到本地演示任务…';
+      state.reference = await api.upload('/api/projects/windup-demo/references', referenceFile);
+      referenceAssetId = state.reference.id;
+      els.referenceMessage.textContent = `已上传 ${state.reference.width} × ${state.reference.height} · ${state.reference.id}`;
+    }
     const job = await api.post('/api/characters/generations', {
+      projectId: 'windup-demo',
+      referenceAssetId,
       name: els.assetName.value.trim(),
       description: els.description.value.trim(),
       style: els.styleInput.value.trim(),
       palette: els.paletteInput.value.trim(),
-      model: provider.model,
+      model: state.model,
       starterActions: generationDefaults.starterPack.actions.filter((action) => (
         action === 'idle' ? els.starterIdle.checked : action === 'walk' ? els.starterWalk.checked : false
       )),
@@ -153,10 +164,16 @@ async function acceptCharacter() {
   els.acceptBtn.disabled = true;
   els.acceptBtn.textContent = '正在加入资产库…';
   try {
-    const job = await api.post(`/api/generations/${state.job.id}/promote`, {});
+    const job = generationJob(
+      await api.post(`/api/generations/${state.job.id}/promote`, {}),
+      CONTRACT_VERSION,
+    );
+    if (!job.character?.id || !job.character?.label) {
+      throw new TypeError('角色入库响应不完整：缺少已发布角色信息。');
+    }
     renderJob(job);
     els.acceptBtn.hidden = true;
-    els.jobMessage.textContent = `${job.character.label} 已携基础动作加入资产库，可直接进入审核台。`;
+    els.jobMessage.textContent = `${job.character.label} 已加入本地演示资产库，可直接进入审核台。`;
   } catch (error) {
     els.acceptBtn.disabled = false;
     els.acceptBtn.textContent = '确认并加入角色库';
@@ -165,8 +182,16 @@ async function acceptCharacter() {
 }
 
 async function boot() {
-  await provider.boot();
-  if (provider.connected) stepper.select('define');
+  if (referenceRequired) {
+    els.referenceField.classList.add('is-required');
+    els.referenceMessage.textContent = '此入口需要先上传一张角色参考图。';
+  }
+  const health = await api.get('/api/health');
+  state.model = health.model;
+  state.ready = true;
+  els.serviceState.textContent = health.fallback ? '演示模式 · 内存保底' : '演示模式 · 本地保存';
+  stepper.select('define');
+  els.assetName.focus();
   syncControls();
 }
 
@@ -177,7 +202,7 @@ document.querySelectorAll('[data-template]').forEach((button) => {
     els.styleInput.value = template.style;
     els.paletteInput.value = template.palette;
     els.description.value = template.description;
-    stepper.select(provider.connected ? 'define' : 'connect');
+    stepper.select('define');
   });
 });
 document.querySelectorAll('.dice').forEach((button) => {
@@ -187,7 +212,31 @@ document.querySelectorAll('.dice').forEach((button) => {
     input.value = pool[Math.floor(Math.random() * pool.length)];
   });
 });
-provider.bind();
+els.referenceInput.addEventListener('change', () => {
+  const file = els.referenceInput.files[0];
+  state.reference = null;
+  if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+  state.previewUrl = '';
+  els.referencePreview.hidden = true;
+  if (!file) {
+    els.referenceMessage.textContent = referenceRequired
+      ? '此入口需要先上传一张角色参考图。'
+      : '不上传时将根据文字创建原创角色。';
+    syncControls();
+    return;
+  }
+  if (!['image/png', 'image/jpeg'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+    els.referenceInput.value = '';
+    els.referenceMessage.textContent = '请选择小于 10 MB 的 PNG 或 JPEG。';
+    syncControls();
+    return;
+  }
+  state.previewUrl = URL.createObjectURL(file);
+  els.referencePreview.src = state.previewUrl;
+  els.referencePreview.hidden = false;
+  els.referenceMessage.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB，提交时上传并校验。`;
+  syncControls();
+});
 els.createForm.addEventListener('submit', createCharacter);
 els.acceptBtn.addEventListener('click', acceptCharacter);
 boot();

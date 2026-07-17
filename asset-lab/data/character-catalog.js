@@ -128,7 +128,7 @@ function libraryFromRecord(record, resolveAssetUrl) {
 
 export function mergeCharacterRecords(records, resolveAssetUrl = (path) => path) {
   records.forEach((record) => {
-    if (characterCatalog[record.id] && !record.custom) return;
+    if (characterCatalog[record.id] && !record.custom && !record.demoOverride) return;
     characterCatalog[record.id] = {
       label: record.label,
       base: resolveAssetUrl(record.base),

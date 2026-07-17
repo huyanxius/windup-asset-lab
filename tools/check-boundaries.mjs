@@ -23,7 +23,7 @@ function fail(file, rule) {
 const javascript = (await files(assetRoot)).filter((file) => ['.js', '.mjs'].includes(extname(file)));
 for (const file of javascript) {
   const source = await readFile(file, 'utf8');
-  const path = relative(assetRoot, file);
+  const path = relative(assetRoot, file).replaceAll('\\', '/');
   const imports = [...source.matchAll(/from\s+['"]([^'"]+)['"]/g)].map((match) => match[1]);
   if (path.startsWith('core/') && imports.some((value) => value.includes('/pages/') || value.includes('/features/'))) {
     fail(file, 'core may not depend on pages or features');
@@ -31,8 +31,8 @@ for (const file of javascript) {
   if (path.startsWith('features/') && imports.some((value) => value.includes('/pages/'))) {
     fail(file, 'features may not depend on pages');
   }
-  if (source.includes('fetch(') && path !== 'core/api-client.js') {
-    fail(file, 'HTTP calls must go through core/api-client.js');
+  if (source.includes('fetch(')) {
+    fail(file, 'demo-only frontend must not make HTTP requests');
   }
   if (source.includes('setInterval(') && path !== 'core/playback-clock.js') {
     fail(file, 'animation intervals must be owned by PlaybackClock');
@@ -52,7 +52,12 @@ for (const forbidden of ['from .windup_pipeline import config', 'JobStore(', 'ge
 const backend = (await files(join(root, 'server/windup_pipeline'))).filter((file) => extname(file) === '.py');
 for (const file of backend) {
   const source = await readFile(file, 'utf8');
-  if (/config\.API_KEY\s*=/.test(source)) fail(file, 'provider credentials must never mutate global config');
+  if (/\burllib\.request\b|\brequests\.|\bhttpx\b|\baiohttp\b/.test(source)) {
+    fail(file, 'demo-only backend must not contain outbound HTTP transports');
+  }
+  if (/\bAPI_KEY\b|\bAPI_BASE\b|Authorization["']?\s*:|Bearer\s/.test(source)) {
+    fail(file, 'demo-only backend must not contain provider credential plumbing');
+  }
 }
 
 for (const file of [

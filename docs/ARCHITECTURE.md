@@ -5,11 +5,11 @@
 ## 设计原则
 
 1. **一个状态只有一个所有者。** 人物播放与移动只由 `motion-state.js` 决策，页面不能直接拼装另一套运动状态。
-2. **页面负责组装，不承载基础能力。** 网络、任务轮询、审核存储、质检、图集与游戏通信都由独立模块提供。
-3. **候选资产和正式资产隔离。** 生成结果先进入任务目录，人工采用时才备份并写入正式目录。
-4. **外部服务只有一个边界。** API Key、鉴权、超时、重试和上游错误只在后端 `provider.py` 中处理；凭据按浏览器会话隔离，绝不进入任务文件。
+2. **页面负责组装，不承载基础能力。** Demo API、任务轮询、审核存储、质检、图集与游戏通信都由独立模块提供。
+3. **候选状态和已采用状态隔离。** 演示任务先生成候选状态，用户明确采用后才写入浏览器演示资产库。
+4. **运行时不访问外部生成服务。** 浏览器禁止 `fetch`、API Key 和可配置生成地址；静态服务也只运行 Demo fixture。
 5. **契约只有一个来源。** 动作、视角、8 FPS、循环语义、相位和模型来自 `contracts/windup.v1.json`，前后端文件由工具生成。
-6. **可替换基础设施。** HTTP 页面不直接读写任务、审核 JSON；未来将本地文件换成 SQLite、对象存储或队列时，接口层不需要重写。
+6. **三层保底。** 优先使用 `localStorage`，失败时使用内存状态，数据不可恢复时使用打包内置角色。
 
 ## 运行结构
 
@@ -29,17 +29,17 @@ asset-lab/
 │  ├─ editor-session.js         # 角色/视角/动作/帧/锚点的唯一所有者
 │  ├─ motion-state.js           # 纯动作状态机，无 DOM
 │  ├─ playback-clock.js         # 唯一 8 FPS 播放时钟
-│  ├─ api-client.js             # 唯一 HTTP 客户端，携带隔离会话
-│  ├─ runtime-config.js         # API、Cocos 和消息命名空间运行配置
+│  ├─ demo-api-client.js        # 无网络演示接口、本地持久化与内存保底
+│  ├─ runtime-config.js         # Cocos 和消息命名空间运行配置
 │  ├─ job-poller.js             # 生成任务生命周期轮询
-│  └─ review-store.js           # 本地即时反馈 + 服务端版本同步与冲突合并
+│  └─ review-store.js           # 本地即时反馈 + Demo API 版本同步
 ├─ features/
 │  ├─ quality-check.js          # 帧几何质检
 │  ├─ sprite-packer.js          # Cocos 图集和 metadata
 │  ├─ game-bridge.js            # 工作台与 Cocos 的消息协议
 │  ├─ drawer-controller.js      # 左侧抽屉生命周期
 │  ├─ onboarding-controller.js  # 聚光灯、模式选择和点击引导
-│  ├─ provider-session-controller.js # 生成页面共用的 Key/模型连接状态
+│  ├─ production-sources.js     # 主创作入口到演示生成页面的映射
 │  └─ workflow-stepper.js       # 生成流程步骤状态
 ├─ styles/
 │  ├─ foundation.css            # 设计变量和基础组件（第 1 层）
@@ -58,43 +58,36 @@ contracts/
 └─ windup.v1.json               # 前后端唯一动作/视角/模型契约
 
 server/
-├─ app.py                       # 薄 HTTP 适配：路由、Cookie、CORS、静态文件
+├─ app.py                       # 静态服务 + Demo-only 兼容路由
 └─ windup_pipeline/
    ├─ application.py            # 生成、采用、角色目录等应用用例
    ├─ config.py                 # 只放环境配置和图像处理规格
    ├─ generated_contract.py     # 自动生成的后端领域常量
    ├─ domain.py                 # 内建角色目录 + 生成契约导出
-   ├─ provider.py               # 七牛云鉴权、请求、重试和错误映射
-   ├─ generate.py               # 组装图像模型请求
    ├─ generation_executor.py    # 后台任务执行、进度与溯源
    ├─ action_pipeline.py        # 动作条/单帧双路由与回退
    ├─ asset_catalog.py          # 正式角色目录与动作清单
    ├─ publisher.py              # 原子入库、备份与失败回滚
+   ├─ reference_store.py        # 参考图校验、原子保存与安全 ID 解析
    ├─ processing.py             # 抠图、动作条切分、归一化与连续性质检
    ├─ job_store.py              # 线程安全的任务持久化边界
    ├─ review_store.py           # 乐观锁版本化审核存储
-   └─ session_store.py          # 不落盘的会话级 API 凭据
 ```
 
 ## 关键数据流
 
 ```mermaid
 flowchart LR
-  UI["独立页面"] --> API["api-client"]
-  API --> HTTP["app.py 路由"]
-  HTTP --> App["GenerationApplication"]
-  App --> Store["JobStore / ReviewStore"]
-  App --> Executor["GenerationExecutor"]
-  App --> Publisher["AssetPublisher"]
-  Executor --> Session["ProviderSession snapshot"]
-  Executor --> Pipeline["ActionPipeline"]
-  Pipeline --> Provider["QnAIGC Provider"]
-  Pipeline --> Process["抠图、切帧与归一化"]
-  Process --> Candidate["候选任务目录"]
+  UI["独立页面"] --> API["demo-api-client"]
+  API --> Local["localStorage 演示状态"]
+  Local -. "不可用" .-> Memory["当前页面内存"]
+  Memory -. "状态缺失" .-> Fixtures["打包内置角色"]
+  API --> Poller["任务轮询"]
+  Poller --> Candidate["演示候选"]
   Candidate --> Review["人工采用"]
-  Review --> Publisher
-  Publisher --> Assets["正式资产 + 备份"]
-  Assets --> Cocos["Cocos Runtime"]
+  Review --> Library["浏览器演示资产库"]
+  Library --> Editor["审核与导出"]
+  Editor --> Cocos["Cocos Runtime"]
 ```
 
 生成任务状态只有一条合法主路径：
@@ -126,8 +119,9 @@ queued → generating → awaiting_review → approved
 | 角色、视角、动作、帧、逐帧偏移、锚点 | `EditorSession` | 调用明确的选择和调整方法 |
 | 播放/暂停、自动/手动移动、方向、位置 | `motion-state.js` | 发送事件给纯 reducer |
 | 8 FPS 定时器 | `PlaybackClock` | 启停一个时钟，不直接创建 interval |
-| 审核结论 | 前端 `ReviewStore` + 后端 `ReviewStore` | 本地即时更新，服务端版本同步，409 时按本帧意图合并 |
-| API 凭据 | `ProviderSessionStore` | HttpOnly 会话标识隔离；任务线程仅接收凭据快照 |
+| 审核结论 | `ReviewStore` + Demo API | 本地即时更新，使用演示版本号保持相同冲突语义 |
+| 演示任务和角色 | `demo-api-client.js` | `localStorage` 持久化；失败时保留内存副本 |
+| 前后端响应兼容性 | `core/api-contract.js` + `contractVersion` | 角色目录和生成任务进入页面状态前先做结构与版本校验 |
 | DOM 表现 | `EditorView` | 读取状态并渲染，不反向修改领域状态 |
 | 浏览器输入 | `editor-bindings.js` | 将事件翻译成应用命令 |
 
@@ -144,15 +138,17 @@ queued → generating → awaiting_review → approved
 
 ### 增加角色
 
-内建角色加到目录；用户角色通过 `/api/characters/generations` 创建。默认角色包包含母版、side/idle 和 side/walk；`AssetPublisher` 在临时目录完成全部复制后再原子入库。角色母版、动作候选和正式帧必须保持不同目录。
+内建角色加到目录；用户角色通过 `demo-api-client.js` 的角色生成方法创建。默认角色包包含母版、side/idle 和 side/walk，并复用打包素材模拟候选、采用和审核闭环。
+
+参考图只在浏览器中预览并登记一个演示 ID，不上传文件。URL 指定的自建角色不存在时，审核台显示回退提示并使用默认少年，保证展示不会卡在加载状态。
 
 ### 更换整套动作策略
 
 完整动作默认走 `sheet`：一次生成八相位动作条，确定性切帧、归一化并做几何连续性质检。单帧退回走 `frames` 修复；动作条格式不合法时执行器可回退逐帧生成。策略只在 `ActionPipeline` 内变化，页面、发布器和 Cocos 不感知模型调用方式。
 
-### 更换生成供应商
+### 更换演示素材
 
-新增一个实现与 `provider.py` 相同职责的适配器，然后在服务启动配置中选择。页面不应感知供应商 SDK，也不能持有 API Key。
+更新打包角色资产或 `demo-api-client.js` 的 fixture 选择规则；不得加入供应商 SDK、API Key 或浏览器网络生成请求。
 
 ### 更换任务存储
 
@@ -160,26 +156,26 @@ queued → generating → awaiting_review → approved
 
 ## 维护红线
 
-- 不在页面脚本中复制 `fetch`、轮询或资产 URL 拼接。
+- 浏览器代码不得调用 `fetch`，不得恢复远程生成 API Base。
 - 不在渲染函数中发起不可追踪的业务状态转换。
 - 不让生成结果直接覆盖正式资产。
-- 不把 API Key、生成会话、任务输出或用户提示提交到 Git。
+- 不增加 API Key、Provider 会话或付费模型调用。
 - 不把不同视角伪装成 CSS 旋转；每个视角必须有独立资产。
 - 审核台按 `foundation → surface → drawer → workspace → components → integrations → motion` 固定顺序加载。当前视觉依赖这套明确覆盖顺序；禁止批量删除优先级或改成 Cascade Layers。样式债只能逐组件迁移，并人工确认抽屉收起、左侧胶片栏、舞台居中和右侧 Inspector 后再删除旧规则。
 - HTML 不写行内样式，业务逻辑不能依赖颜色或动画类名。
 - 不手工编辑 `generated-contract.js`、`.d.ts` 或 `.py`；改动必须从版本化契约生成。
-- 不把 API Key 写入全局配置、任务 JSON、浏览器存储或日志；一个会话不得覆盖另一个会话的模型与凭据。
-- `generate.js` 与 `create-character.js` 必须复用 provider controller 和 stepper，不再复制 Key 连接与流程状态。
+- 不在配置、任务、浏览器存储或日志中引入外部凭据。
+- `generate.js` 与 `create-character.js` 必须复用 Demo API 和 stepper，不增加连接服务步骤。
 
 ## 自动架构门禁
 
 `tools/check-boundaries.mjs` 在每次验证中检查：
 
 - `core → pages/features` 和 `features → pages` 的逆向依赖。
-- 绕过 `api-client` 的浏览器 `fetch`。
+- 任意浏览器 `fetch` 或远程生成地址。
 - 绕过 `PlaybackClock` 的动画 interval。
 - HTTP 适配层重新吸收业务/存储逻辑或超过合理体积。
-- 全局 API Key 写入、硬编码运行地址和生成契约漂移。
+- API Key、Provider 会话、远程生成地址和生成契约漂移。
 
 规则应尽可能由机器执行；文档只保留无法自动判断的产品语义和取舍。
 

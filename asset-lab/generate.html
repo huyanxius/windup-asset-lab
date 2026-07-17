@@ -10,7 +10,7 @@
 <body>
   <header class="app-header">
     <a class="wordmark" href="./"><i class="wordmark-bird" aria-hidden="true"></i><span><b>Windup</b><small>ACTION GENERATOR</small></span></a>
-    <nav><span id="serviceState">正在检查生成服务…</span><a href="./#/projects/windup-demo/assets">角色资产库</a><a href="./review.html">返回审核台</a></nav>
+    <nav><span id="serviceState">正在准备演示环境…</span><a href="./#/projects/windup-demo/assets">角色资产库</a><a href="./review.html">返回审核台</a></nav>
   </header>
 
   <main class="creator-layout">
@@ -19,21 +19,18 @@
       <h1>生成动作资产</h1>
       <p>基于已锁定的角色母版生成动作帧。结果先进入候选区，确认后才进入审核台。</p>
       <ol id="workflowSteps">
-        <li class="active" data-step="connect"><i>1</i><span><b>连接服务</b><small>验证 Key 与图像模型</small></span></li>
+        <li class="active" data-step="demo"><i>1</i><span><b>准备演示</b><small>加载内置素材与本地状态</small></span></li>
         <li data-step="define"><i>2</i><span><b>定义动作</b><small>角色、视角与动作相位</small></span></li>
         <li data-step="review"><i>3</i><span><b>采用候选</b><small>人工确认后进入审核台</small></span></li>
       </ol>
-      <p class="security-note">生成任务会锁定角色、模型、视角和动作，不读取后续界面变化。</p>
+      <p class="security-note">演示任务锁定角色、视角和动作；不访问外部网络，本地保存失败时使用内存保底。</p>
     </aside>
 
     <section class="form-panel">
-      <header><div><small>GENERATION SETUP</small><h2>动作设置</h2></div><span id="providerState" class="status">未连接</span></header>
+      <header><div><small>DEMO SETUP</small><h2>动作设置</h2></div><span class="status ready">演示模式</span></header>
       <section class="provider-card">
-        <div class="section-title"><span><b>七牛云 QnAIGC</b><small>凭据仅保留在当前后端会话</small></span><i id="providerDot"></i></div>
-        <label><span>API Key</span><input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…"></label>
-        <label><span>图像模型</span><select id="model"><option value="">正在读取模型…</option></select></label>
-        <button id="connectBtn" class="secondary" type="button">验证并连接</button>
-        <p id="connectionMessage" class="message" aria-live="polite"></p>
+        <div class="section-title"><span><b>Windup 内置演示引擎</b><small>用本地素材模拟动作候选与采用流程</small></span><i class="ready"></i></div>
+        <p class="message">所有结果仅用于交互演示，不产生外部模型费用。</p>
       </section>
 
       <form id="generationForm">
@@ -48,7 +45,7 @@
         <label><span>画面约束 · 可选</span><textarea id="prompt" maxlength="800" placeholder="例：保留围巾的运动节奏，脚底始终对齐基线…"></textarea></label>
         <div class="strategy-note" id="strategyNote"><b>1 次生成 → 8 帧切分</b><span>共享角色、比例、相机与地面线；坏帧可单独修复</span></div>
         <div class="spec-row"><span>256 × 256</span><span>透明背景</span><span>8 FPS</span><span>候选优先</span></div>
-        <button id="startBtn" class="primary" type="submit" disabled>连接服务后开始生成</button>
+        <button id="startBtn" class="primary" type="submit" disabled>正在准备演示资产</button>
       </form>
     </section>
 

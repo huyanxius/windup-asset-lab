@@ -14,9 +14,7 @@ ACTIONS = set([
     "lantern"
 ])
 IMAGE_MODELS = [
-    "gemini-2.5-flash-image",
-    "gemini-3.1-flash-image-preview",
-    "gemini-3.0-pro-image-preview"
+    "windup-demo-fixture-v1"
 ]
 POSES = {
     "idle": [
