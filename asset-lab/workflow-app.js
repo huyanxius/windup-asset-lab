@@ -1,5 +1,6 @@
 import { startBrandWave } from './features/brand-wave.js';
 import { DEMO_CHARACTER_ASSETS, DemoProductionController } from './features/demo-production.js';
+import { NaturalCreationController } from './features/natural-creation.js';
 import { NodeCanvasController } from './features/node-canvas.js';
 import { buildSpritePack } from './features/sprite-packer.js';
 import { startHomeIdleCast } from './features/home-idle-cast.js';
@@ -24,7 +25,11 @@ let libraryState = { status: 'loading', characters: [] };
 let workflowState = { status: 'loading', items: [], selectedId: null, saving: false, message: '', open: false };
 const nodeCanvas = new NodeCanvasController();
 let projectContext = null;
+let studioMode = null;
 const demoProduction = new DemoProductionController({
+  onChange: () => render({ preserveScroll: true }),
+});
+const naturalCreation = new NaturalCreationController({
   onChange: () => render({ preserveScroll: true }),
 });
 
@@ -51,10 +56,12 @@ document.addEventListener('fullscreenchange', syncFullscreenButton);
 
 function resetStudioSession() {
   projectContext = null;
+  studioMode = null;
   workflowState = { ...workflowState, selectedId: null, message: '', open: false, runJobId: null };
   nodeCanvas.clearConnections();
   nodeCanvas.resetLayout();
   demoProduction.reset({ notify: false });
+  naturalCreation.reset({ notify: false });
 }
 
 function bindDemoFlow(context) {
@@ -76,6 +83,50 @@ function bindDemoFlow(context) {
     event.preventDefault();
     resetStudioSession();
     render({ preserveScroll: true, focus: true });
+  });
+  document.querySelectorAll('[data-studio-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      studioMode = button.dataset.studioMode;
+      projectContext = null;
+      nodeCanvas.clearConnections();
+      nodeCanvas.resetLayout();
+      demoProduction.reset({ notify: false });
+      naturalCreation.reset({ notify: false });
+      render({ preserveScroll: true, focus: true });
+    });
+  });
+  document.querySelectorAll('[data-studio-mode-back]').forEach((button) => {
+    button.addEventListener('click', () => {
+      studioMode = null;
+      projectContext = null;
+      naturalCreation.reset({ notify: false });
+      demoProduction.reset({ notify: false });
+      nodeCanvas.clearConnections();
+      nodeCanvas.resetLayout();
+      render({ preserveScroll: true, focus: true });
+    });
+  });
+  document.querySelector('#naturalCreationForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    const form = new FormData(event.currentTarget);
+    naturalCreation.start(form.get('command'));
+  });
+  document.querySelectorAll('[data-natural-example]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const input = document.querySelector('#naturalCreationForm textarea[name="command"]');
+      if (!input) return;
+      input.value = button.dataset.naturalExample;
+      input.focus();
+    });
+  });
+  document.querySelector('[data-natural-skip]')?.addEventListener('click', () => naturalCreation.skip());
+  document.querySelector('[data-natural-reset]')?.addEventListener('click', () => naturalCreation.reset());
+  document.querySelector('[data-natural-save-form]')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    const form = new FormData(event.currentTarget);
+    naturalCreation.markSaved(form.get('workflowName'));
   });
   document.querySelector('#projectContextForm')?.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -129,6 +180,7 @@ function bindDemoFlow(context) {
   });
   document.querySelectorAll('[data-workflow-enter]').forEach((button) => {
     button.addEventListener('click', () => {
+      studioMode = 'workflow';
       projectContext = null;
       workflowState = {
         ...workflowState,
@@ -143,6 +195,7 @@ function bindDemoFlow(context) {
     });
   });
   document.querySelector('[data-edit-project]')?.addEventListener('click', () => {
+    studioMode = 'workflow';
     workflowState = { ...workflowState, selectedId: projectContext?.workflowId || null, message: '' };
     projectContext = null;
     render({ preserveScroll: true, focus: true });
@@ -273,7 +326,13 @@ function bindDemoFlow(context) {
     button.disabled = true;
     button.textContent = '正在打包…';
     try {
-      const snapshot = demoProduction.snapshot();
+      const naturalSnapshot = naturalCreation.snapshot();
+      const snapshot = studioMode === 'natural' && naturalSnapshot.intent
+        ? {
+            masterCandidate: 'boy',
+            profile: { name: naturalSnapshot.intent.name },
+          }
+        : demoProduction.snapshot();
       const id = snapshot.masterCandidate || 'boy';
       const walk = id === 'boy' ? DEMO_CHARACTER_ASSETS.walkFrames : Array.from({ length: 8 }, (_, index) => `../assets/resources/characters/${id}/views/side/walk-${String(index + 1).padStart(2, '0')}.png`);
       const idle = id === 'boy' ? DEMO_CHARACTER_ASSETS.idleFrames : Array(8).fill(`../assets/resources/characters/${id}/base.png`);
@@ -312,9 +371,17 @@ function render(options = {}) {
   const context = parseWorkflowLocation(window.location.hash);
   const requestedSource = context.query.get('source');
   if (requestedSource && demoProduction.snapshot().sourceId !== requestedSource) {
+    studioMode = 'workflow';
     demoProduction.selectSource(requestedSource);
   }
-  renderWorkflowShell(root, context, { demoSnapshot: demoProduction.snapshot(), libraryState, projectContext, workflowState });
+  renderWorkflowShell(root, context, {
+    demoSnapshot: demoProduction.snapshot(),
+    libraryState,
+    naturalState: naturalCreation.snapshot(),
+    projectContext,
+    studioMode,
+    workflowState,
+  });
   document.title = `Windup · ${context.route.title}`;
   activeRouteId = context.route.id;
   if (context.route.id === 'home') {

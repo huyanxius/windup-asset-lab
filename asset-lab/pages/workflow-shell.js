@@ -100,7 +100,7 @@ function renderHeader(context) {
   return el('header', { className: 'product-header' }, [brand, nav]);
 }
 
-function renderStudioBar(context, projectContext, workflowState = {}) {
+function renderStudioBar(context, projectContext, workflowState = {}, studioMode = null) {
   const nav = el('nav', { className: 'studio-bar__nav', attributes: { 'aria-label': '创作导航' } }, navItems.map((item) => el('a', {
     className: routeIsActive(item, context) ? 'is-active' : '',
     href: hashFor(item.id, { params: context.params }),
@@ -109,6 +109,12 @@ function renderStudioBar(context, projectContext, workflowState = {}) {
   })));
   return el('header', { className: 'studio-bar' }, [
     el('div', { className: 'studio-bar__left' }, [
+      studioMode === 'workflow' ? el('button', {
+        className: 'studio-bar__mode-back',
+        type: 'button',
+        text: '返回',
+        attributes: { 'data-studio-mode-back': '', 'aria-label': '返回创作方式选择' },
+      }) : null,
       el('a', { className: 'studio-bar__brand', href: hashFor('home') }, [
         el('span', { className: 'product-brand__mark', attributes: { 'aria-hidden': 'true' } }),
         el('b', { text: 'Windup' }),
@@ -116,7 +122,10 @@ function renderStudioBar(context, projectContext, workflowState = {}) {
       projectContext ? el('span', { className: 'studio-bar__project' }, [
         el('b', { text: projectContext.projectName }),
         el('small', { text: `${projectLabels[projectContext.view]} · ${projectLabels[projectContext.directions]} · ${projectContext.canvasSize}²` }),
-      ]) : el('span', { className: 'studio-bar__project' }, [el('b', { text: '新建角色项目' }), el('small', { text: '填写项目素材边界' })]),
+      ]) : el('span', { className: 'studio-bar__project' }, [
+        el('b', { text: studioMode === 'natural' ? 'AI 资产生成' : studioMode === 'workflow' ? '节点工作流' : '创作中心' }),
+        el('small', { text: studioMode === 'natural' ? '本地样例 · 一句话生成' : studioMode === 'workflow' ? '选择素材来源并逐步确认' : '选择一种创作方式' }),
+      ]),
     ]),
     el('div', { className: 'studio-bar__right' }, [
       nav,
@@ -940,6 +949,242 @@ const projectLabels = Object.freeze({
   8: '八向',
 });
 
+function renderNaturalScreenHeader(title, options = {}) {
+  return el('header', { className: 'natural-agent-header' }, [
+    el('button', {
+      className: 'natural-agent-back',
+      type: 'button',
+      attributes: { 'data-studio-mode-back': '', 'aria-label': '返回创作方式选择' },
+    }, [
+      el('span', { text: '返回' }),
+      el('b', { text: title }),
+    ]),
+    el('div', { className: 'natural-agent-switch', attributes: { role: 'group', 'aria-label': '创作模式' } }, [
+      el('button', {
+        className: 'is-active',
+        type: 'button',
+        text: 'AI 快捷创作',
+        attributes: { disabled: '', 'aria-pressed': 'true' },
+      }),
+      el('button', {
+        type: 'button',
+        text: '节点工作流',
+        attributes: { 'data-studio-mode': 'workflow', 'aria-pressed': 'false' },
+      }),
+    ]),
+    options.trailing || el('span', { className: 'natural-agent-header__spacer', attributes: { 'aria-hidden': 'true' } }),
+  ]);
+}
+
+function renderStudioModeChooser() {
+  return el('section', { className: 'studio-mode-gateway', attributes: { 'data-studio-mode-gateway': '' } }, [
+    el('header', { className: 'studio-mode-gateway__header' }, [
+      el('a', { className: 'studio-mode-gateway__back', href: hashFor('home'), text: '返回首页', attributes: { 'aria-label': '返回产品首页' } }),
+      el('span', { className: 'overline', text: 'CREATE / TWO WAYS' }),
+      el('h1', { id: 'workflowPageTitle', text: '选择你的创作方式' }),
+      el('p', { text: '沿用可逐步确认的节点工作流，或用一句自然语言直接完成样例资产的创建与交付准备。' }),
+    ]),
+    el('div', { className: 'studio-mode-gateway__choices' }, [
+      el('button', {
+        className: 'studio-mode-card studio-mode-card--workflow',
+        type: 'button',
+        attributes: { 'data-studio-mode': 'workflow' },
+      }, [
+        el('span', { className: 'studio-mode-card__eyebrow', text: 'STEP BY STEP' }),
+        el('span', { className: 'studio-mode-card__index', text: '01' }),
+        el('span', { className: 'studio-mode-card__copy' }, [
+          el('small', { text: 'GUIDED WORKFLOW' }),
+          el('b', { text: '从一个项目开始' }),
+          el('p', { text: '保留从零开始、上传参考图和复用资产库三种来源，逐节点连接、生成与确认。' }),
+        ]),
+        el('span', { className: 'studio-mode-card__action', text: '进入工作流  ↗' }),
+      ]),
+      el('button', {
+        className: 'studio-mode-card studio-mode-card--natural',
+        type: 'button',
+        attributes: { 'data-studio-mode': 'natural' },
+      }, [
+        el('span', { className: 'studio-mode-card__eyebrow', text: 'ONE COMMAND' }),
+        el('span', { className: 'studio-mode-card__index', text: '02' }),
+        el('span', { className: 'studio-mode-card__copy' }, [
+          el('small', { text: 'NATURAL LANGUAGE' }),
+          el('b', { text: '快速开始' }),
+          el('p', { text: '描述角色、动作和交付目标，使用本地模拟数据自动完成理解、生成、质检与打包。' }),
+        ]),
+        el('span', { className: 'studio-mode-card__action', text: '输入创作指令  →' }),
+      ]),
+    ]),
+    el('footer', { className: 'studio-mode-gateway__note' }, [
+      el('i', { attributes: { 'aria-hidden': 'true' } }),
+      el('span', {}, [
+        el('b', { text: '本地模拟' }),
+        el('small', { text: '自然语言创作不会调用真实生成后端，也不会覆盖正式资产。' }),
+      ]),
+    ]),
+  ]);
+}
+
+const naturalExamples = Object.freeze([
+  '创建一个名叫雾灯守夜人的低饱和像素角色，采用横版侧视，生成待机和行走动作并导出 Sprite Sheet 与 JSON。',
+  '做一名叫纸鸢信使的轻装角色，侧视单向，动作轻快，完成后准备导出。',
+  '生成一个暗色像素游侠，保持清晰轮廓，制作 Idle 与 Walk 八帧循环动画。',
+]);
+
+function renderNaturalCommandInput(snapshot) {
+  return el('section', { className: 'natural-creation natural-agent-screen natural-agent-screen--input' }, [
+    renderNaturalScreenHeader('AI 资产生成'),
+    el('button', {
+      className: 'natural-agent-suggestion',
+      type: 'button',
+      attributes: { 'data-natural-example': naturalExamples[0], 'aria-label': '使用推荐创作指令' },
+    }, [
+      el('span', { text: '你可能想做：' }),
+      el('b', { text: '一位提着风灯、披深色斗篷的像素守夜人' }),
+    ]),
+    el('form', { className: 'natural-agent-composer', id: 'naturalCreationForm' }, [
+      el('label', { className: 'natural-agent-composer__field' }, [
+        el('span', { text: '创作指令' }),
+        el('textarea', {
+          text: snapshot.intent?.command || '',
+          attributes: {
+            name: 'command',
+            required: '',
+            minlength: '4',
+            maxlength: '600',
+            rows: '2',
+            placeholder: '描述你想生成的角色、动作与导出格式…',
+          },
+        }),
+      ]),
+      el('div', { className: 'natural-agent-composer__meta' }, [
+        el('span', { text: '像素角色' }),
+        el('small', { text: '本地样例 · 8 FPS' }),
+      ]),
+      el('button', { className: 'natural-agent-composer__submit', type: 'submit', text: '开始生成' }),
+      snapshot.error ? el('p', { className: 'natural-command-form__error', text: snapshot.error }) : null,
+    ]),
+    el('div', { className: 'natural-agent-examples', attributes: { 'aria-label': '示例指令' } }, naturalExamples.slice(1).map((example, index) => el('button', {
+      type: 'button',
+      text: index === 0 ? '轻装信使' : '暗色游侠',
+      attributes: { 'data-natural-example': example },
+    }))),
+    el('aside', { className: 'natural-agent-preview' }, [
+      el('span', {}, [el('b', { text: 'OUTPUT PREVIEW' }), el('small', { text: 'IDENTITY / IDLE / WALK' })]),
+      el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: '样例角色输出预览' }),
+    ]),
+  ]);
+}
+
+function renderNaturalProgress(snapshot) {
+  const active = snapshot.steps[snapshot.stepIndex] || snapshot.steps[0];
+  const framesVisible = snapshot.stepIndex >= 2;
+  return el('section', { className: 'natural-creation natural-agent-screen natural-agent-screen--progress', attributes: { 'data-natural-status': snapshot.status } }, [
+    renderNaturalScreenHeader('AI 资产生成', {
+      trailing: el('button', { className: 'natural-agent-skip', type: 'button', text: '跳过过渡', attributes: { 'data-natural-skip': '' } }),
+    }),
+    el('div', { className: 'natural-agent-stage' }, [
+      el('section', { className: 'natural-progress__visual' }, [
+        el('div', { className: 'natural-progress__master' }, [
+          el('div', { className: 'natural-progress__resolve', attributes: { 'aria-hidden': 'true' } }, Array.from({ length: 100 }, (_, index) => el('i', { className: `resolve-ring-${Math.floor(index / 20)}` }))),
+          el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.intent.name}样例母版` }),
+          el('span', {}, [el('small', { text: 'IDENTITY MASTER' }), el('b', { text: snapshot.intent.name })]),
+        ]),
+        el('div', { className: `natural-progress__filmstrip ${framesVisible ? 'is-visible' : ''}` }, DEMO_CHARACTER_ASSETS.walkFrames.map((src, index) => el('span', {}, [
+          el('img', { src, alt: index === 0 ? 'Walk 八帧样例序列' : '' }),
+          el('small', { text: String(index + 1).padStart(2, '0') }),
+        ]))),
+      ]),
+      el('aside', { className: 'natural-agent-runner' }, [
+        el('header', {}, [
+          el('span', {}, [el('small', { text: 'LOCAL SIMULATION / NO API' }), el('b', { text: active.label })]),
+          el('strong', { text: `${snapshot.progress}%` }),
+        ]),
+        el('p', { text: active.copy }),
+        el('div', { className: 'natural-progress__bar' }, [
+          el('progress', { attributes: { max: '100', value: String(snapshot.progress), 'aria-label': `一键创作进度 ${snapshot.progress}%` } }),
+        ]),
+        el('ol', { className: 'natural-progress__steps' }, snapshot.steps.map((step, index) => el('li', {
+          className: `is-${step.status}`,
+        }, [
+          el('i', { text: step.status === 'completed' ? '✓' : String(index + 1).padStart(2, '0') }),
+          el('span', {}, [el('b', { text: step.label }), el('small', { text: step.copy })]),
+          el('em', { text: step.status === 'running' ? '处理中' : step.status === 'completed' ? '完成' : '等待', attributes: { 'aria-label': step.status } }),
+        ]))),
+        el('div', { className: 'natural-progress__intent' }, [
+          el('span', { text: '已理解' }),
+          el('dl', {}, [
+            ['视角', projectLabels[snapshot.intent.view]],
+            ['动作', snapshot.intent.actions.map((action) => action.toUpperCase()).join(' + ')],
+            ['导出', snapshot.intent.exportFormats.join(' / ')],
+          ].map(([term, value]) => el('div', {}, [el('dt', { text: term }), el('dd', { text: value })]))),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+function renderNaturalResult(snapshot) {
+  const previewHref = './review.html?character=boy&view=side&action=walk';
+  return el('section', { className: 'natural-creation natural-agent-screen natural-agent-screen--result' }, [
+    renderNaturalScreenHeader('AI 资产生成'),
+    el('div', { className: 'natural-agent-result-stage' }, [
+      el('section', { className: 'natural-result__assets' }, [
+        el('figure', { className: 'natural-result__master' }, [
+          el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.intent.name}身份母版` }),
+          el('figcaption', {}, [el('small', { text: 'IDENTITY MASTER' }), el('b', { text: snapshot.intent.name })]),
+        ]),
+        el('div', { className: 'natural-result__sequences' }, [
+          el('header', {}, [el('span', {}, [el('small', { text: 'SIDE / WALK' }), el('b', { text: '8 FPS · LOOP' })]), el('i', { text: '8 FRAMES' })]),
+          renderFrameStrip(DEMO_CHARACTER_ASSETS.walkFrames, false, 'Walk 八帧样例序列'),
+          el('header', {}, [el('span', {}, [el('small', { text: 'SIDE / IDLE' }), el('b', { text: '8 FPS · LOOP' })]), el('i', { text: '8 FRAMES' })]),
+          renderFrameStrip(DEMO_CHARACTER_ASSETS.idleFrames, false, 'Idle 八帧样例序列'),
+        ]),
+      ]),
+      el('aside', { className: 'natural-agent-delivery' }, [
+        el('header', {}, [
+          el('span', {}, [el('small', { text: 'SIMULATED ASSET READY' }), el('h1', { id: 'workflowPageTitle', text: `${snapshot.intent.name}已准备完成` })]),
+          el('i', { text: '完成', attributes: { 'aria-label': '生成完成' } }),
+        ]),
+        el('p', { text: '身份母版、Idle 与 Walk 已通过模拟检查，可继续导出或发送到预览台。' }),
+        el('div', { className: 'natural-result__checks' }, ['透明背景', '画布尺寸', '脚底基线', '相邻位移', '循环接缝'].map((label) => el('span', {}, [
+          el('i', { text: '通过' }),
+          el('b', { text: label }),
+        ]))),
+        el('div', { className: 'publish-options natural-result__options' }, [
+          el('button', { type: 'button', attributes: { 'data-export-pack': '' } }, [
+            el('b', { text: '导出资产' }),
+            el('small', { text: '下载 SpriteSheet 与 JSON' }),
+          ]),
+          el('a', { href: previewHref }, [
+            el('b', { text: '发送到预览台' }),
+            el('small', { text: '检查动作播放与循环效果' }),
+          ]),
+        ]),
+        snapshot.savedName ? el('div', { className: 'natural-result__saved' }, [
+          el('i', { text: '✓' }),
+          el('span', {}, [el('b', { text: '快捷方案已保存到当前会话' }), el('small', { text: snapshot.savedName })]),
+        ]) : el('form', { className: 'workflow-save-form', attributes: { 'data-natural-save-form': '' } }, [
+          el('label', {}, [
+            el('span', { text: '保存为快捷方案' }),
+            el('input', { attributes: { name: 'workflowName', required: '', maxlength: '48', value: `${snapshot.intent.name} 一键方案` } }),
+          ]),
+          el('button', { type: 'submit', text: '保存方案' }),
+          el('small', { text: '本地模拟仅保存在当前页面状态，不调用后端。' }),
+        ]),
+        el('footer', {}, [
+          el('button', { className: 'button button--primary', type: 'button', text: '再次创建', attributes: { 'data-natural-reset': '' } }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+function renderNaturalCreation(snapshot) {
+  if (snapshot.status === 'running') return renderNaturalProgress(snapshot);
+  if (snapshot.status === 'completed') return renderNaturalResult(snapshot);
+  return renderNaturalCommandInput(snapshot);
+}
+
 function renderProjectSetup(projectContext = {}, workflowState = {}) {
   const templates = workflowState.items || [];
   const selectedTemplate = templates.find((item) => item.id === workflowState.selectedId);
@@ -1263,7 +1508,9 @@ function renderProjectNode(projectContext) {
   });
 }
 
-function renderDemoBuilder(snapshot, libraryState, projectContext, workflowState) {
+function renderDemoBuilder(snapshot, libraryState, projectContext, workflowState, studioMode, naturalState) {
+  if (!studioMode) return renderStudioModeChooser();
+  if (studioMode === 'natural') return renderNaturalCreation(naturalState);
   if (!projectContext) return renderProjectSetup({}, workflowState);
   const restoredWorkflow = Boolean(snapshot.workflow);
   const showGenerator = Boolean(snapshot.source);
@@ -1390,10 +1637,10 @@ function renderSelection(context) {
   return grid;
 }
 
-function renderBody(context, demoSnapshot, libraryState) {
+function renderBody(context, demoSnapshot, libraryState, projectContext, workflowState, studioMode, naturalState) {
   if (context.route.id === 'projects') return renderProjectHub(context);
   if (context.route.id === 'library') return renderLibrary(context, libraryState);
-  if (context.route.id === 'demoBuilder') return renderDemoBuilder(demoSnapshot, libraryState);
+  if (context.route.id === 'demoBuilder') return renderDemoBuilder(demoSnapshot, libraryState, projectContext, workflowState, studioMode, naturalState);
   if (context.route.layout === 'canvas') return renderCanvas(context);
   if (formRoutes.has(context.route.id)) return renderForm(context);
   if (mediaRoutes.has(context.route.id)) return renderMediaWorkbench(context);
@@ -1412,16 +1659,16 @@ function renderActions(context) {
   return bar;
 }
 
-function renderWorkspace(context, demoSnapshot, libraryState, projectContext, workflowState) {
+function renderWorkspace(context, demoSnapshot, libraryState, projectContext, workflowState, studioMode, naturalState) {
   if (context.route.id === 'demoBuilder') {
-    return el('main', { className: 'production-canvas-workspace' }, [renderDemoBuilder(demoSnapshot, libraryState, projectContext, workflowState)]);
+    return el('main', { className: 'production-canvas-workspace' }, [renderDemoBuilder(demoSnapshot, libraryState, projectContext, workflowState, studioMode, naturalState)]);
   }
   const parent = parentIdFor(context) ? routeById(parentIdFor(context)) : null;
   return el('main', { className: 'product-workspace' }, [
     renderBreadcrumbs(context),
     renderPageHeading(context),
     renderJourney(context),
-    renderBody(context, demoSnapshot, libraryState),
+    renderBody(context, demoSnapshot, libraryState, projectContext, workflowState, studioMode, naturalState),
     renderActions(context),
     backHrefFor(context) ? el('footer', { className: 'workspace-footer' }, [
       el('a', { href: backHrefFor(context), text: `← 返回${parent?.title || '上一级'}` }),
@@ -1433,8 +1680,16 @@ function renderWorkspace(context, demoSnapshot, libraryState, projectContext, wo
 export function renderWorkflowShell(root, context, options = {}) {
   root.replaceChildren();
   root.dataset.routeId = context.route.id;
-  root.append(context.route.id === 'demoBuilder' ? renderStudioBar(context, options.projectContext, options.workflowState) : renderHeader(context));
-  root.append(context.route.id === 'home' ? renderHome(context) : renderWorkspace(context, options.demoSnapshot, options.libraryState, options.projectContext, options.workflowState));
+  root.append(context.route.id === 'demoBuilder' ? renderStudioBar(context, options.projectContext, options.workflowState, options.studioMode) : renderHeader(context));
+  root.append(context.route.id === 'home' ? renderHome(context) : renderWorkspace(
+    context,
+    options.demoSnapshot,
+    options.libraryState,
+    options.projectContext,
+    options.workflowState,
+    options.studioMode,
+    options.naturalState,
+  ));
   if (context.route.id === 'demoBuilder') {
     const workflowLibrary = renderWorkflowLibrary(options.workflowState);
     if (workflowLibrary) root.append(workflowLibrary);
