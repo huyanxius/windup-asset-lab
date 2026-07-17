@@ -12,6 +12,7 @@ from pathlib import Path
 
 from server.app import create_handler
 from server.windup_pipeline.application import GenerationApplication
+from server.windup_pipeline.generated_contract import CONTRACT_VERSION
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -65,7 +66,7 @@ class HttpContractTest(unittest.TestCase):
 
     def test_versioned_contract_generation_and_review_flow(self):
         _, health = self.request("/api/health")
-        self.assertEqual(health["contractVersion"], "1.1.0")
+        self.assertEqual(health["contractVersion"], CONTRACT_VERSION)
         self.assertEqual(health["fps"], 8)
         self.assertTrue(health["demo"])
 
