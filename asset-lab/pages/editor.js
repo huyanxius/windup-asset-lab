@@ -107,7 +107,9 @@ export function bootstrapEditor() {
   }
 
   function dispatchMotion(event) {
-    motion = reduceMotion(motion, event);
+    const nextMotion = reduceMotion(motion, event);
+    if (nextMotion === motion) return;
+    motion = nextMotion;
     const desiredAction = desiredActionForMotion(event);
     if (desiredAction !== session.action && session.selectAction(desiredAction)) {
       render();

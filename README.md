@@ -104,21 +104,27 @@ WindUp addresses this by introducing:
 | Layer | Technology | Details |
 |-------|------------|---------|
 | **Frontend** | HTML, CSS, Vanilla JavaScript (ES Modules) | No build step, no framework |
-| **Backend** | Python 3.10+ `ThreadingHTTPServer` | Stdlib only, no third-party HTTP framework |
+| **Backend** | Python 3.11+ `ThreadingHTTPServer` | No third-party HTTP framework |
 | **Game Engine** | Cocos Creator 3.8.8 (TypeScript) | 8 FPS fixed, nearest-neighbor texture filtering |
-| **Image Processing** | Pillow (Python stdlib) | Chroma key, cropping, scaling, normalization |
+| **Image Processing** | Pillow 12.1+ | Chroma key, cropping, scaling, normalization |
 | **AI Provider** | 七牛云 QnAIGC (OpenAI-compatible) | Gemini 2.5/3.1 Flash Image models |
-| **Testing** | Node.js `node:test`, Python `unittest`/`pytest` | 22 frontend tests, 8 backend tests |
+| **Testing** | Node.js `node:test`, Python `unittest`, Pyright | Logic, HTTP, contract, type, and architecture gates |
 
 ---
 
 ## System Requirements
 
-- **Python** 3.10+ (stdlib only, no `pip install` needed)
+- **Python** 3.11+
 - **Node.js** 18+ (for frontend tests and contract generation)
 - **Cocos Creator** 3.8.8 (for runtime verification)
 - **Browser**: Modern Chrome/Firefox/Edge with ES Module support
 - **Environment Variable**: `QNAIGC_KEY` (production mode) or use `--demo` flag
+
+Install development and verification dependencies:
+
+```bash
+python -m pip install -r server/requirements-dev.txt
+```
 
 ---
 
@@ -180,6 +186,8 @@ windup-asset-lab/
 │       ├── publisher.py                # Atomic promotion with backup and rollback
 │       ├── review_store.py             # Optimistic lock versioned review storage
 │       ├── job_store.py                # Thread-safe task persistence boundary
+│       ├── project_models.py           # Validated MS1 project relationship models
+│       ├── project_store.py            # Atomic Project graph store and asset-tree read model
 │       ├── session_store.py            # Non-persistent session-level API credentials
 │       ├── asset_catalog.py            # Formal asset discovery and manifest generation
 │       ├── skeleton_gen.py             # Deterministic OpenPose skeleton generation for walk
@@ -192,6 +200,7 @@ windup-asset-lab/
 │   │   ├── character/                  # Built-in character frames
 │   │   └── characters/                 # Custom character frames (boy, skeleton, lirael)
 │   └── scripts/
+│       ├── generated-contract.ts       # Auto-generated Cocos contract and frame mapping
 │       └── GameRoot.ts                 # Cocos game main logic: keyboard, animation, bridge
 │
 ├── contracts/                          # Versioned product contracts
@@ -205,6 +214,7 @@ windup-asset-lab/
 ├── tools/                              # Utility scripts
 │   ├── generate-contract.mjs           # Generate JS/TS/Python constants from windup.v1.json
 │   ├── check-boundaries.mjs            # Architecture gate: dependency direction, fetch, intervals
+│   ├── check_python_orphans.py         # Fail on backend modules unreachable from server/app.py
 │   ├── format-css.mjs                  # CSS module formatter
 │   ├── verify-architecture.sh          # Full verification: contract + boundaries + tests + lint
 │   └── verify-architecture.bat         # Windows equivalent
@@ -216,6 +226,8 @@ windup-asset-lab/
 │   └── HANDOFF.md                      # Project handoff notes and asset gaps
 │
 ├── generation-data/                    # Runtime data (NOT committed to Git)
+│   ├── projects/                       # Project, character, outfit, master, action, and frame graph
+│   ├── records/                        # GenerationRecord audit documents
 │   ├── jobs/                           # Candidate assets per generation job
 │   ├── reviews/                        # Versioned review decisions
 │   ├── backups/                        # Pre-promotion backups
@@ -480,6 +492,7 @@ Backend:
 | Playback & movement | motion reducer | Page session | Browser memory |
 | API credentials | `ProviderSessionStore` | Backend session | Process memory only |
 | Generation tasks | `JobStore` | Recoverable | `generation-data/jobs/` |
+| Project relationship graph | `ProjectStore` | Long-term | `generation-data/projects/`, `generation-data/records/` |
 | Review decisions | `ReviewStore` | Cross-page/collaborative | `generation-data/reviews/` |
 | Candidate assets | job | Pre-review | Job directory |
 | Formal assets | `AssetCatalog` / `AssetPublisher` | Long-term | `assets/resources/`, `generation-data/characters/` |
@@ -494,6 +507,7 @@ The product contract (`contracts/windup.v1.json`) is the single source of truth 
 - **FPS**: Fixed at 8 throughout the entire pipeline
 - **Image Models**: `gemini-2.5-flash-image`, `gemini-3.1-flash-image-preview`, `gemini-3.0-pro-image-preview`
 - **Generation**: Routes (`sheet`, `frames`), default route, sheet dimensions (8 columns × 1 row), starter pack (side view, idle + walk)
+- **Cocos runtime**: Resource directory, runtime-action mapping, frame prefixes, and frame order
 
 **Regeneration**: After modifying the contract, run:
 ```bash
@@ -502,6 +516,7 @@ node tools/generate-contract.mjs
 This generates:
 - `asset-lab/data/generated-contract.js` — Frontend constants
 - `asset-lab/data/generated-contract.d.ts` — Frontend TypeScript types
+- `assets/scripts/generated-contract.ts` — Cocos types, FPS, loop semantics, frame counts, and runtime frame mapping
 - `server/windup_pipeline/generated_contract.py` — Backend constants
 
 **Never hand-edit generated files.** Changes must flow through the versioned contract.
@@ -514,6 +529,7 @@ This generates:
 - No bypass of `PlaybackClock`: detects animation intervals not managed by the clock
 - HTTP adapter doesn't absorb business/storage logic or exceed reasonable size
 - No global API key writes, hardcoded runtime addresses, or contract drift
+- Cocos `GameRoot.ts` consumes the generated contract and contains no hardcoded frame names
 
 Run the full verification suite:
 ```bash
@@ -523,11 +539,12 @@ Run the full verification suite:
 This executes:
 1. Contract generation and validation
 2. Boundary checking
-3. Frontend Node.js tests
-4. Backend Python tests
-5. Python syntax compilation check
-6. JavaScript syntax validation
-7. Git diff whitespace check
+3. Python backend reachability/orphan check
+4. Pyright type checking
+5. Frontend Node.js tests, including Cocos frame mapping
+6. Backend Python tests
+7. Python and JavaScript syntax validation
+8. Git diff whitespace check
 
 ---
 
@@ -553,7 +570,7 @@ Returns provider status, demo mode, contract version, and character summaries.
   "verified": true,
   "demo": false,
   "provider": "七牛云 QnAIGC",
-  "contractVersion": "1.1.0",
+  "contractVersion": "1.2.0",
   "fps": 8,
   "characters": [{"id": "lamplighter", "label": "旧试验角色 · 独立样例"}]
 }
@@ -596,6 +613,20 @@ GET /api/provider/models
 ```
 
 Returns available image models from the contract.
+
+### Project and Asset Tree
+
+```http
+POST /api/projects
+GET /api/projects/{project_id}
+GET /api/projects/{project_id}/assets
+```
+
+Projects are validated against the MS1 contract (`side`, 256 × 256, Cocos target) and written atomically.
+The asset-tree response owns the complete `Character → Identity → Outfit → MasterSetVersion →
+ActionInstance → FrameRecord → GenerationRecord` relationship graph, including explicit missing and
+partial action cells. Built-in characters are mapped into `project-windup-demo` without changing the
+legacy `/api/characters` response.
 
 ### Character Management
 
@@ -812,7 +843,7 @@ python -m unittest discover -s tests -p 'test_*.py'
 tools\verify-architecture.bat
 ```
 
-Runs: contract generation, boundary checking, frontend tests, backend tests, Python compilation, JavaScript syntax validation, and git diff whitespace check.
+Runs: contract generation, boundary checking, Python orphan detection, Pyright, frontend and backend tests, syntax validation, and git diff whitespace check.
 
 ---
 

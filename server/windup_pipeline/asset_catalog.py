@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from .domain import ACTION_LOOPS, ACTIONS, CATALOG, FPS, POSES, VIEWS
 
@@ -19,7 +20,7 @@ class AssetCatalog:
     def __init__(self, root: Path, characters_root: Path):
         self.root = root
         self.characters_root = characters_root
-        self.records = {key: dict(value) for key, value in CATALOG.items()}
+        self.records: dict[str, dict[str, Any]] = {key: dict(value) for key, value in CATALOG.items()}
 
     def load_custom(self) -> None:
         if not self.characters_root.exists():
@@ -31,7 +32,7 @@ class AssetCatalog:
             except (OSError, ValueError, TypeError):
                 continue
 
-    def register(self, card: dict, card_file: Path) -> dict:
+    def register(self, card: dict[str, Any], card_file: Path) -> dict[str, Any]:
         character_id = str(card.get("id", ""))
         base = str(card.get("base", ""))
         if not SAFE_ID.fullmatch(character_id):
@@ -52,16 +53,16 @@ class AssetCatalog:
     def __contains__(self, character_id: str) -> bool:
         return character_id in self.records
 
-    def __getitem__(self, character_id: str) -> dict:
+    def __getitem__(self, character_id: str) -> dict[str, Any]:
         return self.records[character_id]
 
-    def summaries(self) -> list[dict]:
+    def summaries(self) -> list[dict[str, Any]]:
         return [{"id": key, "label": value["label"]} for key, value in self.records.items()]
 
-    def characters(self) -> dict:
+    def characters(self) -> dict[str, Any]:
         return {"characters": [{"id": key, **self.character_card(key)} for key in self.records]}
 
-    def character_card(self, character_id: str) -> dict:
+    def character_card(self, character_id: str) -> dict[str, Any]:
         item = dict(self.records[character_id])
         card_path = item.get("card")
         if card_path and (self.root / card_path).exists():
@@ -80,8 +81,8 @@ class AssetCatalog:
             return self.root / custom_root / "views" / view / name
         return self.root / "assets/resources/characters" / character_id / "views" / view / name
 
-    def manifest(self, character_id: str) -> dict:
-        manifest = {}
+    def manifest(self, character_id: str) -> dict[str, Any]:
+        manifest: dict[str, Any] = {}
         for view in VIEWS:
             actions = {}
             for action in ACTIONS:

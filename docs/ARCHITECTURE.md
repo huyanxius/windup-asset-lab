@@ -55,7 +55,11 @@ asset-lab/
 
 contracts/
 ├─ windup.schema.json           # 产品契约 Schema
-└─ windup.v1.json               # 前后端唯一动作/视角/模型契约
+└─ windup.v1.json               # 前端、后端、Cocos 的动作/视角/帧映射唯一契约
+
+assets/scripts/
+├─ generated-contract.ts        # 自动生成的 Cocos 类型、帧率、循环和帧名映射
+└─ GameRoot.ts                  # 只消费生成合约，不定义平行动作或帧名
 
 server/
 ├─ app.py                       # 薄 HTTP 适配：路由、Cookie、CORS、静态文件
@@ -69,6 +73,8 @@ server/
    ├─ generation_executor.py    # 后台任务执行、进度与溯源
    ├─ action_pipeline.py        # 动作条/单帧双路由与回退
    ├─ asset_catalog.py          # 正式角色目录与动作清单
+   ├─ project_models.py         # Project 关系模型与反序列化校验
+   ├─ project_store.py          # 原子关系 Store 与资产树 read model
    ├─ publisher.py              # 原子入库、备份与失败回滚
    ├─ processing.py             # 抠图、动作条切分、归一化与连续性质检
    ├─ job_store.py              # 线程安全的任务持久化边界
@@ -83,7 +89,7 @@ flowchart LR
   UI["独立页面"] --> API["api-client"]
   API --> HTTP["app.py 路由"]
   HTTP --> App["GenerationApplication"]
-  App --> Store["JobStore / ReviewStore"]
+  App --> Store["ProjectStore / JobStore / ReviewStore"]
   App --> Executor["GenerationExecutor"]
   App --> Publisher["AssetPublisher"]
   Executor --> Session["ProviderSession snapshot"]
@@ -127,6 +133,7 @@ queued → generating → awaiting_review → approved
 | 播放/暂停、自动/手动移动、方向、位置 | `motion-state.js` | 发送事件给纯 reducer |
 | 8 FPS 定时器 | `PlaybackClock` | 启停一个时钟，不直接创建 interval |
 | 审核结论 | 前端 `ReviewStore` + 后端 `ReviewStore` | 本地即时更新，服务端版本同步，409 时按本帧意图合并 |
+| Project、角色身份、造型、母版、动作实例、帧与生成记录关系 | `ProjectStore` | 通过 Project 用例和资产树 read model 读写，不扫描目录拼装第二套关系 |
 | API 凭据 | `ProviderSessionStore` | HttpOnly 会话标识隔离；任务线程仅接收凭据快照 |
 | DOM 表现 | `EditorView` | 读取状态并渲染，不反向修改领域状态 |
 | 浏览器输入 | `editor-bindings.js` | 将事件翻译成应用命令 |
@@ -145,6 +152,10 @@ queued → generating → awaiting_review → approved
 ### 增加角色
 
 内建角色加到目录；用户角色通过 `/api/characters/generations` 创建。默认角色包包含母版、side/idle 和 side/walk；`AssetPublisher` 在临时目录完成全部复制后再原子入库。角色母版、动作候选和正式帧必须保持不同目录。
+
+内建角色在服务准备阶段以兼容映射写入 `project-windup-demo`。Project 关系由 `ProjectStore`
+持久化；`GET /api/projects/{project_id}/assets` 是资产树、资产缺口和 GenerationRecord 摘要的
+唯一后端 read model。页面不得重新扫描 `AssetCatalog` 拼装平行关系。
 
 ### 更换整套动作策略
 
@@ -167,7 +178,8 @@ queued → generating → awaiting_review → approved
 - 不把不同视角伪装成 CSS 旋转；每个视角必须有独立资产。
 - 审核台按 `foundation → surface → drawer → workspace → components → integrations → motion` 固定顺序加载。当前视觉依赖这套明确覆盖顺序；禁止批量删除优先级或改成 Cascade Layers。样式债只能逐组件迁移，并人工确认抽屉收起、左侧胶片栏、舞台居中和右侧 Inspector 后再删除旧规则。
 - HTML 不写行内样式，业务逻辑不能依赖颜色或动画类名。
-- 不手工编辑 `generated-contract.js`、`.d.ts` 或 `.py`；改动必须从版本化契约生成。
+- 不手工编辑 `generated-contract.js`、`.d.ts`、Cocos `generated-contract.ts` 或 `.py`；改动必须从版本化契约生成。
+- `GameRoot.ts` 不得出现 `walk-01`、`idle-05` 等帧名；Cocos 资源路径与顺序只在产品契约中维护。
 - 不把 API Key 写入全局配置、任务 JSON、浏览器存储或日志；一个会话不得覆盖另一个会话的模型与凭据。
 - `generate.js` 与 `create-character.js` 必须复用 provider controller 和 stepper，不再复制 Key 连接与流程状态。
 
@@ -180,12 +192,15 @@ queued → generating → awaiting_review → approved
 - 绕过 `PlaybackClock` 的动画 interval。
 - HTTP 适配层重新吸收业务/存储逻辑或超过合理体积。
 - 全局 API Key 写入、硬编码运行地址和生成契约漂移。
+- Cocos 合约导入、帧映射和实际资源是否一致，以及 `GameRoot.ts` 是否出现帧名魔法字符串。
+- Pyright 检查所有后端模块与工具入口；`check_python_orphans.py` 拒绝任何无法从 `server/app.py` 到达的后端模块。
 
 规则应尽可能由机器执行；文档只保留无法自动判断的产品语义和取舍。
 
 ## 最小自检
 
 ```bash
+python -m pip install -r server/requirements-dev.txt
 ./tools/verify-architecture.sh
 ```
 

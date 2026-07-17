@@ -486,8 +486,8 @@ GET /api/exports/{export_id}/download
 - `server/windup_pipeline/job_store.py`：保持任务恢复语义，补关联实体 ID。
 - `server/windup_pipeline/review_store.py`：审核 key 改为稳定动作实例 ID，保留乐观锁。
 - `server/windup_pipeline/publisher.py`：采用前检查 8 帧人工状态，失败时恢复备份。
-- `server/windup_pipeline/provenance.py`：补 Record ID、父 Record、耗时、模型和路线，不记录 Key。
-- `server/windup_pipeline/qa.py` / `processing.py`：补足实际阻断规则。
+- `server/windup_pipeline/project_store.py` / `generation_executor.py`：补 Generation Record ID、父 Record、耗时、模型和路线，不记录 Key。
+- `server/windup_pipeline/processing.py`：补足实际阻断规则，避免再引入与主执行链断开的平行 QA 模块。
 
 ### 文件存储建议
 

@@ -5,6 +5,7 @@ import {
   ProviderSessionController,
   providerIsReady,
 } from '../asset-lab/features/provider-session-controller.js';
+import { CONTRACT_VERSION } from '../asset-lab/data/generated-contract.js';
 
 function elements() {
   return {
@@ -20,14 +21,14 @@ function elements() {
 
 test('provider controller owns connection state and clears the submitted key', async () => {
   const els = elements();
-  const api = { post: async () => ({ verified: true, model: 'model-a', contractVersion: '1.1.0' }) };
+  const api = { post: async () => ({ verified: true, model: 'model-a', contractVersion: CONTRACT_VERSION }) };
   let connected = 0;
   const controller = new ProviderSessionController({ api, elements: els, onConnected: () => { connected += 1; } });
   assert.equal(await controller.connect(), true);
   assert.equal(controller.connected, true);
   assert.equal(els.apiKey.value, '');
   assert.equal(els.providerState.textContent, '已验证');
-  assert.equal(controller.contractVersion, '1.1.0');
+  assert.equal(controller.contractVersion, CONTRACT_VERSION);
   assert.equal(connected, 1);
 });
 

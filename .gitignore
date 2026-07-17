@@ -46,6 +46,7 @@ wheels/
 .installed.cfg
 *.egg
 .mypy_cache/
+.pyright/
 .pytest_cache/
 
 # Cocos Creator

@@ -111,6 +111,11 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 if path == "/api/characters":
                     self.send_json(application.characters())
                     return
+                match = re.fullmatch(r"/api/projects/([a-z0-9-]+)(/assets)?", path)
+                if match:
+                    value = application.project_assets(match.group(1)) if match.group(2) else application.project(match.group(1))
+                    self.send_json(value or {"error": "Project 不存在"}, 200 if value else 404)
+                    return
                 if path == "/api/reviews":
                     query = parse_qs(parsed.query)
                     key = str(query.get("key", [""])[0])
@@ -141,6 +146,9 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                     return
                 if path == "/api/characters/generations":
                     self.send_json(application.create_character_job(self.session_id(), self.read_json()), 202)
+                    return
+                if path == "/api/projects":
+                    self.send_json(application.create_project(self.read_json()), 201)
                     return
                 if path == "/api/generations":
                     self.send_json(application.create_job(self.session_id(), self.read_json()), 202)
