@@ -381,14 +381,14 @@ function renderHome(context) {
     ]),
     el('div', { className: 'ecosystem-targets' }, [
       el('article', {}, [
-        el('img', { className: 'ecosystem-target__icon', src: 'https://cdn.simpleicons.org/cocos/C5DAC7', alt: 'Cocos 图标' }),
+        el('img', { className: 'ecosystem-target__icon', src: './brand/cocos.svg', alt: 'Cocos 图标' }),
         el('small', { text: '目标引擎' }),
         el('b', { text: 'Cocos Creator' }),
         el('p', { text: '图集、帧率、锚点与命名面向实际导入习惯。' }),
         el('span', { text: '首发适配' }),
       ]),
       el('article', {}, [
-        el('img', { className: 'ecosystem-target__icon', src: 'https://cdn.simpleicons.org/wechat/C5DAC7', alt: '微信图标' }),
+        el('img', { className: 'ecosystem-target__icon', src: './brand/wechat.svg', alt: '微信图标' }),
         el('small', { text: '目标平台' }),
         el('b', { text: '微信小游戏' }),
         el('p', { text: '交付的是能进入小游戏项目的资产，而不是只在生成页里好看。' }),
