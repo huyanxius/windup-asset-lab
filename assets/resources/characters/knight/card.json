@@ -1,0 +1,17 @@
+{
+  "id": "knight",
+  "label": "Knight",
+  "description": "grayscale pixel-art knight in full plate armour with a large sword and tattered cape, combat stance",
+  "base": "assets/resources/characters/knight/base.png",
+  "createdAt": "2026-07-18T00:16:00+08:00",
+  "sourceJob": "import-knight-001",
+  "model": "manual-import",
+  "starterPack": {
+    "view": "side",
+    "actions": ["idle"]
+  },
+  "generationRoute": "frames",
+  "sourceCallCount": 0,
+  "frameCountPerAction": 36,
+  "importedFrom": "external-asset-pack"
+}

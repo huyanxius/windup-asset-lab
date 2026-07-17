@@ -454,7 +454,7 @@ button {
   left: 50%;
   bottom: 49px;
   transform: translateX(-50%);
-  filter: drop-shadow(0 14px 9px rgba(27, 25, 20, 0.18));
+  filter: none;
 }
 
 .ground-plane {

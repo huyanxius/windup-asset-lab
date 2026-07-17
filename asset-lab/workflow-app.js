@@ -1,4 +1,5 @@
 import { startBrandWave } from './features/brand-wave.js';
+import { characterCatalog } from './data/character-catalog.js';
 import { DEMO_CHARACTER_ASSETS, DemoProductionController } from './features/demo-production.js';
 import { NaturalCreationController } from './features/natural-creation.js';
 import { NodeCanvasController } from './features/node-canvas.js';
@@ -28,6 +29,7 @@ let workflowState = { status: 'loading', items: [], selectedId: null, saving: fa
 const nodeCanvas = new NodeCanvasController();
 let projectContext = null;
 let studioMode = null;
+let naturalScreenSettled = false;
 const demoProduction = new DemoProductionController({
   onChange: () => render({ preserveScroll: true }),
 });
@@ -35,26 +37,67 @@ const naturalCreation = new NaturalCreationController({
   onChange: () => render({ preserveScroll: true }),
 });
 
+// Bound handlers tracked per node so we can replace a previous listener for the same event type.
+const boundHandlers = new WeakMap();
+
+function persistStudioState() {
+  try {
+    if (studioMode) sessionStorage.setItem('windup:studio-mode', studioMode);
+    else sessionStorage.removeItem('windup:studio-mode');
+    const snapshot = naturalCreation.snapshot();
+    if (snapshot && snapshot.status && snapshot.status !== 'idle') {
+      sessionStorage.setItem('windup:natural-snapshot', JSON.stringify(snapshot));
+    } else {
+      sessionStorage.removeItem('windup:natural-snapshot');
+    }
+  } catch {}
+}
+
+function restoreStudioState() {
+  try {
+    const mode = sessionStorage.getItem('windup:studio-mode');
+    if (mode === 'workflow' || mode === 'natural') studioMode = mode;
+    const raw = sessionStorage.getItem('windup:natural-snapshot');
+    if (raw) {
+      const snapshot = JSON.parse(raw);
+      if (snapshot && snapshot.status) {
+        // Suppress onChange during restore to avoid a redundant render cycle.
+        const prevOnChange = naturalCreation.onChange;
+        naturalCreation.onChange = () => {};
+        naturalCreation.restore(snapshot);
+        naturalCreation.onChange = prevOnChange;
+      }
+    }
+  } catch {}
+}
+
+function on(selectorOrEl, eventType, handler) {
+  const collection = selectorOrEl instanceof Element ? [selectorOrEl] : document.querySelectorAll(selectorOrEl);
+  collection.forEach((node) => {
+    if (!boundHandlers.has(node)) boundHandlers.set(node, []);
+    const handlers = boundHandlers.get(node);
+    const wrapped = (event) => handler(event, event.currentTarget, event.currentTarget);
+    // Remove previous listener for the same event on the same node before adding the new one.
+    const existing = handlers.findIndex((h) => h.event === eventType);
+    if (existing !== -1) node.removeEventListener(eventType, handlers[existing].handler);
+    handlers[existing >= 0 ? existing : handlers.length] = { event: eventType, handler: wrapped };
+    node.addEventListener(eventType, wrapped);
+  });
+}
+
+function requestBrowserFullscreen() {
+  const target = document.documentElement;
+  if (target.requestFullscreen) return target.requestFullscreen();
+  if (target.webkitRequestFullscreen) return target.webkitRequestFullscreen();
+  if (target.msRequestFullscreen) return target.msRequestFullscreen();
+  return Promise.resolve();
+}
+
 function syncFullscreenButton() {
-  const fullscreenButton = document.querySelector('[data-browser-fullscreen]');
-  if (!fullscreenButton) return;
-  fullscreenButton.textContent = document.fullscreenElement ? '退出全屏' : '全屏';
-  fullscreenButton.setAttribute('aria-pressed', document.fullscreenElement ? 'true' : 'false');
+  const button = document.querySelector('[data-browser-fullscreen]');
+  if (!button) return;
+  button.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement || document.webkitFullscreenElement)));
 }
-
-async function requestBrowserFullscreen() {
-  if (document.fullscreenElement || !document.documentElement.requestFullscreen) return;
-  await document.documentElement.requestFullscreen();
-}
-
-function forceFullscreenFromClick(event) {
-  const target = event.target instanceof Element ? event.target : null;
-  if (document.fullscreenElement || target?.closest('[data-browser-fullscreen]')) return;
-  requestBrowserFullscreen().catch(() => {}).finally(syncFullscreenButton);
-}
-
-document.addEventListener('click', forceFullscreenFromClick, true);
-document.addEventListener('fullscreenchange', syncFullscreenButton);
 
 function resetStudioSession() {
   projectContext = null;
@@ -64,13 +107,14 @@ function resetStudioSession() {
   nodeCanvas.resetLayout();
   demoProduction.reset({ notify: false });
   naturalCreation.reset({ notify: false });
+  try { sessionStorage.removeItem('windup:studio-mode'); sessionStorage.removeItem('windup:natural-snapshot'); } catch {}
 }
 
 function bindDemoFlow(context) {
   if (context.route.id !== 'demoBuilder') return;
   nodeCanvas.attach(root);
   const fullscreenButton = document.querySelector('[data-browser-fullscreen]');
-  fullscreenButton?.addEventListener('click', async () => {
+  on(fullscreenButton, 'click', async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
       else await requestBrowserFullscreen();
@@ -81,55 +125,84 @@ function bindDemoFlow(context) {
     }
   });
   syncFullscreenButton();
-  document.querySelector('[data-start-creation]')?.addEventListener('click', (event) => {
+  on('[data-start-creation]', 'click', (event) => {
     event.preventDefault();
     resetStudioSession();
     render({ preserveScroll: true, focus: true });
   });
-  document.querySelectorAll('[data-studio-mode]').forEach((button) => {
-    button.addEventListener('click', () => {
-      studioMode = button.dataset.studioMode;
-      projectContext = null;
-      nodeCanvas.clearConnections();
-      nodeCanvas.resetLayout();
-      demoProduction.reset({ notify: false });
-      naturalCreation.reset({ notify: false });
-      render({ preserveScroll: true, focus: true });
-    });
+  on('[data-studio-mode]', 'click', (event, target) => {
+    studioMode = target.dataset.studioMode;
+    projectContext = null;
+    nodeCanvas.clearConnections();
+    nodeCanvas.resetLayout();
+    demoProduction.reset({ notify: false });
+    naturalCreation.reset({ notify: false });
+    render({ preserveScroll: true, focus: true });
   });
-  document.querySelectorAll('[data-studio-mode-back]').forEach((button) => {
-    button.addEventListener('click', () => {
-      studioMode = null;
-      projectContext = null;
-      naturalCreation.reset({ notify: false });
-      demoProduction.reset({ notify: false });
-      nodeCanvas.clearConnections();
-      nodeCanvas.resetLayout();
-      render({ preserveScroll: true, focus: true });
-    });
+  on('[data-studio-mode-back]', 'click', () => {
+    studioMode = null;
+    projectContext = null;
+    naturalCreation.reset({ notify: false });
+    demoProduction.reset({ notify: false });
+    nodeCanvas.clearConnections();
+    nodeCanvas.resetLayout();
+    const next = new URLSearchParams(window.location.search);
+    next.delete('source');
+    next.delete('imported');
+    next.delete('character');
+    const path = window.location.pathname + window.location.hash.split('?')[0];
+    history.replaceState(null, '', path + (next.size ? '?' + next.toString() : ''));
+    render({ preserveScroll: true, focus: true });
   });
-  document.querySelector('#naturalCreationForm')?.addEventListener('submit', (event) => {
+  on('#naturalCreationForm', 'submit', (event) => {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const form = new FormData(event.currentTarget);
-    naturalCreation.start(form.get('command'));
+    const selectedBtn = document.querySelector('.natural-agent-character-picker .is-active');
+    const characterId = selectedBtn?.dataset.naturalCharacter || 'boy';
+    naturalCreation.start(form.get('command'), characterId);
   });
-  document.querySelectorAll('[data-natural-example]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const input = document.querySelector('#naturalCreationForm textarea[name="command"]');
-      if (!input) return;
-      input.value = button.dataset.naturalExample;
-      input.focus();
-    });
+  on('[data-natural-example]', 'click', (event, target) => {
+    const input = document.querySelector('#naturalCreationForm textarea[name="command"]');
+    if (!input) return;
+    input.value = target.dataset.naturalExample;
+    input.focus();
+    document.querySelectorAll('.natural-agent-character-picker .is-active').forEach((btn) => btn.classList.remove('is-active'));
   });
-  document.querySelector('[data-natural-reset]')?.addEventListener('click', () => naturalCreation.reset());
-  document.querySelector('[data-natural-save-form]')?.addEventListener('submit', (event) => {
+  on('[data-natural-character]', 'click', (event, target) => {
+    const characterId = target.dataset.naturalCharacter;
+    const input = document.querySelector('#naturalCreationForm textarea[name="command"]');
+    const preview = document.querySelector('.natural-agent-preview img');
+    if (!input) return;
+    const prompts = {
+      lamplighter: '创建一个名叫雾灯守夜人的低饱和像素角色，采用横版侧视，生成待机和行走动作并导出 Sprite Sheet 与 JSON。',
+      boy: '创建一个像素少年角色，横版侧视，生成待机和行走动作并导出 Sprite Sheet 与 JSON。',
+      skeleton: '生成一个卡通像素骷髅角色，横版侧视，制作行走八帧循环动画并导出 Sprite Sheet。',
+      lirael: '创建一名叫 Lirael 的像素德鲁伊角色，横版侧视，生成待机动作并导出。',
+      samurai: '生成一个像素武士角色，横版侧视，制作待机、行走和跳跃动作并导出 Sprite Sheet 与 JSON。',
+      knight: '创建一名灰度像素骑士角色，横版侧视，生成待机动作并导出 Sprite Sheet。',
+    };
+    const resolvedId = prompts[characterId] ? characterId : 'boy';
+    input.value = prompts[resolvedId];
+    input.focus();
+    if (preview) {
+      const record = characterCatalog[resolvedId] || characterCatalog.boy;
+      if (record) preview.src = record.base;
+    }
+    document.querySelectorAll('.natural-agent-character-picker .is-active').forEach((btn) => btn.classList.remove('is-active'));
+    target.classList.add('is-active');
+  });
+  on('[data-natural-reset]', 'click', () => {
+    naturalCreation.reset();
+    document.querySelectorAll('.natural-agent-character-picker .is-active').forEach((btn) => btn.classList.remove('is-active'));
+  });
+  on('[data-natural-save-form]', 'submit', (event) => {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const form = new FormData(event.currentTarget);
     naturalCreation.markSaved(form.get('workflowName'));
   });
-  document.querySelector('#projectContextForm')?.addEventListener('submit', (event) => {
+  on('#projectContextForm', 'submit', (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const selectedTemplate = workflowState.items.find((item) => item.id === workflowState.selectedId);
@@ -158,53 +231,45 @@ function bindDemoFlow(context) {
     };
     render({ preserveScroll: true });
   });
-  document.querySelector('[data-workflow-template-select]')?.addEventListener('change', (event) => {
-    workflowState = { ...workflowState, selectedId: event.currentTarget.value || null, message: '' };
+  on('[data-workflow-template-select]', 'change', (event, target) => {
+    workflowState = { ...workflowState, selectedId: target.value || null, message: '' };
     render({ preserveScroll: true });
   });
-  document.querySelectorAll('[data-workflow-library-open]').forEach((button) => {
-    button.addEventListener('click', () => {
-      workflowState = { ...workflowState, open: true };
-      render({ preserveScroll: true });
-    });
+  on('[data-workflow-library-open]', 'click', () => {
+    workflowState = { ...workflowState, open: true };
+    render({ preserveScroll: true });
   });
-  document.querySelectorAll('[data-workflow-library-close]').forEach((button) => {
-    button.addEventListener('click', () => {
-      workflowState = { ...workflowState, open: false };
-      render({ preserveScroll: true });
-    });
+  on('[data-workflow-library-close]', 'click', () => {
+    workflowState = { ...workflowState, open: false };
+    render({ preserveScroll: true });
   });
-  document.querySelector('[data-workflow-library-layer]')?.addEventListener('click', (event) => {
+  on('[data-workflow-library-layer]', 'click', (event) => {
     if (event.target !== event.currentTarget) return;
     workflowState = { ...workflowState, open: false };
     render({ preserveScroll: true });
   });
-  document.querySelectorAll('[data-workflow-enter]').forEach((button) => {
-    button.addEventListener('click', () => {
-      studioMode = 'workflow';
-      projectContext = null;
-      workflowState = {
-        ...workflowState,
-        selectedId: button.dataset.workflowEnter,
-        open: false,
-        message: '',
-        runJobId: null,
-      };
-      nodeCanvas.clearConnections();
-      demoProduction.reset();
-      render({ preserveScroll: true, focus: true });
-    });
+  on('[data-workflow-enter]', 'click', (event, target) => {
+    studioMode = 'workflow';
+    projectContext = null;
+    workflowState = {
+      ...workflowState,
+      selectedId: target.dataset.workflowEnter,
+      open: false,
+      message: '',
+      runJobId: null,
+    };
+    nodeCanvas.clearConnections();
+    demoProduction.reset();
+    render({ preserveScroll: true, focus: true });
   });
-  document.querySelector('[data-edit-project]')?.addEventListener('click', () => {
+  on('[data-edit-project]', 'click', () => {
     studioMode = 'workflow';
     workflowState = { ...workflowState, selectedId: projectContext?.workflowId || null, message: '' };
     projectContext = null;
     render({ preserveScroll: true, focus: true });
   });
-  document.querySelectorAll('[data-demo-source]').forEach((button) => {
-    button.addEventListener('click', () => demoProduction.selectSource(button.dataset.demoSource));
-  });
-  document.querySelector('#masterBriefForm')?.addEventListener('submit', async (event) => {
+  on('[data-demo-source]', 'click', (event, target) => demoProduction.selectSource(target.dataset.demoSource));
+  on('#masterBriefForm', 'submit', async (event) => {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
     const form = new FormData(event.currentTarget);
@@ -236,33 +301,23 @@ function bindDemoFlow(context) {
       render({ preserveScroll: true });
     }
   });
-  document.querySelectorAll('[data-master-candidate]').forEach((button) => {
-    button.addEventListener('click', () => demoProduction.selectMasterCandidate(button.dataset.masterCandidate));
+  on('[data-master-candidate]', 'click', (event, target) => demoProduction.selectMasterCandidate(target.dataset.masterCandidate));
+  on('[data-confirm-master]', 'click', () => demoProduction.confirmMaster());
+  on('[data-keyframe-form]', 'submit', (event) => {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    const form = new FormData(event.currentTarget);
+    demoProduction.generateKeyframe(event.currentTarget.dataset.keyframeForm, { brief: form.get('brief') });
   });
-  document.querySelector('[data-confirm-master]')?.addEventListener('click', () => demoProduction.confirmMaster());
-  document.querySelectorAll('[data-keyframe-form]').forEach((formNode) => {
-    formNode.addEventListener('submit', (event) => {
-      event.preventDefault();
-      if (!event.currentTarget.reportValidity()) return;
-      const form = new FormData(event.currentTarget);
-      demoProduction.generateKeyframe(event.currentTarget.dataset.keyframeForm, { brief: form.get('brief') });
-    });
+  on('[data-confirm-keyframe]', 'click', (event, target) => demoProduction.confirmKeyframe(target.dataset.confirmKeyframe));
+  on('[data-animation-form]', 'submit', (event) => {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    const form = new FormData(event.currentTarget);
+    demoProduction.generateAnimation(event.currentTarget.dataset.animationForm, { fps: form.get('fps') });
   });
-  document.querySelectorAll('[data-confirm-keyframe]').forEach((button) => {
-    button.addEventListener('click', () => demoProduction.confirmKeyframe(button.dataset.confirmKeyframe));
-  });
-  document.querySelectorAll('[data-animation-form]').forEach((formNode) => {
-    formNode.addEventListener('submit', (event) => {
-      event.preventDefault();
-      if (!event.currentTarget.reportValidity()) return;
-      const form = new FormData(event.currentTarget);
-      demoProduction.generateAnimation(event.currentTarget.dataset.animationForm, { fps: form.get('fps') });
-    });
-  });
-  document.querySelectorAll('[data-confirm-animation]').forEach((button) => {
-    button.addEventListener('click', () => demoProduction.confirmAnimation(button.dataset.confirmAnimation));
-  });
-  document.querySelector('[data-publish]')?.addEventListener('click', async () => {
+  on('[data-confirm-animation]', 'click', (event, target) => demoProduction.confirmAnimation(target.dataset.confirmAnimation));
+  on('[data-publish]', 'click', async () => {
     if (!workflowState.runJobId) {
       demoProduction.publish();
       return;
@@ -278,7 +333,7 @@ function bindDemoFlow(context) {
       render({ preserveScroll: true });
     }
   });
-  document.querySelector('[data-workflow-save-form]')?.addEventListener('submit', async (event) => {
+  on('[data-workflow-save-form]', 'submit', async (event) => {
     event.preventDefault();
     if (!event.currentTarget.reportValidity() || workflowState.saving) return;
     const form = new FormData(event.currentTarget);
@@ -322,7 +377,7 @@ function bindDemoFlow(context) {
       render({ preserveScroll: true });
     }
   });
-  document.querySelector('[data-export-pack]')?.addEventListener('click', async (event) => {
+  on('[data-export-pack]', 'click', async (event) => {
     const button = event.currentTarget;
     button.disabled = true;
     button.textContent = '正在打包…';
@@ -353,7 +408,7 @@ function bindDemoFlow(context) {
       button.title = error.message;
     }
   });
-  document.querySelector('[data-demo-reset]')?.addEventListener('click', () => {
+  on('[data-demo-reset]', 'click', () => {
     nodeCanvas.clearConnections();
     demoProduction.reset();
   });
@@ -377,16 +432,21 @@ function render(options = {}) {
     studioMode = 'workflow';
     demoProduction.selectSource(requestedSource);
   }
+  if (studioMode !== 'natural') naturalScreenSettled = false;
+  const wasNaturalShowing = naturalScreenSettled;
   renderWorkflowShell(root, context, {
     demoSnapshot: demoProduction.snapshot(),
     libraryState,
+    naturalSettled: wasNaturalShowing,
     naturalState: naturalCreation.snapshot(),
     projectContext,
     studioMode,
     workflowState,
   });
+  naturalScreenSettled = studioMode === 'natural';
   document.title = `Windup · ${context.route.title}`;
   activeRouteId = context.route.id;
+  persistStudioState();
   if (context.route.id === 'home') {
     stopHomeIdleCast = startHomeIdleCast(document.querySelectorAll('[data-home-idle]'));
     startBrandWave(document.querySelector('#brandWave')).then((stop) => {
@@ -398,7 +458,7 @@ function render(options = {}) {
   }
   bindDemoFlow(context);
   stopPointerCardMotion = attachPointerCardMotion(root);
-  document.querySelector('[data-library-retry]')?.addEventListener('click', loadAssetLibrary);
+  on('[data-library-retry]', 'click', loadAssetLibrary);
   if (options.focus) document.querySelector('#workflowPageTitle')?.focus({ preventScroll: true });
   if (!options.preserveScroll) window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -434,7 +494,18 @@ async function loadWorkflowTemplates() {
 window.addEventListener('hashchange', () => {
   const nextRoute = parseWorkflowLocation(window.location.hash).route;
   const entersStudio = activeRouteId !== 'demoBuilder' && nextRoute.id === 'demoBuilder';
-  if (entersStudio) resetStudioSession();
+  if (entersStudio) {
+    // Restore persisted state instead of resetting, so refresh/back button preserves the page.
+    restoreStudioState();
+    if (studioMode === 'natural') naturalScreenSettled = true;
+  }
+  const leavesStudio = activeRouteId === 'demoBuilder' && nextRoute.id !== 'demoBuilder';
+  if (leavesStudio) {
+    // Save current state to storage BEFORE clearing in-memory, so navigating back restores it.
+    persistStudioState();
+    studioMode = null;
+    projectContext = null;
+  }
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const changesStudioChrome = activeRouteId === 'demoBuilder' || nextRoute.id === 'demoBuilder';
   const shouldRevealLight = activeRouteId === 'home'
@@ -453,6 +524,7 @@ window.addEventListener('hashchange', () => {
   render({ focus: true });
   stopRouteTransition = () => {};
 });
+restoreStudioState();
 render();
 loadAssetLibrary();
 loadWorkflowTemplates();

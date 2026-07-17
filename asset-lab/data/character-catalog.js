@@ -108,6 +108,16 @@ export const characterCatalog = {
     base: `${TEAMMATE_ROOT}/lirael/base.png`,
     library: teammateLibrary('lirael', 4),
   },
+  samurai: {
+    label: 'Samurai · 武士',
+    base: `${TEAMMATE_ROOT}/samurai/base.png`,
+    library: teammateLibrary('samurai', 36, ['idle', 'walk', 'jump']),
+  },
+  knight: {
+    label: 'Knight · 骑士',
+    base: `${TEAMMATE_ROOT}/knight/base.png`,
+    library: teammateLibrary('knight', 36, ['idle']),
+  },
 };
 
 function libraryFromRecord(record, resolveAssetUrl) {

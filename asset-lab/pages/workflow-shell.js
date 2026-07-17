@@ -2,10 +2,10 @@ import { hashFor, routeById } from '../data/workflow-routes.js';
 import {
   DEFAULT_DEMO_PROFILE,
   DEMO_CHARACTER_ASSETS,
-  DEMO_PRODUCTION_STEPS,
   DEMO_SOURCE_OPTIONS,
 } from '../features/demo-production.js';
 import { NATURAL_CREATION_DURATION_MS } from '../features/natural-creation.js';
+import { characterCatalog } from '../data/character-catalog.js';
 import {
   backHrefFor,
   breadcrumbsFor,
@@ -22,10 +22,10 @@ const navItems = Object.freeze([
 ]);
 
 const deliveryJourney = Object.freeze([
-  ['exportSelect', '选择动作'],
-  ['exportPackage', '通用包'],
-  ['exportPreview', 'WASD 预览'],
-  ['exportTarget', '目标引擎'],
+  ['exportSelect', '选择导出动作'],
+  ['exportPackage', '通用资源包'],
+  ['exportPreview', 'WASD 画布预览'],
+  ['exportTarget', '选择目标引擎'],
   ['exportImport', '导入项目'],
 ]);
 
@@ -190,6 +190,8 @@ function renderHome(context) {
     ['cast-reaper', './brand/characters/reaper-idle.gif', '火焰镰刀骷髅待机动画'],
     ['cast-schoolgirl', './brand/characters/schoolgirl-idle.gif', '黑发少女待机动画'],
     ['cast-boy', './brand/characters/boy-idle.gif', '少年待机动画'],
+    ['cast-samurai-walk', '../assets/resources/characters/samurai/views/side/walk.gif', '武士行走动画'],
+    ['cast-knight', '../assets/resources/characters/knight/views/side/idle.gif', '骑士待机动画'],
   ];
   const characterCrowd = el('div', {
     className: 'character-crowd',
@@ -200,7 +202,7 @@ function renderHome(context) {
       alt,
       attributes: { 'data-home-idle': '', 'data-idle-src': src },
     })),
-    el('span', { className: 'character-crowd__label', text: '3 ANIMATED CHARACTERS · IDLE' }),
+    el('span', { className: 'character-crowd__label', text: '5 ANIMATED CHARACTERS · IDLE & WALK' }),
   ]);
 
   const hero = el('section', { className: 'product-hero' }, [
@@ -248,7 +250,10 @@ function renderHome(context) {
   const masterImages = [
     ['游侠', '../assets/resources/characters/lirael/base.png'],
     ['骷髅剑士', '../assets/resources/characters/skeleton/base.png'],
+    ['武士', '../assets/resources/characters/samurai/base.png'],
+    ['骑士', '../assets/resources/characters/knight/base.png'],
     ['少年', DEMO_CHARACTER_ASSETS.base],
+    ['点灯人', '../assets/resources/character/frames/walk-01.png'],
   ];
   const masterStage = el('div', { className: 'story-visual master-stage', attributes: { 'aria-label': '角色母版选择示意' } }, [
     el('div', { className: 'master-stage__rail' }, masterImages.map(([name, src], index) => el('figure', {
@@ -527,7 +532,7 @@ function renderProjectHub(context) {
     el('aside', { className: 'project-next' }, [
       el('span', { className: 'overline', text: 'NEXT STEP' }),
       el('h3', { text: '继续审核侧视行走动作' }),
-      el('p', { text: '生成已结束，自动质检完成。下一步确认 8 个正式帧。' }),
+      el('p', { text: '生成已结束，自动质检完成。下一步确认行走动作的 8 个正式帧。' }),
       el('a', { href: './review.html?character=boy&view=side&action=walk', text: '进入动作检查台 →' }),
     ]),
   ]);
@@ -936,9 +941,12 @@ function renderWorkbenchDock(snapshot) {
 }
 
 const masterCandidates = Object.freeze([
-  { id: 'boy', label: '轻装信使', src: DEMO_CHARACTER_ASSETS.base },
+  { id: 'boy', label: '少年', src: DEMO_CHARACTER_ASSETS.base },
   { id: 'skeleton', label: '骷髅剑士', src: '../assets/resources/characters/skeleton/base.png' },
   { id: 'lirael', label: '暗色游侠', src: '../assets/resources/characters/lirael/base.png' },
+  { id: 'samurai', label: '武士', src: '../assets/resources/characters/samurai/base.png' },
+  { id: 'knight', label: '骑士', src: '../assets/resources/characters/knight/base.png' },
+  { id: 'lamplighter', label: '守夜人', src: '../assets/resources/character/frames/walk-01.png' },
 ]);
 
 const projectLabels = Object.freeze({
@@ -1026,13 +1034,74 @@ function renderStudioModeChooser() {
 }
 
 const naturalExamples = Object.freeze([
-  '创建一个名叫雾灯守夜人的低饱和像素角色，采用横版侧视，生成待机和行走动作并导出 Sprite Sheet 与 JSON。',
-  '做一名叫纸鸢信使的轻装角色，侧视单向，动作轻快，完成后准备导出。',
-  '生成一个暗色像素游侠，保持清晰轮廓，制作 Idle 与 Walk 八帧循环动画。',
+  '创建一个名叫守夜人的低饱和像素角色，采用横版侧视，生成待机和行走动作并导出 Sprite Sheet 与 JSON。',
+  '做一名叫轻装信使的少年角色，侧视单向，动作轻快，完成后准备导出。',
+  '生成一个暗色游侠角色，保持清晰轮廓，制作 Idle 与 Walk 八帧循环动画。',
 ]);
 
-function renderNaturalCommandInput(snapshot) {
-  return el('section', { className: 'natural-creation natural-agent-screen natural-agent-screen--input' }, [
+const NATURAL_CHARACTER_OPTIONS = Object.freeze([
+  { id: 'lamplighter', label: '守夜人', prompt: naturalExamples[0] },
+  { id: 'boy', label: '少年', prompt: '创建一个像素少年角色，横版侧视，生成待机和行走动作并导出 Sprite Sheet 与 JSON。' },
+  { id: 'skeleton', label: '骷髅剑士', prompt: '生成一个卡通像素骷髅剑士角色，横版侧视，制作行走八帧循环动画并导出 Sprite Sheet。' },
+  { id: 'lirael', label: '暗色游侠', prompt: '创建一名叫暗色游侠的像素德鲁伊角色，横版侧视，生成待机动作并导出。' },
+  { id: 'samurai', label: '武士', prompt: '生成一个像素武士角色，横版侧视，制作待机、行走和跳跃动作并导出 Sprite Sheet 与 JSON。' },
+  { id: 'knight', label: '骑士', prompt: '创建一名灰度像素骑士角色，横版侧视，生成待机动作并导出 Sprite Sheet。' },
+]);
+
+function renderCharacterSelector() {
+  return el('div', { className: 'natural-agent-character-picker', attributes: { 'aria-label': '选择角色资产' } },
+    NATURAL_CHARACTER_OPTIONS.map((option) => {
+      const record = characterCatalog[option.id];
+      return el('button', {
+        type: 'button',
+        className: '',
+        attributes: { 'data-natural-character': option.id, 'aria-label': `使用${option.label}资产` },
+      }, [
+        el('img', { src: record?.base || characterCatalog.boy.base, alt: option.label }),
+        el('span', { text: option.label }),
+      ]);
+    }),
+  );
+}
+
+function resolveNaturalAssets(intent) {
+  const id = intent?.characterId || 'boy';
+  const record = characterCatalog[id] || characterCatalog.boy;
+  const fallback = { base: DEMO_CHARACTER_ASSETS.base, idleFrames: DEMO_CHARACTER_ASSETS.idleFrames, walkFrames: DEMO_CHARACTER_ASSETS.walkFrames };
+  if (!record) return { ...fallback, fallbackIdleFrames: fallback.idleFrames, fallbackWalkFrames: fallback.walkFrames };
+  const side = record.library?.side;
+
+  let idleFrames = side?.idle?.frames;
+  let walkFrames = side?.walk?.frames;
+
+  // Cross-action fallback: if one action is missing, use the other
+  if (!idleFrames && walkFrames) idleFrames = walkFrames;
+  if (!walkFrames && idleFrames) walkFrames = idleFrames;
+
+  // Trim to 8 frames for display, or pad if fewer than 8
+  const DISPLAY = 8;
+  const normalize = (frames) => {
+    if (!frames || !frames.length) return null;
+    if (frames.length >= DISPLAY) return frames.slice(0, DISPLAY);
+    const padded = [...frames];
+    while (padded.length < DISPLAY) padded.push(frames[padded.length % frames.length]);
+    return padded;
+  };
+
+  idleFrames = normalize(idleFrames) || fallback.idleFrames;
+  walkFrames = normalize(walkFrames) || fallback.walkFrames;
+
+  return {
+    base: record.base || fallback.base,
+    idleFrames,
+    walkFrames,
+    fallbackIdleFrames: fallback.idleFrames,
+    fallbackWalkFrames: fallback.walkFrames,
+  };
+}
+
+function renderNaturalCommandInput(snapshot, settled) {
+  return el('section', { className: 'natural-creation natural-agent-screen natural-agent-screen--input', attributes: settled ? { 'data-agent-settled': '' } : {} }, [
     renderNaturalScreenHeader('AI 资产生成'),
     el('button', {
       className: 'natural-agent-suggestion',
@@ -1064,9 +1133,10 @@ function renderNaturalCommandInput(snapshot) {
       el('button', { className: 'natural-agent-composer__submit', type: 'submit', text: '开始生成' }),
       snapshot.error ? el('p', { className: 'natural-command-form__error', text: snapshot.error }) : null,
     ]),
+    renderCharacterSelector(),
     el('div', { className: 'natural-agent-examples', attributes: { 'aria-label': '示例指令' } }, naturalExamples.slice(1).map((example, index) => el('button', {
       type: 'button',
-      text: index === 0 ? '轻装信使' : '暗色游侠',
+      text: index === 0 ? '少年' : '暗色游侠',
       attributes: { 'data-natural-example': example },
     }))),
     el('aside', { className: 'natural-agent-preview', attributes: { 'data-pointer-card': 'subtle' } }, [
@@ -1076,7 +1146,8 @@ function renderNaturalCommandInput(snapshot) {
   ]);
 }
 
-function renderNaturalProgress(snapshot) {
+function renderNaturalProgress(snapshot, settled) {
+  const assets = resolveNaturalAssets(snapshot.intent);
   const active = snapshot.steps[snapshot.stepIndex] || snapshot.steps[0];
   const arrivedIds = new Set(snapshot.artifacts.map((artifact) => artifact.id));
   const masterArrived = arrivedIds.has('master');
@@ -1084,7 +1155,7 @@ function renderNaturalProgress(snapshot) {
   const activeArtifact = latestCheck
     ? `质检 · ${latestCheck.label}`
     : snapshot.activeArtifact?.label || '等待首个图像产物';
-  const renderLiveRail = (action, frames) => el('section', { className: 'natural-live-rail' }, [
+  const renderLiveRail = (action, frames, fallbackFrames) => el('section', { className: 'natural-live-rail' }, [
     el('header', {}, [
       el('span', {}, [el('small', { text: `SIDE / ${action.toUpperCase()}` }), el('b', { text: '逐帧产物' })]),
       el('strong', { text: `${snapshot.artifacts.filter((artifact) => artifact.action === action).length} / 8` }),
@@ -1092,13 +1163,16 @@ function renderNaturalProgress(snapshot) {
     el('div', { className: 'natural-live-rail__frames', attributes: { 'aria-label': `${action} 中间产物` } }, frames.map((src, index) => {
       const id = `${action}-${String(index + 1).padStart(2, '0')}`;
       const arrived = arrivedIds.has(id);
+      const img = arrived && fallbackFrames
+        ? (() => { const node = el('img', { src, alt: `${action} 第 ${index + 1} 帧已生成` }); node.onerror = function () { this.onerror = null; this.src = fallbackFrames[index] || fallbackFrames[0]; }; return node; })()
+        : arrived ? el('img', { src, alt: `${action} 第 ${index + 1} 帧已生成` }) : null;
       return el('span', { className: arrived ? 'is-arrived' : 'is-pending' }, [
-        arrived ? el('img', { src, alt: `${action} 第 ${index + 1} 帧已生成` }) : el('i', { attributes: { 'aria-hidden': 'true' } }),
+        img || (arrived ? null : el('i', { attributes: { 'aria-hidden': 'true' } })),
         el('small', { text: String(index + 1).padStart(2, '0') }),
       ]);
     })),
   ]);
-  return el('section', { className: 'natural-creation natural-agent-screen natural-agent-screen--progress', attributes: { 'data-natural-status': snapshot.status } }, [
+  return el('section', { className: 'natural-creation natural-agent-screen natural-agent-screen--progress', attributes: { 'data-natural-status': snapshot.status, ...(settled ? { 'data-agent-settled': '' } : {}) } }, [
     renderNaturalScreenHeader('AI 资产生成', {
       trailing: el('div', { className: 'natural-agent-live', attributes: { 'aria-label': `已收到 ${snapshot.artifacts.length} 个图像产物` } }, [
         el('i', { attributes: { 'aria-hidden': 'true' } }),
@@ -1113,12 +1187,12 @@ function renderNaturalProgress(snapshot) {
         ]),
         el('div', { className: `natural-live-master ${masterArrived ? 'is-arrived' : 'is-pending'}` }, [
           el('div', { className: 'natural-progress__resolve', attributes: { 'aria-hidden': 'true' } }, Array.from({ length: 36 }, (_, index) => el('i', { className: `resolve-ring-${Math.floor(index / 8)}` }))),
-          masterArrived ? el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.intent.name} 身份母版已生成` }) : null,
+          masterArrived ? (() => { const img = el('img', { src: assets.base, alt: `${snapshot.intent.name} 身份母版已生成` }); img.onerror = function () { this.onerror = null; this.src = DEMO_CHARACTER_ASSETS.base; }; return img; })() : null,
           el('span', {}, [el('small', { text: 'IDENTITY MASTER' }), el('b', { text: masterArrived ? snapshot.intent.name : '等待母版产物' })]),
         ]),
         el('div', { className: 'natural-live-sequences' }, [
-          renderLiveRail('idle', DEMO_CHARACTER_ASSETS.idleFrames),
-          renderLiveRail('walk', DEMO_CHARACTER_ASSETS.walkFrames),
+          renderLiveRail('idle', assets.idleFrames, assets.fallbackIdleFrames),
+          renderLiveRail('walk', assets.walkFrames, assets.fallbackWalkFrames),
         ]),
       ]),
       el('aside', { className: 'natural-agent-runner' }, [
@@ -1150,30 +1224,31 @@ function renderNaturalProgress(snapshot) {
   ]);
 }
 
-function renderNaturalResult(snapshot) {
-  const previewHref = './review.html?character=boy&view=side&action=walk';
-  return el('section', { className: 'natural-creation natural-agent-screen natural-agent-screen--result' }, [
+function renderNaturalResult(snapshot, settled) {
+  const assets = resolveNaturalAssets(snapshot.intent);
+  const previewHref = `./review.html?character=${snapshot.intent.characterId || 'boy'}&view=side&action=walk`;
+  return el('section', { className: 'natural-creation natural-agent-screen natural-agent-screen--result', attributes: settled ? { 'data-agent-settled': '' } : {} }, [
     renderNaturalScreenHeader('AI 资产生成'),
     el('div', { className: 'natural-agent-result-stage' }, [
       el('section', { className: 'natural-result__assets' }, [
-        el('figure', { className: 'natural-result__master', attributes: { 'data-pointer-card': 'subtle' } }, [
-          el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.intent.name}身份母版` }),
+        el('figure', { className: 'natural-result__master' }, [
+          (() => { const img = el('img', { src: assets.base, alt: `${snapshot.intent.name}身份母版` }); img.onerror = function () { this.onerror = null; this.src = DEMO_CHARACTER_ASSETS.base; }; return img; })(),
           el('figcaption', {}, [el('small', { text: 'IDENTITY MASTER' }), el('b', { text: snapshot.intent.name })]),
         ]),
         el('div', { className: 'natural-result__sequences' }, [
           el('header', {}, [el('span', {}, [el('small', { text: 'SIDE / WALK' }), el('b', { text: '8 FPS · LOOP' })]), el('i', { text: '8 FRAMES' })]),
-          renderFrameStrip(DEMO_CHARACTER_ASSETS.walkFrames, null, 'Walk 八帧动作序列'),
+          renderFrameStrip(assets.walkFrames, null, 'Walk 八帧动作序列', assets.fallbackWalkFrames),
           el('header', {}, [el('span', {}, [el('small', { text: 'SIDE / IDLE' }), el('b', { text: '8 FPS · LOOP' })]), el('i', { text: '8 FRAMES' })]),
-          renderFrameStrip(DEMO_CHARACTER_ASSETS.idleFrames, null, 'Idle 八帧动作序列'),
+          renderFrameStrip(assets.idleFrames, null, 'Idle 八帧动作序列', assets.fallbackIdleFrames),
         ]),
       ]),
       el('aside', { className: 'natural-agent-delivery' }, [
         el('header', {}, [
           el('span', {}, [el('small', { text: 'ASSET READY' }), el('h1', { id: 'workflowPageTitle', text: `${snapshot.intent.name}已准备完成` })]),
-          el('i', { text: '完成', attributes: { 'aria-label': '生成完成' } }),
+          el('span', { className: 'natural-agent-delivery__badge', text: '完成', attributes: { 'aria-label': '生成完成' } }),
         ]),
         el('p', { text: '身份母版、Idle 与 Walk 已通过完整质量检查，可继续导出或发送到预览台。' }),
-        el('div', { className: 'natural-result__checks' }, ['透明背景', '画布尺寸', '脚底基线', '相邻位移', '循环接缝'].map((label) => el('span', {}, [
+        el('div', { className: 'natural-result__checks' }, ['透明背景', '画布尺寸', '脚底基线', '主体高度', '相邻位移', '循环接缝'].map((label) => el('span', {}, [
           el('i', { text: '通过' }),
           el('b', { text: label }),
         ]))),
@@ -1206,10 +1281,10 @@ function renderNaturalResult(snapshot) {
   ]);
 }
 
-function renderNaturalCreation(snapshot) {
-  if (snapshot.status === 'running') return renderNaturalProgress(snapshot);
-  if (snapshot.status === 'completed') return renderNaturalResult(snapshot);
-  return renderNaturalCommandInput(snapshot);
+function renderNaturalCreation(snapshot, settled) {
+  if (snapshot.status === 'running') return renderNaturalProgress(snapshot, settled);
+  if (snapshot.status === 'completed') return renderNaturalResult(snapshot, settled);
+  return renderNaturalCommandInput(snapshot, settled);
 }
 
 function renderProjectSetup(projectContext = {}, workflowState = {}) {
@@ -1364,12 +1439,15 @@ function selectedAssetSet(snapshot) {
   return { master, idle: Array(8).fill(master), walk };
 }
 
-function renderFrameStrip(frames, received, label) {
+function renderFrameStrip(frames, received, label, fallbackFrames) {
   const isLive = Number.isInteger(received);
   return el('div', { className: `node-frame-strip ${isLive ? 'is-revealing' : ''}`, attributes: { 'aria-label': label } }, frames.map((src, index) => {
     const arrived = !isLive || index < received;
+    const img = arrived && fallbackFrames
+      ? (() => { const node = el('img', { src, alt: index === 0 ? label : '' }); node.onerror = function () { this.onerror = null; this.src = fallbackFrames[index] || fallbackFrames[0]; }; return node; })()
+      : arrived ? el('img', { src, alt: index === 0 ? label : '' }) : null;
     return el('span', { className: arrived ? 'is-arrived' : 'is-pending' }, [
-      arrived ? el('img', { src, alt: index === 0 ? label : '' }) : el('i', { attributes: { 'aria-hidden': 'true' } }),
+      img || (arrived ? null : el('i', { attributes: { 'aria-hidden': 'true' } })),
       el('small', { text: String(index + 1).padStart(2, '0') }),
     ]);
   }));
@@ -1416,7 +1494,7 @@ function renderMasterGenerator(snapshot, focus, projectContext, libraryState = {
         el('label', {}, [el('span', { text: '身份与外观' }), el('textarea', { text: snapshot.master === 'review' ? snapshot.profile.description : '', attributes: { name: 'description', required: '', maxlength: '240', rows: '3', placeholder: '描述身份、服装、体型和识别特征' } })]),
         el('label', {}, [el('span', { text: '美术约束' }), el('textarea', { text: snapshot.master === 'review' ? snapshot.profile.style : projectContext.style || '', attributes: { name: 'style', required: '', maxlength: '180', rows: '2', placeholder: '输入风格、色彩和材质约束' } })]),
         sourceField,
-        el('button', { className: 'node-action', type: 'submit', text: snapshot.master === 'review' ? '重新生成候选' : '生成 3 张候选 · 约 9 秒', attributes: { 'data-connection-required': 'source:master-gen' } }),
+        el('button', { className: 'node-action', type: 'submit', text: snapshot.master === 'review' ? '重新生成候选' : '生成 6 张候选 · 约 15 秒', attributes: { 'data-connection-required': 'source:master-gen' } }),
       ]),
     ],
   });
@@ -1563,9 +1641,9 @@ function renderProjectNode(projectContext) {
   });
 }
 
-function renderDemoBuilder(snapshot, libraryState, projectContext, workflowState, studioMode, naturalState) {
+function renderDemoBuilder(snapshot, libraryState, projectContext, workflowState, studioMode, naturalState, naturalSettled) {
   if (!studioMode) return renderStudioModeChooser();
-  if (studioMode === 'natural') return renderNaturalCreation(naturalState);
+  if (studioMode === 'natural') return renderNaturalCreation(naturalState, naturalSettled);
   if (!projectContext) return renderProjectSetup({}, workflowState);
   const restoredWorkflow = Boolean(snapshot.workflow);
   const showGenerator = Boolean(snapshot.source);
@@ -1714,9 +1792,9 @@ function renderActions(context) {
   return bar;
 }
 
-function renderWorkspace(context, demoSnapshot, libraryState, projectContext, workflowState, studioMode, naturalState) {
+function renderWorkspace(context, demoSnapshot, libraryState, projectContext, workflowState, studioMode, naturalState, naturalSettled) {
   if (context.route.id === 'demoBuilder') {
-    return el('main', { className: 'production-canvas-workspace' }, [renderDemoBuilder(demoSnapshot, libraryState, projectContext, workflowState, studioMode, naturalState)]);
+    return el('main', { className: 'production-canvas-workspace' }, [renderDemoBuilder(demoSnapshot, libraryState, projectContext, workflowState, studioMode, naturalState, naturalSettled)]);
   }
   const parent = parentIdFor(context) ? routeById(parentIdFor(context)) : null;
   return el('main', { className: 'product-workspace' }, [
@@ -1733,6 +1811,10 @@ function renderWorkspace(context, demoSnapshot, libraryState, projectContext, wo
 }
 
 export function renderWorkflowShell(root, context, options = {}) {
+  // Preserve <progress> element across re-renders so CSS transition stays alive
+  const oldProgress = root.querySelector('.natural-progress__bar progress');
+  const oldProgressValue = oldProgress ? Number(oldProgress.value) : 0;
+
   root.replaceChildren();
   root.dataset.routeId = context.route.id;
   root.append(context.route.id === 'demoBuilder' ? renderStudioBar(context, options.projectContext, options.workflowState, options.studioMode) : renderHeader(context));
@@ -1744,9 +1826,18 @@ export function renderWorkflowShell(root, context, options = {}) {
     options.workflowState,
     options.studioMode,
     options.naturalState,
+    options.naturalSettled,
   ));
   if (context.route.id === 'demoBuilder') {
     const workflowLibrary = renderWorkflowLibrary(options.workflowState);
     if (workflowLibrary) root.append(workflowLibrary);
+  }
+
+  // Restore progress element and animate to new value
+  const newProgress = root.querySelector('.natural-progress__bar progress');
+  if (newProgress && oldProgress && oldProgressValue > 0) {
+    newProgress.value = oldProgressValue;
+    const targetValue = Number(newProgress.getAttribute('value'));
+    requestAnimationFrame(() => { newProgress.value = targetValue; });
   }
 }

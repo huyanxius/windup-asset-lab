@@ -63,7 +63,7 @@ function renderJob(job) {
       const card = document.createElement('figure');
       card.className = 'candidate-card is-new';
       card.dataset.key = key;
-      card.style.animationDelay = `${Math.min(added, 7) * 70}ms`;
+      card.style.animationDelay = `${Math.min(added, 7) * 30}ms`;
       added += 1;
       const image = document.createElement('img');
       image.src = `${api.assetUrl(output.url)}?v=${encodeURIComponent(job.updatedAt || Date.now())}`;

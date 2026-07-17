@@ -1,0 +1,17 @@
+{
+  "id": "boy",
+  "label": "少年 · 默认角色",
+  "description": "young slender pixel-art boy with messy black hair, dark blue long coat, brown vest, white shirt, red scarf, brown trousers and boots",
+  "base": "assets/resources/characters/boy/base.png",
+  "createdAt": "2026-07-13T11:00:00+08:00",
+  "sourceJob": "import-boy-001",
+  "model": "manual-import",
+  "starterPack": {
+    "view": "side",
+    "actions": ["idle", "walk"]
+  },
+  "generationRoute": "frames",
+  "sourceCallCount": 0,
+  "frameCount": 8,
+  "importedFrom": "default-demo-assets"
+}

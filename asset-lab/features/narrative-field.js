@@ -9,6 +9,16 @@ const PATTERN_SOURCES = [
   ],
   ['../assets/resources/characters/skeleton/views/side/walk-06.png'],
   ['../assets/resources/characters/lirael/views/side/walk-03.png'],
+  ['../assets/resources/characters/samurai/base.png'],
+  [
+    '../assets/resources/characters/samurai/views/side/walk-03.png',
+    '../assets/resources/characters/samurai/views/side/walk-06.png',
+  ],
+  ['../assets/resources/characters/knight/base.png'],
+  [
+    '../assets/resources/characters/knight/views/side/idle-12.png',
+    '../assets/resources/characters/knight/views/side/idle-24.png',
+  ],
 ];
 
 function clamp(value, minimum = 0, maximum = 1) {

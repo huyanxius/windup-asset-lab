@@ -50,11 +50,21 @@ export function hrefForAction(action, params = DEMO_ROUTE_PARAMS, currentQuery =
   return hashFor(action.to, { params, query: { ...inheritedQuery, ...action.query } });
 }
 
+// Query params that belong to demoBuilder and should not leak to parent routes.
+const DEMO_BUILDER_QUERY_KEYS = new Set(['source', 'imported', 'character', 'origin']);
+
+function filteredQuery(context, excludeDemoKeys = false) {
+  const entries = excludeDemoKeys
+    ? [...context.query.entries()].filter(([key]) => !DEMO_BUILDER_QUERY_KEYS.has(key))
+    : [...context.query];
+  return Object.fromEntries(entries);
+}
+
 export function backHrefFor(context) {
   const parentId = parentIdFor(context);
   return parentId ? hashFor(parentId, {
     params: context.params,
-    query: Object.fromEntries(context.query),
+    query: filteredQuery(context, true),
   }) : null;
 }
 
@@ -72,7 +82,7 @@ export function breadcrumbsFor(context) {
     crumbs.unshift({
       href: hashFor(current.id, {
         params: context.params,
-        query: Object.fromEntries(context.query),
+        query: filteredQuery(context, first),
       }),
       id: current.id,
       title: current.title,

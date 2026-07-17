@@ -1,0 +1,17 @@
+{
+  "id": "samurai",
+  "label": "Samurai",
+  "description": "pixel-art samurai warrior in layered armour with a sash and sheathed katana, ready stance",
+  "base": "assets/resources/characters/samurai/base.png",
+  "createdAt": "2026-07-17T10:00:00+08:00",
+  "sourceJob": "import-samurai-001",
+  "model": "manual-import",
+  "starterPack": {
+    "view": "side",
+    "actions": ["idle", "walk", "jump"]
+  },
+  "generationRoute": "frames",
+  "sourceCallCount": 0,
+  "frameCountPerAction": 36,
+  "importedFrom": "external-asset-pack"
+}

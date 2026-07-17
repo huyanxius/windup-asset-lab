@@ -35,8 +35,8 @@ export const WORKFLOW_ROUTES = Object.freeze([
     exit: null,
     regions: ['产品主张', '继续当前项目', '核心能力', '工作流入口'],
     actions: [
-      { label: '开始生成', to: 'demoBuilder', kind: 'primary' },
-      { label: '进入项目资产', to: 'library' },
+      { label: '开始创作', to: 'demoBuilder', kind: 'primary' },
+      { label: '查看项目资产', to: 'library' },
     ],
   }),
   route({

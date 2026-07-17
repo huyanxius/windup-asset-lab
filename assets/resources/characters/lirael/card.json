@@ -1,0 +1,17 @@
+{
+  "id": "lirael",
+  "label": "Lirael",
+  "description": "pixel-art young druid in a deep green hooded dress, red hair, antler crown, rune details and a staff with a blue orb",
+  "base": "assets/resources/characters/lirael/base.png",
+  "createdAt": "2026-07-13T11:00:00+08:00",
+  "sourceJob": "import-lirael-001",
+  "model": "manual-import",
+  "starterPack": {
+    "view": "side",
+    "actions": ["walk"]
+  },
+  "generationRoute": "frames",
+  "sourceCallCount": 0,
+  "frameCount": 4,
+  "importedFrom": "teammate-asset-pack"
+}

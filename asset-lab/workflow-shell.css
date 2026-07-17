@@ -2518,7 +2518,7 @@ a {
 
 .master-choice-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 5px;
 }
 
@@ -2708,7 +2708,7 @@ a {
 
 .master-arrival-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 5px;
 }
 
@@ -4735,25 +4735,46 @@ body:has(.project-setup) {
 }
 
 .cast-reaper {
-  z-index: 1;
-  top: 14%;
-  left: 2%;
-  width: clamp(195px, 17vw, 272px);
+  z-index: 4;
+  top: 4%;
+  left: 4%;
+  width: clamp(160px, 14vw, 220px);
 }
 
 .cast-schoolgirl {
+  z-index: 3;
+  top: 6%;
+  left: 36%;
+  width: clamp(120px, 11vw, 175px);
+}
+
+.cast-knight {
   z-index: 2;
-  top: 9%;
-  right: 1%;
-  width: clamp(145px, 13vw, 205px);
+  top: 3%;
+  right: 4%;
+  width: clamp(155px, 14vw, 220px);
+}
+
+.cast-samurai {
+  z-index: 3;
+  bottom: 28%;
+  left: 8%;
+  width: clamp(130px, 12vw, 190px);
 }
 
 .cast-boy {
-  z-index: 3;
-  right: 22%;
-  bottom: 7%;
-  width: clamp(215px, 19vw, 310px);
+  z-index: 5;
+  right: 28%;
+  bottom: 6%;
+  width: clamp(180px, 16vw, 260px);
   filter: drop-shadow(0 22px 22px rgba(0, 0, 0, 0.78));
+}
+
+.cast-samurai-walk {
+  z-index: 1;
+  bottom: 10%;
+  right: 3%;
+  width: clamp(120px, 11vw, 175px);
 }
 
 .character-crowd__label {
@@ -4845,21 +4866,39 @@ body:has(.project-setup) {
   }
 
   .cast-reaper {
-    top: 24%;
-    left: 0;
-    width: 180px;
+    top: 14%;
+    left: 2%;
+    width: 145px;
   }
 
   .cast-schoolgirl {
-    top: 18%;
-    right: 0;
-    width: 138px;
+    top: 16%;
+    left: 30%;
+    width: 108px;
+  }
+
+  .cast-knight {
+    top: 12%;
+    right: 2%;
+    width: 140px;
+  }
+
+  .cast-samurai {
+    bottom: 26%;
+    left: 6%;
+    width: 115px;
   }
 
   .cast-boy {
     right: 22%;
     bottom: 5%;
-    width: 215px;
+    width: 170px;
+  }
+
+  .cast-samurai-walk {
+    bottom: 8%;
+    right: 2%;
+    width: 108px;
   }
 
   .hero-index, .character-crowd__label {
@@ -5085,7 +5124,7 @@ body:has(.project-setup) {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 14px;
   align-items: end;
 }
@@ -6365,6 +6404,14 @@ body:has(.project-setup) {
 
 .master-card:nth-child(3) img {
   animation-delay: -4s;
+}
+
+.master-card:nth-child(4) img {
+  animation-delay: -5s;
+}
+
+.master-card:nth-child(5) img {
+  animation-delay: -1s;
 }
 
 .review-stage__frames > span.needs-review {
@@ -10825,6 +10872,13 @@ body:has(.studio-mode-gateway), body:has(.natural-creation) {
   animation: studio-mode-enter 460ms cubic-bezier(.22, 1, .36, 1) both;
 }
 
+.natural-creation[data-agent-settled] {
+  animation: none;
+}
+.natural-creation[data-agent-settled] .is-arrived {
+  animation: none;
+}
+
 .natural-creation--input {
   display: grid;
   grid-template-columns: minmax(360px, 36vw) minmax(560px, 1fr);
@@ -11368,6 +11422,7 @@ body:has(.studio-mode-gateway), body:has(.natural-creation) {
 .natural-progress__bar progress::-moz-progress-bar {
   border-radius: 99px;
   background: linear-gradient(90deg, #294833, #709178);
+  transition: width 520ms cubic-bezier(.22, 1, .36, 1);
 }
 
 .natural-progress__steps {
@@ -11484,69 +11539,6 @@ body:has(.studio-mode-gateway), body:has(.natural-creation) {
   background: #f4f3ef;
 }
 
-.natural-result__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 28px;
-  padding: 0 2px 25px;
-  border-bottom: 1px solid rgba(20, 20, 20, .1);
-}
-
-.natural-result__header > span {
-  display: grid;
-  gap: 7px;
-}
-
-.natural-result__header small {
-  color: #55705d;
-  font: 700 7px monospace;
-  letter-spacing: .15em;
-}
-
-.natural-result__header h1 {
-  margin: 0;
-  font: 500 clamp(30px, 3.5vw, 48px)/1.08 Georgia, "Songti SC", serif;
-}
-
-.natural-result__header p {
-  max-width: 660px;
-  margin: 0;
-  color: #707671;
-  font-size: 9px;
-  line-height: 1.65;
-}
-
-.natural-result__header > i {
-  display: grid;
-  width: 54px;
-  height: 54px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 50%;
-  color: #eef5ef;
-  background: #355c40;
-  box-shadow: 0 0 0 9px rgba(53, 92, 64, .09);
-  font-size: 20px;
-  font-style: normal;
-  animation: natural-result-mark 620ms cubic-bezier(.22, 1, .36, 1) both;
-}
-
-.natural-result__body {
-  display: grid;
-  min-height: 0;
-  grid-template-columns: minmax(0, 1.35fr) minmax(330px, .65fr);
-  gap: 18px;
-  padding-top: 18px;
-}
-
-.natural-result__assets, .natural-result__delivery {
-  min-height: 0;
-  border: 1px solid rgba(31, 43, 35, .1);
-  border-radius: 18px;
-  background: rgba(250, 250, 247, .82);
-  box-shadow: 0 20px 52px rgba(31, 42, 34, .08), inset 0 1px #fff;
-}
 
 .natural-result__assets {
   display: grid;
@@ -11628,25 +11620,6 @@ body:has(.studio-mode-gateway), body:has(.natural-creation) {
   margin-bottom: 9px;
 }
 
-.natural-result__delivery {
-  display: grid;
-  align-content: start;
-  gap: 14px;
-  padding: 24px;
-  overflow: auto;
-}
-
-.natural-result__delivery > .overline {
-  color: #667169;
-  font: 700 7px monospace;
-  letter-spacing: .15em;
-}
-
-.natural-result__delivery > h2 {
-  margin: 0;
-  font: 500 26px Georgia, "Songti SC", serif;
-}
-
 .natural-result__checks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -11722,21 +11695,6 @@ body:has(.studio-mode-gateway), body:has(.natural-creation) {
 .natural-result__saved small {
   color: #6f7c72;
   font-size: 7px;
-}
-
-.natural-result__delivery > footer {
-  display: flex;
-  gap: 8px;
-  margin-top: 2px;
-  padding-top: 13px;
-  border-top: 1px solid rgba(20, 20, 20, .09);
-}
-
-.natural-result__delivery > footer button {
-  min-height: 39px;
-  flex: 1;
-  padding: 0 10px;
-  font-size: 8px;
 }
 
 @keyframes studio-mode-enter {
@@ -11896,7 +11854,7 @@ body:has(.studio-mode-gateway), body:has(.natural-creation) {
     padding: 86px 14px 20px;
   }
 
-  .natural-progress__header, .natural-result__header {
+  .natural-progress__header {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -11925,7 +11883,7 @@ body:has(.studio-mode-gateway), body:has(.natural-creation) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .studio-mode-gateway, .natural-creation, .studio-mode-card, .studio-mode-card::after, .studio-mode-card__glyph--natural i, .natural-progress__resolve i, .natural-progress__master > img, .natural-progress__filmstrip span, .natural-progress__steps li.is-running > i, .natural-result__header > i {
+  .studio-mode-gateway, .natural-creation, .studio-mode-card, .studio-mode-card::after, .studio-mode-card__glyph--natural i, .natural-progress__resolve i, .natural-progress__master > img, .natural-progress__filmstrip span, .natural-progress__steps li.is-running > i {
     animation: none !important;
     transition: none !important;
   }
@@ -12178,6 +12136,13 @@ body:has(.studio-mode-gateway), body:has(.natural-agent-screen) {
   animation: agent-screen-enter 440ms ease both;
 }
 
+.natural-agent-screen[data-agent-settled] {
+  animation: none;
+}
+.natural-agent-screen[data-agent-settled] .is-arrived {
+  animation: none;
+}
+
 .natural-agent-header {
   position: absolute;
   z-index: 8;
@@ -12410,10 +12375,70 @@ body:has(.studio-mode-gateway), body:has(.natural-agent-screen) {
   font-size: 11px;
 }
 
+.natural-agent-character-picker {
+  position: absolute;
+  z-index: 6;
+  bottom: 160px;
+  left: 50%;
+  display: flex;
+  gap: 14px;
+  padding: 10px 20px;
+  transform: translateX(-50%);
+}
+
+.natural-agent-character-picker button {
+  display: grid;
+  width: 64px;
+  grid-template-rows: 48px auto;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--agent-line);
+  border-radius: 12px;
+  color: #687069;
+  background: rgba(245, 247, 243, .92);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 180ms, background 180ms, transform 180ms;
+}
+
+.natural-agent-character-picker button:hover,
+.natural-agent-character-picker button:focus-visible {
+  border-color: rgba(53, 88, 63, .34);
+  background: #f0f4ee;
+  transform: translateY(-2px);
+}
+
+.natural-agent-character-picker button.is-active {
+  border-color: var(--agent-accent, #35583f);
+  background: #e4ebe2;
+  color: var(--agent-accent, #35583f);
+}
+
+.natural-agent-character-picker button img {
+  width: 100%;
+  height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, .03);
+}
+
+.natural-agent-character-picker button span {
+  color: inherit;
+  font-size: 8px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
 .natural-agent-examples {
   position: absolute;
   z-index: 5;
-  bottom: 160px;
+  bottom: 240px;
   left: 50%;
   display: flex;
   gap: 8px;
@@ -12947,7 +12972,8 @@ body:has(.studio-mode-gateway), body:has(.natural-agent-screen) {
   white-space: nowrap;
 }
 
-.natural-agent-delivery > header > i {
+.natural-agent-delivery__badge {
+  flex-shrink: 0;
   display: grid;
   min-width: 52px;
   min-height: 30px;
@@ -12956,8 +12982,10 @@ body:has(.studio-mode-gateway), body:has(.natural-agent-screen) {
   border-radius: 999px;
   color: var(--agent-accent);
   background: #e4ebe2;
-  font-size: 9px;
+  font-size: 11px;
   font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .natural-agent-delivery > p {
@@ -13175,6 +13203,23 @@ body:has(.studio-mode-gateway), body:has(.natural-agent-screen) {
     display: none;
   }
 
+  .natural-agent-character-picker {
+    bottom: 152px;
+    gap: 6px;
+    padding: 8px 12px;
+  }
+
+  .natural-agent-character-picker button {
+    width: 50px;
+    grid-template-rows: 38px auto;
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .natural-agent-character-picker button img {
+    height: 38px;
+  }
+
   .natural-agent-stage {
     inset: 210px 16px 180px;
   }
@@ -13302,7 +13347,7 @@ button[data-pointer-card]:active {
   transform: translate(-50%, -50%) scale(.99);
 }
 
-.natural-agent-composer__submit:active, .natural-agent-back:active, .natural-agent-switch button:active, .natural-agent-examples button:active, .natural-result__options button:active, .natural-result__options a:active {
+.natural-agent-composer__submit:active, .natural-agent-back:active, .natural-agent-switch button:active, .natural-agent-examples button:active, .natural-agent-character-picker button:active, .natural-result__options button:active, .natural-result__options a:active {
   transform: scale(.97);
 }
 

@@ -23,7 +23,7 @@ export const NATURAL_CREATION_STEPS = Object.freeze([
   Object.freeze({
     id: 'quality',
     label: '执行质量检查',
-    copy: '按产物检查透明背景、脚底基线、相邻位移和循环接缝。',
+    copy: '按产物检查透明背景、画布尺寸、脚底基线、主体高度、相邻位移和循环接缝。',
     duration: 3500,
     progress: 91,
   }),
@@ -51,6 +51,7 @@ const QUALITY_CHECKS = Object.freeze([
   '透明背景',
   '画布尺寸',
   '脚底基线',
+  '主体高度',
   '相邻位移',
   '循环接缝',
 ]);
@@ -171,7 +172,7 @@ export class NaturalCreationController {
     };
   }
 
-  start(value) {
+  start(value, characterId) {
     const command = clean(value);
     if (command.length < 4) {
       this.error = '请用一句完整的话描述希望创建的角色与交付目标。';
@@ -183,7 +184,7 @@ export class NaturalCreationController {
     this.error = '';
     this.activeArtifact = null;
     this.artifacts = [];
-    this.intent = parseNaturalCreationCommand(command);
+    this.intent = { ...parseNaturalCreationCommand(command), characterId: characterId || 'boy' };
     this.progress = 2;
     this.qualityChecks = [];
     this.savedName = '';
@@ -254,6 +255,21 @@ export class NaturalCreationController {
     this.savedName = clean(value) || `${this.intent?.name || '角色'}快捷方案`;
     this.emit();
     return this.snapshot();
+  }
+
+  restore(snapshot) {
+    if (!snapshot || !snapshot.status) return;
+    this.runToken += 1;               // Cancel any in-flight timers from a previous run.
+    this.error = snapshot.error || '';
+    this.activeArtifact = snapshot.activeArtifact ? { ...snapshot.activeArtifact } : null;
+    this.artifacts = (snapshot.artifacts || []).map((a) => ({ ...a }));
+    this.intent = snapshot.intent ? { ...snapshot.intent } : null;
+    this.progress = snapshot.progress || 0;
+    this.qualityChecks = (snapshot.qualityChecks || []).map((c) => ({ ...c }));
+    this.savedName = snapshot.savedName || '';
+    this.status = snapshot.status;     // 'idle' | 'running' | 'completed'
+    this.stepIndex = typeof snapshot.stepIndex === 'number' ? snapshot.stepIndex : -1;
+    this.emit();
   }
 
   reset({ notify = true } = {}) {

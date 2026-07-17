@@ -1,0 +1,16 @@
+{
+  "id": "lamplighter",
+  "label": "旧试验角色 · 独立样例",
+  "description": "young chibi pixel-art lamplighter, tousled black hair, navy coat, red scarf, charcoal trousers, brown boots, warm brass fasteners",
+  "base": "assets/resources/character/frames/walk-01.png",
+  "createdAt": "2026-07-13T11:00:00+08:00",
+  "sourceJob": "import-lamplighter-001",
+  "model": "manual-import",
+  "starterPack": {
+    "view": "side",
+    "actions": ["idle", "walk", "run", "jump", "lantern"]
+  },
+  "generationRoute": "frames",
+  "sourceCallCount": 0,
+  "importedFrom": "legacy-character-assets"
+}
