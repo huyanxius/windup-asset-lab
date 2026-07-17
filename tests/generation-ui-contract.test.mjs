@@ -17,7 +17,7 @@ test('character creation exposes and enforces a starter action package', async (
   assert.match(source, /api\.upload\('\/api\/projects\/windup-demo\/references'/);
   assert.match(source, /referenceAssetId/);
   assert.match(source, /completePackage/);
-  assert.match(source, /contractVersion === CONTRACT_VERSION/);
+  assert.match(source, /provider\.contractCompatible/);
 });
 
 test('full action generation selects the coherent sheet route and reports its cost', async () => {
@@ -29,6 +29,20 @@ test('full action generation selects the coherent sheet route and reports its co
   assert.match(html, /id="jobMetrics"/);
   assert.match(source, /route: generationDefaults\.defaultRoute/);
   assert.match(source, /sourceCallCount/);
+  assert.match(source, /provider\.contractCompatible/);
+  assert.match(source, /generationJob\(/);
+  assert.match(source, /characterRecords\(/);
+});
+
+test('custom characters are loaded before the editor chooses a fallback asset', async () => {
+  const [entry, editor] = await Promise.all([
+    readFile(new URL('app.js', assetLab), 'utf8'),
+    readFile(new URL('pages/editor.js', assetLab), 'utf8'),
+  ]);
+  assert.match(entry, /bootstrapEditor\(\)\.catch/);
+  assert.match(editor, /await loadRequestedCharacter/);
+  assert.match(editor, /characterRecords\(/);
+  assert.doesNotMatch(editor, /catch \{\s*\/\/ Built-in assets remain available/);
 });
 
 test('character library keeps one outfit and one view in focus', async () => {

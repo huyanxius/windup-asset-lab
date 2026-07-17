@@ -130,6 +130,7 @@ queued → generating → awaiting_review → approved
 | 8 FPS 定时器 | `PlaybackClock` | 启停一个时钟，不直接创建 interval |
 | 审核结论 | 前端 `ReviewStore` + 后端 `ReviewStore` | 本地即时更新，服务端版本同步，409 时按本帧意图合并 |
 | API 凭据 | `ProviderSessionStore` | HttpOnly 会话标识隔离；任务线程仅接收凭据快照 |
+| 前后端响应兼容性 | `core/api-contract.js` + `contractVersion` | 角色目录和生成任务进入页面状态前先做结构与版本校验 |
 | DOM 表现 | `EditorView` | 读取状态并渲染，不反向修改领域状态 |
 | 浏览器输入 | `editor-bindings.js` | 将事件翻译成应用命令 |
 
@@ -149,6 +150,8 @@ queued → generating → awaiting_review → approved
 内建角色加到目录；用户角色通过 `/api/characters/generations` 创建。默认角色包包含母版、side/idle 和 side/walk；`AssetPublisher` 在临时目录完成全部复制后再原子入库。角色母版、动作候选和正式帧必须保持不同目录。
 
 上传参考图先通过 `POST /api/projects/{project_id}/references` 进入 `ReferenceStore`，任务只保存 `referenceAssetId`，执行器在运行时解析文件并将其作为身份依据。浏览器必须使用 `api-client.upload()`，不能自行发送二进制请求。
+
+内建角色与 Demo provider 可以保留用于离线体验和回归测试，但不能充当真实链路的静默兜底。URL 指定自建角色时，编辑器必须先从版本化 `/api/characters` 响应加载该角色；不存在、旧版响应或畸形响应都应显示错误。生成任务和采用响应必须经过同一版本门禁，采用成功后再由角色接口进入资产库与审核台。
 
 ### 更换整套动作策略
 

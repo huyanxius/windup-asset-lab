@@ -1,4 +1,5 @@
 import { createApiClient } from './core/api-client.js';
+import { generationJob } from './core/api-contract.js';
 import { createJobPoller } from './core/job-poller.js';
 import { ProviderSessionController } from './features/provider-session-controller.js';
 import { WorkflowStepper } from './features/workflow-stepper.js';
@@ -22,6 +23,7 @@ const stepper = new WorkflowStepper(els.workflowSteps, ['connect', 'define', 're
 const provider = new ProviderSessionController({
   api,
   elements: els,
+  expectedContractVersion: CONTRACT_VERSION,
   onChange: syncControls,
   onConnected: () => {
     stepper.select('define');
@@ -63,7 +65,7 @@ const dicePools = {
 };
 
 function syncControls() {
-  const contractReady = provider.contractVersion === CONTRACT_VERSION;
+  const contractReady = provider.contractCompatible;
   const referenceReady = !referenceRequired || Boolean(els.referenceInput.files[0]);
   const ready = provider.connected && contractReady && referenceReady && !state.busy && Boolean(provider.model);
   els.createBtn.disabled = !ready;
@@ -78,6 +80,7 @@ function syncControls() {
 }
 
 function renderJob(job) {
+  job = generationJob(job, CONTRACT_VERSION);
   state.job = job;
   const progress = Number(job.progress || 0);
   els.jobPercent.textContent = `${progress}%`;
@@ -169,7 +172,13 @@ async function acceptCharacter() {
   els.acceptBtn.disabled = true;
   els.acceptBtn.textContent = '正在加入资产库…';
   try {
-    const job = await api.post(`/api/generations/${state.job.id}/promote`, {});
+    const job = generationJob(
+      await api.post(`/api/generations/${state.job.id}/promote`, {}),
+      CONTRACT_VERSION,
+    );
+    if (!job.character?.id || !job.character?.label) {
+      throw new TypeError('角色入库响应不完整：缺少已发布角色信息。');
+    }
     renderJob(job);
     els.acceptBtn.hidden = true;
     els.jobMessage.textContent = `${job.character.label} 已携基础动作加入资产库，可直接进入审核台。`;

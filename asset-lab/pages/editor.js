@@ -1,6 +1,8 @@
 import { FIXED_FPS, characterCatalog, mergeCharacterRecords } from '../data/character-catalog.js';
 import { DEFAULT_DEMO_CHARACTER_ID } from '../data/default-demo-character.js';
 import { createApiClient } from '../core/api-client.js';
+import { characterRecords } from '../core/api-contract.js';
+import { CONTRACT_VERSION } from '../data/generated-contract.js';
 import { EditorSession } from '../core/editor-session.js';
 import {
   AnimationState,
@@ -20,11 +22,25 @@ import { bindEditorEvents } from './editor-bindings.js';
 import { collectEditorElements } from './editor-elements.js';
 import { EditorView } from './editor-view.js';
 
-export function bootstrapEditor() {
+export async function bootstrapEditor() {
   const els = collectEditorElements();
   const api = createApiClient();
   const requested = new URLSearchParams(location.search);
   const requestedCharacter = requested.get('character');
+  async function loadCharacterCatalog() {
+    const result = await api.get('/api/characters');
+    const records = characterRecords(result, CONTRACT_VERSION);
+    mergeCharacterRecords(records, (path) => api.assetUrl(path));
+    return records;
+  }
+  async function loadRequestedCharacter() {
+    if (!requestedCharacter || characterCatalog[requestedCharacter]) return;
+    await loadCharacterCatalog();
+    if (!characterCatalog[requestedCharacter]) {
+      throw new Error(`角色 ${requestedCharacter} 不存在或尚未完成入库，未回退到演示角色。`);
+    }
+  }
+  await loadRequestedCharacter();
   const initialCharacter = characterCatalog[requestedCharacter]
     ? requestedCharacter
     : DEFAULT_DEMO_CHARACTER_ID;
@@ -170,8 +186,7 @@ export function bootstrapEditor() {
 
   async function refreshCharacters() {
     try {
-      const result = await api.get('/api/characters');
-      mergeCharacterRecords(result.characters, (path) => api.assetUrl(path));
+      await loadCharacterCatalog();
       view.renderCharacterOptions();
       if (requestedCharacter && characterCatalog[requestedCharacter]) {
         session.selectCharacter(requestedCharacter);
@@ -179,8 +194,9 @@ export function bootstrapEditor() {
         if (requested.get('action')) session.selectAction(requested.get('action'));
         render();
       }
-    } catch {
-      // Built-in assets remain available if the generation service is offline.
+    } catch (error) {
+      els.qcSummary.textContent = `资产同步失败：${error.message}`;
+      els.qcSummary.setAttribute('role', 'alert');
     }
   }
 

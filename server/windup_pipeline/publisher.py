@@ -65,6 +65,7 @@ class AssetPublisher:
                 "base": final_base,
                 "createdAt": now_iso(),
                 "sourceJob": job["id"],
+                "contractVersion": job["contractVersion"],
                 "model": request.get("model", config.IMAGE_MODEL),
                 "starterPack": {"view": request["starterView"], "actions": starter_actions},
                 "generationRoute": job.get("generationRoute", request.get("generationRoute")),

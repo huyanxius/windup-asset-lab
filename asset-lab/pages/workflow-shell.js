@@ -429,29 +429,51 @@ function renderJourney(context) {
   return items;
 }
 
-function renderProjectHub(context) {
+function renderProjectHub(context, libraryState = {}) {
+  if (libraryState.status !== 'ready') {
+    return renderLibrary(context, libraryState);
+  }
+  const characters = libraryState.characters || [];
+  if (!characters.length) return renderLibrary(context, libraryState);
+  const selectedId = context.query.get('character');
+  const character = characters.find((item) => item.id === selectedId) || characters[0];
+  const characterStats = characterSummary(character);
+  const projectStats = projectSummary(characters);
+  const nextAsset = characterStats.entries[0];
+  const assetUrl = libraryState.assetUrl || ((path) => path);
+  const nextHref = nextAsset
+    ? `./review.html?${new URLSearchParams({
+      character: character.id,
+      view: nextAsset.view,
+      action: nextAsset.action,
+    })}`
+    : `./#/studio?${new URLSearchParams({ character: character.id, source: 'existing' })}`;
   return el('div', { className: 'project-hub' }, [
     el('article', { className: 'project-spotlight' }, [
       el('div', { className: 'project-spotlight__copy' }, [
         el('span', { className: 'status-chip', text: '进行中' }),
-        el('h2', { text: '少年角色 · 角色项目' }),
-        el('p', { text: '用同一份身份母版完成待机、侧视行走、逐帧审核与 Cocos 交付。' }),
+        el('h2', { text: `${character.label} · 角色项目` }),
+        el('p', { text: character.description || '围绕同一份身份母版生成、审核并交付正式动作资产。' }),
         el('a', { className: 'button button--primary', href: hashFor('library', { params: context.params }), text: '进入项目工作区' }),
       ]),
       el('div', { className: 'project-spotlight__art' }, [
-        el('img', { src: DEMO_CHARACTER_ASSETS.walkFrames[3], alt: '默认少年角色' }),
+        el('img', { src: assetUrl(character.base), alt: character.label }),
       ]),
       el('dl', { className: 'project-stats' }, [
-        el('div', {}, [el('dt', { text: '角色' }), el('dd', { text: '01' })]),
-        el('div', {}, [el('dt', { text: '动作' }), el('dd', { text: '02' })]),
-        el('div', {}, [el('dt', { text: '正式帧' }), el('dd', { text: '16' })]),
+        el('div', {}, [el('dt', { text: '角色' }), el('dd', { text: String(projectStats.characterCount).padStart(2, '0') })]),
+        el('div', {}, [el('dt', { text: '动作' }), el('dd', { text: String(projectStats.entryCount).padStart(2, '0') })]),
+        el('div', {}, [el('dt', { text: '正式帧' }), el('dd', { text: String(projectStats.frameCount) })]),
       ]),
     ]),
     el('aside', { className: 'project-next' }, [
       el('span', { className: 'overline', text: 'NEXT STEP' }),
-      el('h3', { text: '继续审核侧视行走动作' }),
-      el('p', { text: '生成已结束，自动质检完成。下一步确认 8 个正式帧。' }),
-      el('a', { href: './review.html?character=boy&view=side&action=walk', text: '进入动作检查台 →' }),
+      el('h3', { text: nextAsset ? `继续审核${nextAsset.actionLabel}` : '生成第一个正式动作' }),
+      el('p', {
+        text: nextAsset
+          ? `${character.label} 已有 ${characterStats.entryCount} 组正式动作，共 ${characterStats.frameCount} 帧。`
+          : `${character.label} 已入库，下一步为它生成完整动作。`,
+      }),
+      el('a', { href: nextHref, text: nextAsset ? '进入动作检查台 →' : '进入创作台 →' }),
     ]),
   ]);
 }
@@ -852,7 +874,7 @@ function renderSelection(context) {
 }
 
 function renderBody(context, libraryState) {
-  if (context.route.id === 'projects') return renderProjectHub(context);
+  if (context.route.id === 'projects') return renderProjectHub(context, libraryState);
   if (context.route.id === 'library') return renderLibrary(context, libraryState);
   if (context.route.id === 'demoBuilder') return renderProductionEntry(context);
   if (context.route.layout === 'canvas') return renderCanvas(context);

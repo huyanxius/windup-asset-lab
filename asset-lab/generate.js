@@ -1,10 +1,11 @@
 import { createApiClient } from './core/api-client.js';
+import { characterRecords, generationJob } from './core/api-contract.js';
 import { createJobPoller } from './core/job-poller.js';
 import { characterCatalog, mergeCharacterRecords } from './data/character-catalog.js';
 import { DEFAULT_DEMO_CHARACTER_ID } from './data/default-demo-character.js';
 import { ProviderSessionController } from './features/provider-session-controller.js';
 import { WorkflowStepper } from './features/workflow-stepper.js';
-import { generationDefaults } from './data/generated-contract.js';
+import { CONTRACT_VERSION, generationDefaults } from './data/generated-contract.js';
 
 const $ = (id) => document.getElementById(id);
 const els = Object.fromEntries([
@@ -14,23 +15,37 @@ const els = Object.fromEntries([
 ].map((id) => [id, $(id)]));
 const api = createApiClient();
 const poller = createJobPoller(api);
-const state = { busy: false, job: null };
+const state = { busy: false, job: null, catalogReady: false };
 const stepper = new WorkflowStepper(els.workflowSteps, ['connect', 'define', 'review']);
 const provider = new ProviderSessionController({
   api,
   elements: els,
+  expectedContractVersion: CONTRACT_VERSION,
   onChange: syncControls,
   onConnected: () => stepper.select('define'),
 });
 
 function syncControls() {
-  els.startBtn.disabled = !provider.connected || state.busy || !provider.model;
-  els.startBtn.textContent = state.busy ? '正在生成…' : provider.connected ? '开始生成候选资产' : '连接服务后开始生成';
+  const ready = provider.connected
+    && provider.contractCompatible
+    && state.catalogReady
+    && !state.busy
+    && Boolean(provider.model);
+  els.startBtn.disabled = !ready;
+  els.startBtn.textContent = state.busy
+    ? '正在生成…'
+    : provider.connected && !provider.contractCompatible
+      ? '生成服务版本不匹配'
+      : provider.connected && !state.catalogReady
+        ? '角色资产未同步'
+        : provider.connected ? '开始生成候选资产' : '连接服务后开始生成';
   els.connectBtn.disabled = state.busy || provider.busy;
 }
 
 function syncCharacter() {
-  els.characterPortrait.src = characterCatalog[els.character.value].base;
+  const character = characterCatalog[els.character.value];
+  if (!character) throw new TypeError(`角色 ${els.character.value || '（空）'} 不存在，无法生成动作。`);
+  els.characterPortrait.src = character.base;
 }
 
 function syncMode() {
@@ -44,6 +59,7 @@ function syncMode() {
 }
 
 function renderJob(job) {
+  job = generationJob(job, CONTRACT_VERSION);
   state.job = job;
   state.busy = poller.isActive(job.status);
   els.jobPercent.textContent = `${job.progress || 0}%`;
@@ -97,13 +113,18 @@ function renderJob(job) {
 async function startGeneration(event) {
   event.preventDefault();
   if (!provider.requireConnection()) return;
+  if (!state.catalogReady) {
+    els.jobTitle.textContent = '角色资产尚未同步';
+    els.jobMessage.textContent = '请先恢复角色资产接口，再开始真实生成。';
+    return;
+  }
   state.busy = true;
   stepper.select('review');
   els.candidateGrid.innerHTML = '<div class="empty-result"><i>◇</i><b>正在创建任务</b><span>整条动作生成后会自动切为 8 帧</span></div>';
   els.candidateGrid.dataset.job = '';
   syncControls();
   try {
-    const job = await api.post('/api/generations', {
+    const job = generationJob(await api.post('/api/generations', {
       character: els.character.value,
       view: els.view.value,
       action: els.action.value,
@@ -112,7 +133,7 @@ async function startGeneration(event) {
       frameIndex: Math.max(0, Math.min(7, Number(els.frame.value) - 1)),
       customPrompt: els.prompt.value.trim(),
       model: provider.model,
-    });
+    }), CONTRACT_VERSION);
     renderJob(job);
     poller.poll(job.id, (next, error) => {
       if (error) { state.busy = false; els.jobMessage.textContent = `任务查询失败：${error.message}`; syncControls(); return; }
@@ -131,7 +152,10 @@ async function acceptGeneration() {
   if (!state.job) return;
   els.acceptBtn.disabled = true;
   try {
-    const job = await api.post(`/api/generations/${state.job.id}/promote`, {});
+    const job = generationJob(
+      await api.post(`/api/generations/${state.job.id}/promote`, {}),
+      CONTRACT_VERSION,
+    );
     renderJob(job);
     els.jobMessage.textContent = '候选资产已采用，正式资产已备份，可返回审核台。';
     const query = new URLSearchParams({ character: job.request.character, view: job.request.view, action: job.request.action });
@@ -153,12 +177,25 @@ async function boot() {
     provider.boot(),
     api.get('/api/characters'),
   ]);
-  if (charactersResult.status === 'fulfilled') {
-    mergeCharacterRecords(charactersResult.value.characters, (path) => api.assetUrl(path));
+  try {
+    if (charactersResult.status === 'rejected') throw charactersResult.reason;
+    const records = characterRecords(charactersResult.value, CONTRACT_VERSION);
+    mergeCharacterRecords(records, (path) => api.assetUrl(path));
+    state.catalogReady = true;
+  } catch (error) {
+    state.catalogReady = false;
+    els.jobTitle.textContent = '角色资产同步失败';
+    els.jobMessage.textContent = error?.message || '无法读取角色资产。';
   }
   els.character.replaceChildren(...Object.entries(characterCatalog).map(([id, item]) => new Option(item.label, id)));
-  els.character.value = characterCatalog[query.get('character')]
-    ? query.get('character')
+  const requestedCharacter = query.get('character');
+  if (requestedCharacter && !characterCatalog[requestedCharacter]) {
+    state.catalogReady = false;
+    els.jobTitle.textContent = '找不到指定角色';
+    els.jobMessage.textContent = `角色 ${requestedCharacter} 不存在或尚未完成入库，未回退到演示角色。`;
+  }
+  els.character.value = characterCatalog[requestedCharacter]
+    ? requestedCharacter
     : DEFAULT_DEMO_CHARACTER_ID;
   syncCharacter();
   if (provider.connected) stepper.select('define');

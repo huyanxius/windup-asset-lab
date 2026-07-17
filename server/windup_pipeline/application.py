@@ -68,7 +68,7 @@ class GenerationApplication:
             path.mkdir(parents=True, exist_ok=True)
         self.references.prepare()
         self.assets.load_custom()
-        self.jobs.load(now_iso())
+        self.jobs.load(now_iso(), contract_version=CONTRACT_VERSION)
         if config.API_KEY and not self.demo:
             try:
                 provider.verify_key(config.API_KEY)
@@ -127,7 +127,10 @@ class GenerationApplication:
         return self.assets.character_card(character_id)
 
     def characters(self) -> dict:
-        return self.assets.characters()
+        return {
+            "contractVersion": CONTRACT_VERSION,
+            **self.assets.characters(),
+        }
 
     def upload_reference(
         self,
@@ -155,13 +158,22 @@ class GenerationApplication:
 
     def create_character_job(self, session_id: str, payload: dict) -> dict:
         credentials = self._credentials(session_id)
-        name = str(payload.get("name", "")).strip()
-        description = str(payload.get("description", "")).strip()
-        style = str(payload.get("style", "")).strip()
-        palette = str(payload.get("palette", "")).strip()
-        model = str(payload.get("model", "")).strip()
-        project_id = str(payload.get("projectId", "windup-demo")).strip()
-        reference_id = str(payload.get("referenceAssetId", "")).strip()
+        def text_field(key: str, default: str = "") -> str:
+            value = payload[key] if key in payload else default
+            if not isinstance(value, str):
+                raise ValueError(f"{key} 必须是文本")
+            return value.strip()
+
+        name = text_field("name")
+        description = text_field("description")
+        style = text_field("style")
+        palette = text_field("palette")
+        model = text_field("model")
+        project_id = text_field("projectId", "windup-demo")
+        reference_value = payload.get("referenceAssetId")
+        if reference_value is not None and not isinstance(reference_value, str):
+            raise ValueError("referenceAssetId 必须是文本或空值")
+        reference_id = (reference_value or "").strip()
         if len(style) > 120 or len(palette) > 120:
             raise ValueError("风格与配色各不超过 120 字")
         raw_starter_actions = payload.get("starterActions", GENERATION["starterPack"]["actions"])
@@ -182,6 +194,7 @@ class GenerationApplication:
         character_id = f"custom-{uuid.uuid4().hex[:8]}"
         job = {
             "id": job_id, "batch": f"C-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+            "contractVersion": CONTRACT_VERSION,
             "status": "queued", "progress": 0, "message": "新角色与基础动作包已进入队列",
             "request": {
                 "type": "character", "character": character_id, "name": name,
@@ -200,13 +213,19 @@ class GenerationApplication:
 
     def create_job(self, session_id: str, payload: dict) -> dict:
         credentials = self._credentials(session_id)
-        character_id = str(payload.get("character", ""))
-        view = str(payload.get("view", ""))
-        action = str(payload.get("action", ""))
-        mode = str(payload.get("mode", "full"))
-        route = str(payload.get("route", GENERATION["defaultRoute"]))
-        custom_prompt = str(payload.get("customPrompt", "")).strip()
-        model = str(payload.get("model", credentials.model or config.IMAGE_MODEL)).strip()
+        def text_field(key: str, default: str = "") -> str:
+            value = payload[key] if key in payload else default
+            if not isinstance(value, str):
+                raise ValueError(f"{key} 必须是文本")
+            return value.strip()
+
+        character_id = text_field("character")
+        view = text_field("view")
+        action = text_field("action")
+        mode = text_field("mode", "full")
+        route = text_field("route", GENERATION["defaultRoute"])
+        custom_prompt = text_field("customPrompt")
+        model = text_field("model", credentials.model or config.IMAGE_MODEL)
         if (
             character_id not in self.catalog
             or view not in VIEWS
@@ -225,6 +244,7 @@ class GenerationApplication:
         job_id = uuid.uuid4().hex[:12]
         job = {
             "id": job_id, "batch": f"G-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+            "contractVersion": CONTRACT_VERSION,
             "status": "queued", "progress": 0, "message": "已进入生成队列",
             "request": {
                 "character": character_id, "view": view, "action": action, "mode": mode,

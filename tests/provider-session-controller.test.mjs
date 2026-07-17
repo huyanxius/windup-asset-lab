@@ -12,7 +12,7 @@ function elements() {
     providerDot: { className: '' },
     connectionMessage: { className: '', textContent: '' },
     apiKey: { value: 'valid-session-key-1234', focus() {} },
-    model: { value: 'model-a' },
+    model: { value: 'model-a', disabled: false, replaceChildren() {} },
     connectBtn: { textContent: '', disabled: false },
     serviceState: { textContent: '' },
   };
@@ -37,4 +37,22 @@ test('provider readiness accepts the running v1 backend and respects explicit re
   assert.equal(providerIsReady({ configured: true, verified: true }), true);
   assert.equal(providerIsReady({ configured: true, verified: false }), false);
   assert.equal(providerIsReady({ configured: false }), false);
+});
+
+test('provider controller rejects a connected backend with a stale contract', async () => {
+  const els = elements();
+  const api = {
+    get: async (path) => path.endsWith('/health')
+      ? { configured: true, verified: true, model: 'model-a', contractVersion: '1.0.0' }
+      : { models: ['model-a'], selected: 'model-a', contractVersion: '1.0.0' },
+  };
+  const controller = new ProviderSessionController({
+    api,
+    elements: els,
+    expectedContractVersion: '1.1.0',
+  });
+  assert.equal(await controller.boot(), false);
+  assert.equal(controller.connected, false);
+  assert.equal(controller.contractCompatible, false);
+  assert.match(els.connectionMessage.textContent, /1\.0\.0.*1\.1\.0/);
 });

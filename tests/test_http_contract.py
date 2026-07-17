@@ -86,6 +86,7 @@ class HttpContractTest(unittest.TestCase):
             "mode": "single", "frameIndex": 0, "model": "gemini-2.5-flash-image",
         })
         self.assertEqual(status, 202)
+        self.assertEqual(job["contractVersion"], "1.1.0")
         current = self.wait_for_job(job["id"])
         self.assertEqual(current["status"], "awaiting_review")
         self.assertEqual(len(current["outputs"]), 1)
@@ -104,6 +105,8 @@ class HttpContractTest(unittest.TestCase):
 
     def test_new_character_is_promoted_with_a_readable_starter_action_pack(self):
         status, job = self.request("/api/characters/generations", {
+            "projectId": "windup-demo",
+            "referenceAssetId": None,
             "name": "Test Hero",
             "description": "A restrained literary pixel-art hero with a dark coat and clear silhouette.",
             "model": "gemini-2.5-flash-image",
@@ -115,16 +118,20 @@ class HttpContractTest(unittest.TestCase):
         self.assertEqual(len(current["outputs"]), 17)
         self.assertEqual(current["generationRoute"], "frames,sheet")
         self.assertEqual(current["sourceCallCount"], 0)
+        self.assertEqual(current["contractVersion"], "1.1.0")
 
         _, approved = self.request(f"/api/generations/{job['id']}/promote", {})
         self.assertEqual(approved["status"], "approved")
+        self.assertEqual(approved["contractVersion"], "1.1.0")
         character_id = approved["character"]["id"]
         self.assertEqual(len(approved["character"]["assets"]["side"]["idle"]["frames"]), 8)
         self.assertEqual(len(approved["character"]["assets"]["side"]["walk"]["frames"]), 8)
 
         _, library = self.request("/api/characters")
+        self.assertEqual(library["contractVersion"], "1.1.0")
         character = next(item for item in library["characters"] if item["id"] == character_id)
         self.assertEqual(set(character["assets"]["side"]), {"idle", "walk"})
+        self.assertEqual(character["cardData"]["contractVersion"], "1.1.0")
         self.assertTrue((self.root / character["base"]).exists())
 
     def test_uploaded_reference_is_validated_and_attached_to_character_job(self):
@@ -150,6 +157,23 @@ class HttpContractTest(unittest.TestCase):
         self.assertEqual(job["request"]["sourceType"], "uploaded_reference")
         current = self.wait_for_job(job["id"])
         self.assertEqual(current["status"], "awaiting_review")
+
+    def test_character_creation_rejects_json_null_in_text_and_project_fields(self):
+        base = {
+            "name": "Valid Hero",
+            "description": "A complete character description that is long enough.",
+            "style": "pixel art",
+            "palette": "blue",
+            "projectId": "windup-demo",
+            "model": "gemini-2.5-flash-image",
+            "starterActions": ["idle"],
+        }
+        for field in ("name", "style", "palette", "projectId"):
+            payload = dict(base)
+            payload[field] = None
+            with self.subTest(field=field), self.assertRaises(urllib.error.HTTPError) as rejected:
+                self.request("/api/characters/generations", payload)
+            self.assertEqual(rejected.exception.code, 400)
 
     def test_full_walk_uses_skeleton_frames_route_and_promotes_eight_frames(self):
         status, job = self.request("/api/generations", {

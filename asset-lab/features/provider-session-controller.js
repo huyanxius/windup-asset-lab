@@ -6,9 +6,16 @@ export function providerIsReady(payload) {
 }
 
 export class ProviderSessionController {
-  constructor({ api, elements, onChange = () => {}, onConnected = () => {} }) {
+  constructor({
+    api,
+    elements,
+    expectedContractVersion = '',
+    onChange = () => {},
+    onConnected = () => {},
+  }) {
     this.api = api;
     this.els = elements;
+    this.expectedContractVersion = expectedContractVersion;
     this.onChange = onChange;
     this.onConnected = onConnected;
     this.connected = false;
@@ -17,6 +24,14 @@ export class ProviderSessionController {
   }
 
   get model() { return this.els.model.value; }
+  get contractCompatible() {
+    return !this.expectedContractVersion || this.contractVersion === this.expectedContractVersion;
+  }
+
+  contractError() {
+    const actual = this.contractVersion || '缺失';
+    return `生成服务版本不匹配：后端 ${actual}，前端 ${this.expectedContractVersion}。请重启正确版本的服务。`;
+  }
 
   status(kind, title, message = '') {
     this.els.providerState.className = `status ${kind || ''}`;
@@ -28,7 +43,10 @@ export class ProviderSessionController {
 
   populateModels(provider) {
     const models = Array.isArray(provider.models) ? provider.models : [];
-    this.els.model.replaceChildren(...models.map((id) => new Option(id, id)));
+    const option = (label, value) => typeof Option === 'function'
+      ? new Option(label, value)
+      : { label, value };
+    this.els.model.replaceChildren(...models.map((id) => option(id, id)));
     this.els.model.value = models.includes(provider.selected) ? provider.selected : models[0] || '';
     this.els.model.disabled = models.length === 0;
   }
@@ -57,9 +75,14 @@ export class ProviderSessionController {
         { apiKey, model: this.model },
         { 'X-Windup-Request': 'studio' },
       );
-      this.connected = providerIsReady(result);
       this.contractVersion = result.contractVersion || this.contractVersion;
+      this.connected = providerIsReady(result) && this.contractCompatible;
       this.els.apiKey.value = '';
+      if (!this.contractCompatible) {
+        this.els.connectBtn.textContent = '重试连接';
+        this.status('error', '版本不匹配', this.contractError());
+        return false;
+      }
       this.els.connectBtn.textContent = '重新连接';
       this.status('ready', '已验证', `${result.model} · 当前后端会话`);
       this.onConnected(result);
@@ -82,15 +105,20 @@ export class ProviderSessionController {
     ]);
     if (modelsResult.status === 'fulfilled') this.populateModels(modelsResult.value);
     else {
-      this.els.model.replaceChildren(new Option('模型读取失败', ''));
+      const fallback = typeof Option === 'function'
+        ? new Option('模型读取失败', '')
+        : { label: '模型读取失败', value: '' };
+      this.els.model.replaceChildren(fallback);
       this.els.model.disabled = true;
     }
     if (healthResult.status === 'fulfilled') {
       const health = healthResult.value;
       this.contractVersion = health.contractVersion || '';
-      this.connected = providerIsReady(health);
+      this.connected = providerIsReady(health) && this.contractCompatible;
       this.els.serviceState.textContent = '生成后端已连接';
-      if (this.connected) {
+      if (!this.contractCompatible) {
+        this.status('error', '版本不匹配', this.contractError());
+      } else if (this.connected) {
         this.els.connectBtn.textContent = '重新连接';
         this.status('ready', health.demo ? '本地模式' : '已验证', `${health.model} · ${health.demo ? '不调用外部 API' : '当前后端会话'}`);
       } else {

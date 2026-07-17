@@ -105,3 +105,17 @@
   color: #1d1d1f;
   font-weight: 650;
 }
+.editor-boot-error {
+  position: fixed;
+  z-index: 10001;
+  top: 55%;
+  left: 50%;
+  max-width: min(34rem, calc(100vw - 3rem));
+  margin: 0;
+  padding: 1rem 1.25rem;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(196, 82, 62, 0.42);
+  background: rgba(24, 20, 20, 0.94);
+  color: #f2d4cd;
+  text-align: center;
+}

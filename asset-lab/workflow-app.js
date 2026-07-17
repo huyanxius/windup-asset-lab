@@ -6,6 +6,8 @@ import { startScrollBird } from './features/scroll-bird.js';
 import { parseWorkflowLocation } from './features/workflow-navigation.js';
 import { renderWorkflowShell } from './pages/workflow-shell.js';
 import { createApiClient } from './core/api-client.js';
+import { characterRecords } from './core/api-contract.js';
+import { CONTRACT_VERSION } from './data/generated-contract.js';
 
 const root = document.querySelector('#workflowApp');
 let stopBrandWave = () => {};
@@ -48,18 +50,19 @@ function render(options = {}) {
 
 async function loadAssetLibrary() {
   libraryState = { status: 'loading', characters: [] };
-  if (parseWorkflowLocation(window.location.hash).route.id === 'library') render();
+  const liveRoute = () => parseWorkflowLocation(window.location.hash).route.id;
+  if (['projects', 'library'].includes(liveRoute())) render();
   try {
     const payload = await api.get('/api/characters');
     libraryState = {
       status: 'ready',
-      characters: Array.isArray(payload.characters) ? payload.characters : [],
+      characters: characterRecords(payload, CONTRACT_VERSION),
       assetUrl: (path) => api.assetUrl(path),
     };
   } catch (error) {
     libraryState = { status: 'error', characters: [], message: error.message };
   }
-  if (parseWorkflowLocation(window.location.hash).route.id === 'library') render();
+  if (['projects', 'library'].includes(liveRoute())) render();
 }
 
 window.addEventListener('hashchange', () => {

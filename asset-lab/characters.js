@@ -1,4 +1,5 @@
 import { createApiClient } from './core/api-client.js';
+import { characterRecords } from './core/api-contract.js';
 import {
   characterSummary,
   expectedFrameCount,
@@ -6,7 +7,7 @@ import {
   viewOrder,
   viewSummary,
 } from './features/asset-library-model.js';
-import { viewLabels } from './data/generated-contract.js';
+import { CONTRACT_VERSION, viewLabels } from './data/generated-contract.js';
 
 const $ = (id) => document.getElementById(id);
 const els = Object.fromEntries([
@@ -270,7 +271,7 @@ async function boot() {
   els.serviceState.className = 'service-state loading';
   try {
     const data = await api.get('/api/characters');
-    renderCharacters(Array.isArray(data.characters) ? data.characters : []);
+    renderCharacters(characterRecords(data, CONTRACT_VERSION));
     els.serviceState.textContent = '已同步';
     els.serviceState.className = 'service-state ready';
   } catch (error) {
