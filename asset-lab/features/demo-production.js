@@ -233,16 +233,6 @@ export class DemoProductionController {
 
   advance(token = this.runToken) {
     if (token !== this.runToken || this.status !== 'running') return this.snapshot();
-    if (this.stepIndex === 1) {
-      this.status = 'master_review';
-      this.emit();
-      return this.snapshot();
-    }
-    if (this.stepIndex === 4) {
-      this.status = 'action_review';
-      this.emit();
-      return this.snapshot();
-    }
     if (this.stepIndex >= DEMO_PRODUCTION_STEPS.length - 1) {
       this.status = 'completed';
       this.emit();

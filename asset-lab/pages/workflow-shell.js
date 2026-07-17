@@ -712,7 +712,7 @@ function renderDemoCanvas(snapshot = { profile: DEFAULT_DEMO_PROFILE, status: 'd
 
   return el('section', {
     className: snapshot.completed ? 'production-studio is-complete' : 'production-studio',
-    attributes: { 'data-demo-runner': '' },
+    attributes: { 'data-demo-runner': '', 'data-production-status': snapshot.status },
   }, [
     el('div', {
       className: 'production-canvas',

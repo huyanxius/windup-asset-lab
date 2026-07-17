@@ -83,6 +83,17 @@ test('project asset home reads the same character API as the legacy library', as
   assert.match(shell, /libraryState\.assetUrl/);
 });
 
+test('production state changes rerender the studio without an undefined controller hook', async () => {
+  const [app, shell] = await Promise.all([
+    readFile(new URL('workflow-app.js', assetLab), 'utf8'),
+    readFile(new URL('pages/workflow-shell.js', assetLab), 'utf8'),
+  ]);
+
+  assert.doesNotMatch(app, /demoProduction\.attach\(/);
+  assert.match(app, /onChange:\s*\(\)\s*=>\s*render\(\{ preserveScroll: true \}\)/);
+  assert.match(shell, /'data-production-status': snapshot\.status/);
+});
+
 test('product home and action review are separate canonical pages', async () => {
   const [home, review] = await Promise.all([
     readFile(new URL('index.html', assetLab), 'utf8'),

@@ -21,7 +21,7 @@ const guidedCanvas = new GuidedCanvasController();
 const api = createApiClient();
 let libraryState = { status: 'loading', characters: [] };
 const demoProduction = new DemoProductionController({
-  onChange: (snapshot) => guidedCanvas.update(snapshot),
+  onChange: () => render({ preserveScroll: true }),
 });
 
 function bindDemoFlow(context) {
@@ -29,18 +29,14 @@ function bindDemoFlow(context) {
     guidedCanvas.detach();
     return;
   }
-  demoProduction.attach(root);
-  if (context.route.id === 'demoBuilder') guidedCanvas.attach(root, demoProduction.snapshot());
-  else guidedCanvas.detach();
+  guidedCanvas.attach(root, demoProduction.snapshot());
   document.querySelectorAll('[data-demo-source]').forEach((button) => {
     button.addEventListener('click', () => {
       demoProduction.selectSource(button.dataset.demoSource);
-      render({ focus: true });
     });
   });
   document.querySelector('[data-demo-change-source]')?.addEventListener('click', () => {
     demoProduction.clearSource();
-    render({ focus: true });
   });
   document.querySelector('#demoCharacterForm')?.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -56,7 +52,6 @@ function bindDemoFlow(context) {
   });
   document.querySelector('[data-demo-reset]')?.addEventListener('click', () => {
     demoProduction.configure();
-    render({ focus: true });
   });
 }
 
@@ -90,7 +85,7 @@ function render(options = {}) {
   bindDemoFlow(context);
   document.querySelector('[data-library-retry]')?.addEventListener('click', loadAssetLibrary);
   if (options.focus) document.querySelector('#workflowPageTitle')?.focus({ preventScroll: true });
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  if (!options.preserveScroll) window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 async function loadAssetLibrary() {
