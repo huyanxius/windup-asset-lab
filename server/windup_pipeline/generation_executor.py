@@ -70,6 +70,13 @@ class GenerationExecutor:
             base = self.root / self.catalog[character_id]["base"]
             if not base.exists():
                 raise RuntimeError("角色母版不存在")
+
+            def update_progress(progress: int, message: str) -> None:
+                self.update(job_id, progress=progress, message=message)
+
+            def publish_outputs(outputs: list[dict]) -> None:
+                self.update(job_id, outputs=outputs)
+
             batch = self.actions.run(
                 job_id=job_id,
                 job_root=job_root,
@@ -85,9 +92,9 @@ class GenerationExecutor:
                 custom_prompt=request.get("customPrompt", ""),
                 model=request["model"],
                 api_key=api_key,
-                progress=lambda progress, message: self.update(job_id, progress=progress, message=message),
+                progress=update_progress,
                 provenance=lambda index, pose, elapsed, mode: self.provenance(job, index, pose, elapsed, mode),
-                publish=lambda outs: self.update(job_id, outputs=outs),
+                publish=publish_outputs,
             )
             self.update(
                 job_id,
@@ -156,9 +163,12 @@ class GenerationExecutor:
             actions = request["starterActions"]
             view = request["starterView"]
             for order, action in enumerate(actions):
-                def update_action_progress(percent, message, *, order=order):
+                def update_action_progress(percent: int, message: str, *, order: int = order) -> None:
                     overall = 30 + round((order + percent / 100) / len(actions) * 64)
                     self.update(job_id, progress=overall, message=message)
+
+                def publish_action_outputs(action_outputs: list[dict]) -> None:
+                    self.update(job_id, outputs=outputs + action_outputs)
 
                 batch = self.actions.run(
                     job_id=job_id,
@@ -179,7 +189,7 @@ class GenerationExecutor:
                     provenance=lambda index, pose, elapsed, mode, action=action: self.provenance(
                         job, index, pose, elapsed, mode, view=view, action=action,
                     ),
-                    publish=lambda outs: self.update(job_id, outputs=outputs + outs),
+                    publish=publish_action_outputs,
                 )
                 outputs.extend(batch.outputs)
                 qualities[action] = batch.quality

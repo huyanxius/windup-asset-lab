@@ -1,0 +1,15 @@
+[tool.pyright]
+include = [
+  "server",
+  "tools/check_python_orphans.py",
+]
+exclude = [
+  "server/.windup-jobs",
+]
+extraPaths = [
+  "server",
+]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+reportMissingImports = "error"
+reportMissingTypeStubs = "none"

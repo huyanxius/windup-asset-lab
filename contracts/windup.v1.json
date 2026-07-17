@@ -1,6 +1,6 @@
 {
   "$schema": "./windup.schema.json",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "fps": 8,
   "views": {
     "side": {
@@ -115,6 +115,31 @@
         "idle",
         "walk"
       ]
+    }
+  },
+  "cocos": {
+    "resourcePath": "character/frames",
+    "runtimeActions": {
+      "idle": {
+        "contractAction": "idle",
+        "assetAction": "idle",
+        "frameOrder": [1, 2, 3, 4]
+      },
+      "walk": {
+        "contractAction": "walk",
+        "assetAction": "walk",
+        "frameOrder": [1, 2, 3, 4, 5, 6, 7, 8]
+      },
+      "lantern-idle": {
+        "contractAction": "lantern",
+        "assetAction": "lantern-walk",
+        "frameOrder": [3]
+      },
+      "lantern-walk": {
+        "contractAction": "lantern",
+        "assetAction": "lantern-walk",
+        "frameOrder": [3, 1, 4, 2]
+      }
     }
   }
 }

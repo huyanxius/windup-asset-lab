@@ -59,7 +59,9 @@ export function reduceMotion(current, event) {
           };
 
     case 'MANUAL_INPUT': {
-      const held = { ...state.held, [event.direction]: event.pressed };
+      const pressed = Boolean(event.pressed);
+      if (state.held[event.direction] === pressed) return current;
+      const held = { ...state.held, [event.direction]: pressed };
       const axis = manualAxis(held);
       return {
         ...state,

@@ -36,7 +36,7 @@
 | 新供应商 | provider adapter | provider error mapping + session test | 浏览器 Key 存储 |
 | 新审核规则 | quality feature / review store | geometry or version-conflict test | 直接覆盖正式资产 |
 | 新存储 | `JobStore`/`ReviewStore` 接口实现 | recovery/concurrency test | HTTP 路由语义 |
-| Cocos 协议 | `game-bridge` + `GameRoot.ts` | payload contract | 硬编码页面 Origin |
+| Cocos 协议 | `contracts/` + 生成的 Cocos 合约 + `game-bridge`/`GameRoot.ts` | payload + frame mapping contract | 手写 FPS、循环或帧名 |
 
 ## Definition of Done
 
@@ -45,6 +45,7 @@
 - API Key、用户提示和候选资产不会进入 Git。
 - 新公共契约有版本或兼容策略。
 - 相关逻辑测试和 `./tools/verify-architecture.sh` 通过。
+- Pyright 和后端孤儿代码检查通过；新增后端模块必须从应用入口可达。
 - README/HANDOFF/架构文档仅在事实改变时同步更新。
 - PR 单一主题、提交按关注点拆分，作者能够解释数据流与失败路径。
 

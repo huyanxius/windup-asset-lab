@@ -2,25 +2,63 @@
 
 import math
 import statistics
+from collections.abc import Sequence
 from pathlib import Path
+from typing import TypedDict, cast
 
 from PIL import Image
 
 
-def _foreground_ratio(image: "Image.Image") -> float:
+class FrameMetric(TypedDict):
+    width: int
+    height: int
+    centerX: float
+    footY: int
+    coverage: float
+
+
+def _alpha_values(image: "Image.Image") -> Sequence[int]:
     alpha = image.getchannel("A")
-    return sum(1 for value in alpha.getdata() if value > 24) / (image.width * image.height)
+    return cast(Sequence[int], alpha.get_flattened_data())
+
+
+def _alpha_bbox(image: "Image.Image", threshold: int = 24) -> tuple[int, int, int, int] | None:
+    width, _ = image.size
+    left = top = None
+    right = bottom = 0
+    for offset, value in enumerate(_alpha_values(image)):
+        if value <= threshold:
+            continue
+        x, y = offset % width, offset // width
+        left = x if left is None else min(left, x)
+        top = y if top is None else min(top, y)
+        right = max(right, x + 1)
+        bottom = max(bottom, y + 1)
+    if left is None or top is None:
+        return None
+    return left, top, right, bottom
+
+
+def _foreground_ratio(image: "Image.Image") -> float:
+    return sum(1 for value in _alpha_values(image) if value > 24) / (image.width * image.height)
 
 
 def matte_chroma(source: Path, destination: Path) -> None:
     image = Image.open(source).convert("RGBA")
     pixels = image.load()
+    if pixels is None:
+        raise RuntimeError("无法读取生成图像像素")
     width, height = image.size
-    corners = [pixels[0, 0], pixels[width - 1, 0], pixels[0, height - 1], pixels[width - 1, height - 1]]
+    corners = [
+        cast(tuple[int, int, int, int], pixels[0, 0]),
+        cast(tuple[int, int, int, int], pixels[width - 1, 0]),
+        cast(tuple[int, int, int, int], pixels[0, height - 1]),
+        cast(tuple[int, int, int, int], pixels[width - 1, height - 1]),
+    ]
     key = tuple(sum(pixel[channel] for pixel in corners) / len(corners) for channel in range(3))
     for y in range(height):
         for x in range(width):
-            red, green, blue, _ = pixels[x, y]
+            red, green, blue, _ = cast(tuple[int, int, int, int], pixels[x, y])
             distance = math.sqrt((red - key[0]) ** 2 + (green - key[1]) ** 2 + (blue - key[2]) ** 2)
             alpha = max(0, min(255, round((distance - 18) / 110 * 255)))
             pixels[x, y] = (red, green, blue, alpha)
@@ -44,8 +82,7 @@ def fit_scale(width: int, height: int) -> float:
 
 def normalize_frame(source: Path, destination: Path, action: str, frame_index: int, scale: float | None = None) -> None:
     image = Image.open(source).convert("RGBA")
-    alpha = image.getchannel("A")
-    bbox = alpha.point(lambda value: 255 if value > 24 else 0).getbbox()
+    bbox = _alpha_bbox(image)
     if not bbox:
         raise RuntimeError("该帧没有可见角色")
     subject = image.crop(bbox)
@@ -92,7 +129,7 @@ def split_action_sheet(
         for index in range(frame_count)
     ]
     # 整条动作共用一个缩放系数：逐帧各自适配会让宽姿势帧被缩小，破坏跨帧比例一致性。
-    boxes = [crop.getchannel("A").point(lambda value: 255 if value > 24 else 0).getbbox() for crop in crops]
+    boxes = [_alpha_bbox(crop) for crop in crops]
     scale = min((fit_scale(box[2] - box[0], box[3] - box[1]) for box in boxes if box), default=1.0)
     outputs = []
     for frame_index, crop in enumerate(crops):
@@ -124,11 +161,10 @@ def make_action_sheet(frames: list[Path], destination: Path) -> Path:
 
 def sequence_quality(frames: list[Path], action: str = "") -> dict:
     """Measure deterministic geometry continuity; semantic motion remains human-reviewed."""
-    metrics = []
+    metrics: list[FrameMetric | None] = []
     for path in frames:
         image = Image.open(path).convert("RGBA")
-        alpha = image.getchannel("A")
-        bbox = alpha.point(lambda value: 255 if value > 24 else 0).getbbox()
+        bbox = _alpha_bbox(image)
         if not bbox:
             metrics.append(None)
             continue
@@ -138,7 +174,7 @@ def sequence_quality(frames: list[Path], action: str = "") -> dict:
             "height": bottom - top,
             "centerX": round((left + right) / 2, 2),
             "footY": bottom,
-            "coverage": round(sum(1 for value in alpha.getdata() if value > 24) / (image.width * image.height), 4),
+            "coverage": round(sum(1 for value in _alpha_values(image) if value > 24) / (image.width * image.height), 4),
         })
     visible = [metric for metric in metrics if metric]
     warnings = []

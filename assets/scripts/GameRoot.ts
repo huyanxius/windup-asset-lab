@@ -21,10 +21,18 @@ import {
   Vec3,
   view,
 } from 'cc';
+import {
+  ACTION_FRAME_COUNTS,
+  ACTION_LOOPS,
+  COCOS_RESOURCE_PATH,
+  COCOS_RUNTIME_ACTIONS,
+  CocosRuntimeActionId,
+  FIXED_FPS,
+  cocosFrameNames,
+  isActionId,
+} from './generated-contract';
 
 const { ccclass } = _decorator;
-
-type ActionName = 'idle' | 'walk' | 'lantern-idle' | 'lantern-walk';
 
 @ccclass('GameRoot')
 export class GameRoot extends Component {
@@ -32,16 +40,14 @@ export class GameRoot extends Component {
   private readonly designHeight = 540;
   private readonly characterY = -138;
   private readonly movementSpeed = 150;
-  private readonly framesPerSecond = 8;
+  private readonly framesPerSecond = FIXED_FPS;
 
   private characterNode: Node | null = null;
   private characterSprite: Sprite | null = null;
-  private frames: Record<ActionName, SpriteFrame[]> = {
-    idle: [],
-    walk: [],
-    'lantern-idle': [],
-    'lantern-walk': [],
-  };
+  private frames = Object.keys(COCOS_RUNTIME_ACTIONS).reduce((result, action) => {
+    result[action as CocosRuntimeActionId] = [];
+    return result;
+  }, {} as Record<CocosRuntimeActionId, SpriteFrame[]>);
 
   private leftPressed = false;
   private rightPressed = false;
@@ -50,9 +56,9 @@ export class GameRoot extends Component {
   private direction = 1;
   private frameIndex = 0;
   private frameTime = 0;
-  private currentAction: ActionName = 'idle';
+  private currentAction: CocosRuntimeActionId = 'idle';
   private previewFrames: SpriteFrame[] = [];
-  private previewFps = 8;
+  private previewFps = FIXED_FPS;
   private previewLoop = true;
   private previewToken = 0;
   private previewOrigin: string = '*';
@@ -125,48 +131,27 @@ export class GameRoot extends Component {
     this.characterSprite = this.characterNode.addComponent(Sprite);
     this.characterSprite.sizeMode = Sprite.SizeMode.CUSTOM;
 
-    resources.loadDir('character/frames', SpriteFrame, (error, loadedFrames) => {
+    resources.loadDir(COCOS_RESOURCE_PATH, SpriteFrame, (error, loadedFrames) => {
       if (error) {
         console.error('Unable to load lamplighter animation frames.', error);
         return;
       }
 
-      for (const frame of loadedFrames) {
-        frame.texture.setFilters(Texture2D.Filter.NEAREST, Texture2D.Filter.NEAREST);
-        const name = frame.name;
-        if (name.startsWith('lantern-walk')) this.frames['lantern-walk'].push(frame);
-        else if (name.startsWith('walk')) this.frames.walk.push(frame);
-        else if (name.startsWith('idle')) this.frames.idle.push(frame);
-      }
-
-      for (const action of Object.keys(this.frames) as ActionName[]) {
-        this.frames[action].sort((a, b) => a.name.localeCompare(b.name));
-      }
+      loadedFrames.forEach((frame) => frame.texture.setFilters(Texture2D.Filter.NEAREST, Texture2D.Filter.NEAREST));
       const byName = new Map(loadedFrames.map((frame) => [frame.name, frame]));
       const pick = (...names: string[]) => names
         .map((name) => byName.get(name))
         .filter((frame): frame is SpriteFrame => Boolean(frame));
 
       // AI sheets are pose collections, not guaranteed animation order.
-      // Curate a readable contact/pass/contact/pass cycle and keep idle in the same visual family.
-      this.frames.idle = pick('walk-05');
-      this.frames.walk = pick(
-        'walk-01',
-        'walk-02',
-        'walk-03',
-        'walk-04',
-        'walk-05',
-        'walk-06',
-        'walk-07',
-        'walk-08',
-      );
-      this.frames['lantern-idle'] = pick('lantern-walk-03');
-      this.frames['lantern-walk'] = pick(
-        'lantern-walk-03',
-        'lantern-walk-01',
-        'lantern-walk-04',
-        'lantern-walk-02',
-      );
+      // Runtime ordering lives in the generated product contract, never in this component.
+      for (const action of Object.keys(COCOS_RUNTIME_ACTIONS) as CocosRuntimeActionId[]) {
+        const expected = cocosFrameNames(action);
+        this.frames[action] = pick(...expected);
+        if (this.frames[action].length !== expected.length) {
+          console.error(`Cocos frame mapping is incomplete for ${action}.`, { expected, loaded: this.frames[action].map((frame) => frame.name) });
+        }
+      }
       this.currentAction = 'idle';
       this.applyFrame();
     });
@@ -210,6 +195,11 @@ export class GameRoot extends Component {
   private onPreviewMessage = (event: MessageEvent): void => {
     const request = event.data as { type?: string; character?: string; action?: string; view?: string; fps?: number; loop?: boolean };
     if (request?.type !== 'windup:preview-animation' || !request.action || !request.view) return;
+    if (!isActionId(request.action)) {
+      this.postPreviewMessage({ type: 'windup:preview-error', reason: '动作不在 Windup 合约中' }, this.previewOrigin);
+      return;
+    }
+    const action = request.action;
     const supportedCharacters = ['lamplighter', 'boy', 'skeleton', 'lirael'];
     const character = request.character && supportedCharacters.includes(request.character) ? request.character : 'lamplighter';
     const base = character === 'lamplighter'
@@ -224,21 +214,24 @@ export class GameRoot extends Component {
         return;
       }
       const matches = loadedFrames
-        .filter((frame) => frame.name.startsWith(`${request.action}-`))
+        .filter((frame) => frame.name.startsWith(`${action}-`))
         .sort((a, b) => a.name.localeCompare(b.name));
-      if (!matches.length) {
-        this.postPreviewMessage({ type: 'windup:preview-error', reason: '资产未找到' }, this.previewOrigin);
+      if (matches.length !== ACTION_FRAME_COUNTS[action]) {
+        this.postPreviewMessage({
+          type: 'windup:preview-error',
+          reason: `帧映射不符合合约：${action} 需要 ${ACTION_FRAME_COUNTS[action]} 帧，实际 ${matches.length} 帧`,
+        }, this.previewOrigin);
         return;
       }
       matches.forEach((frame) => frame.texture.setFilters(Texture2D.Filter.NEAREST, Texture2D.Filter.NEAREST));
       this.previewFrames = matches;
-      this.previewFps = 8;
-      this.previewLoop = request.loop !== false;
+      this.previewFps = FIXED_FPS;
+      this.previewLoop = ACTION_LOOPS[action];
       this.frameIndex = 0;
       this.frameTime = 0;
       this.applyFrame();
       if (this.characterNode) tween(this.characterNode).to(0.22, { scale: new Vec3(this.direction, 1, 1) }).start();
-      this.postPreviewMessage({ type: 'windup:preview-applied', character, action: request.action, view: request.view, frames: matches.length }, this.previewOrigin);
+      this.postPreviewMessage({ type: 'windup:preview-applied', character, action, view: request.view, frames: matches.length }, this.previewOrigin);
     });
   };
 
@@ -270,7 +263,7 @@ export class GameRoot extends Component {
       this.characterNode.setScale(this.direction, 1, 1);
     }
 
-    const nextAction: ActionName = movement === 0
+    const nextAction: CocosRuntimeActionId = movement === 0
       ? this.lanternEnabled ? 'lantern-idle' : 'idle'
       : this.lanternEnabled ? 'lantern-walk' : 'walk';
     if (nextAction !== this.currentAction) {

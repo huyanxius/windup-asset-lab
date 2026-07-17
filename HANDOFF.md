@@ -18,7 +18,7 @@
 
 ## 2. 核心目录
 
-- `assets/scripts/GameRoot.ts`：Cocos 游戏主逻辑、键盘移动、动画播放、平台联调接口。
+- `assets/scripts/generated-contract.ts` / `GameRoot.ts`：由产品契约生成 Cocos 帧率、循环、动作和帧名映射；游戏主逻辑只负责播放与联调。
 - `assets/resources/character/`：游戏可直接加载的人物帧资产。
 - `asset-lab/`：人物资产审核、播放、质检、操控和 Cocos 联调平台。
 - `artifacts/raw/`：生成模型返回的原始大图，已保留历史版本。
@@ -67,7 +67,7 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - `asset-lab/pages/editor.js`：Composition Root；渲染与输入分别在 `editor-view.js`、`editor-bindings.js`。
 - `asset-lab/styles/`：基础、表面、抽屉、布局、组件、集成和动效七层样式，不再使用巨型单文件。
 - `server/windup_pipeline/domain.py`：内建角色目录与自动生成契约的统一导出。
-- `contracts/windup.v1.json`：前后端唯一产品契约；通过工具生成 JS 类型与 Python 常量。
+- `contracts/windup.v1.json`：前端、后端与 Cocos 唯一产品契约；通过工具生成 JS、TypeScript 与 Python 常量。
 - `server/windup_pipeline/application.py`：独立应用用例；`server/app.py` 只负责 HTTP 适配。
 - `server/windup_pipeline/generation_executor.py`：后台任务进度、角色包执行与溯源。
 - `server/windup_pipeline/action_pipeline.py`：动作条生成、切帧、逐帧修复与回退策略。
