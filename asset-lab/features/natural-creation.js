@@ -3,37 +3,56 @@ export const NATURAL_CREATION_STEPS = Object.freeze([
     id: 'interpret',
     label: '理解创作指令',
     copy: '提取角色身份、视角、动作和交付格式。',
-    duration: 2100,
-    progress: 16,
+    duration: 1800,
+    progress: 9,
   }),
   Object.freeze({
     id: 'master',
     label: '创建身份母版',
     copy: '锁定角色轮廓、服装结构与核心色彩。',
-    duration: 3000,
-    progress: 38,
+    duration: 3200,
+    progress: 25,
   }),
   Object.freeze({
     id: 'motion',
     label: '生成动作序列',
-    copy: '组织 Idle 与 Walk 的八帧循环动画。',
-    duration: 4200,
-    progress: 66,
+    copy: '逐张接收 Idle 与 Walk 的八帧循环动画。',
+    duration: 9600,
+    progress: 73,
   }),
   Object.freeze({
     id: 'quality',
     label: '执行质量检查',
-    copy: '检查透明背景、脚底基线、相邻位移和循环接缝。',
-    duration: 3200,
-    progress: 84,
+    copy: '按产物检查透明背景、脚底基线、相邻位移和循环接缝。',
+    duration: 3500,
+    progress: 91,
   }),
   Object.freeze({
     id: 'package',
     label: '准备导出资产',
     copy: '整理 Sprite Sheet、JSON metadata 与预览入口。',
-    duration: 2500,
-    progress: 96,
+    duration: 2200,
+    progress: 98,
   }),
+]);
+
+export const NATURAL_CREATION_ASSET_SEQUENCE = Object.freeze([
+  Object.freeze({ id: 'master', kind: 'master', label: '身份母版' }),
+  ...['idle', 'walk'].flatMap((action) => Array.from({ length: 8 }, (_, index) => Object.freeze({
+    action,
+    frameIndex: index,
+    id: `${action}-${String(index + 1).padStart(2, '0')}`,
+    kind: 'frame',
+    label: `${action.toUpperCase()} · FRAME ${String(index + 1).padStart(2, '0')}`,
+  }))),
+]);
+
+const QUALITY_CHECKS = Object.freeze([
+  '透明背景',
+  '画布尺寸',
+  '脚底基线',
+  '相邻位移',
+  '循环接缝',
 ]);
 
 export const NATURAL_CREATION_DURATION_MS = NATURAL_CREATION_STEPS.reduce(
@@ -133,8 +152,11 @@ export class NaturalCreationController {
   snapshot() {
     return {
       error: this.error,
+      activeArtifact: this.activeArtifact ? { ...this.activeArtifact } : null,
+      artifacts: this.artifacts.map((artifact) => ({ ...artifact })),
       intent: this.intent,
       progress: this.progress,
+      qualityChecks: this.qualityChecks.map((check) => ({ ...check })),
       savedName: this.savedName,
       status: this.status,
       stepIndex: this.stepIndex,
@@ -159,8 +181,11 @@ export class NaturalCreationController {
 
     this.runToken += 1;
     this.error = '';
+    this.activeArtifact = null;
+    this.artifacts = [];
     this.intent = parseNaturalCreationCommand(command);
-    this.progress = NATURAL_CREATION_STEPS[0].progress;
+    this.progress = 2;
+    this.qualityChecks = [];
     this.savedName = '';
     this.status = 'running';
     this.stepIndex = 0;
@@ -172,29 +197,56 @@ export class NaturalCreationController {
   scheduleCurrentStep(token) {
     const step = NATURAL_CREATION_STEPS[this.stepIndex];
     if (!step) return;
+    this.scheduleStepEvents(step, token);
     this.schedule(() => {
       if (token !== this.runToken || this.status !== 'running') return;
+      this.progress = step.progress;
       if (this.stepIndex >= NATURAL_CREATION_STEPS.length - 1) {
         this.status = 'completed';
         this.progress = 100;
+        this.activeArtifact = null;
         this.emit();
         return;
       }
       this.stepIndex += 1;
-      this.progress = NATURAL_CREATION_STEPS[this.stepIndex].progress;
       this.emit();
       this.scheduleCurrentStep(token);
     }, step.duration);
   }
 
-  skip() {
-    if (this.status !== 'running') return this.snapshot();
-    this.runToken += 1;
-    this.status = 'completed';
-    this.stepIndex = NATURAL_CREATION_STEPS.length - 1;
-    this.progress = 100;
-    this.emit();
-    return this.snapshot();
+  scheduleStepEvents(step, token) {
+    const events = step.id === 'master'
+      ? [NATURAL_CREATION_ASSET_SEQUENCE[0]]
+      : step.id === 'motion'
+        ? NATURAL_CREATION_ASSET_SEQUENCE.slice(1)
+        : [];
+
+    events.forEach((artifact, index) => {
+      const delay = Math.round(((index + 1) / (events.length + 1)) * step.duration);
+      this.schedule(() => {
+        if (token !== this.runToken || this.status !== 'running' || this.stepIndex !== NATURAL_CREATION_STEPS.indexOf(step)) return;
+        if (!this.artifacts.some((item) => item.id === artifact.id)) {
+          const arrived = { ...artifact, arrivedAt: Date.now() };
+          this.artifacts.push(arrived);
+          this.activeArtifact = arrived;
+        }
+        const previousProgress = this.stepIndex > 0 ? NATURAL_CREATION_STEPS[this.stepIndex - 1].progress : 2;
+        this.progress = Math.round(previousProgress + ((step.progress - previousProgress) * (index + 1)) / (events.length + 1));
+        this.emit();
+      }, delay);
+    });
+
+    if (step.id !== 'quality') return;
+    QUALITY_CHECKS.forEach((label, index) => {
+      const delay = Math.round(((index + 1) / (QUALITY_CHECKS.length + 1)) * step.duration);
+      this.schedule(() => {
+        if (token !== this.runToken || this.status !== 'running' || this.stepIndex !== NATURAL_CREATION_STEPS.indexOf(step)) return;
+        this.qualityChecks.push({ id: `quality-${index + 1}`, label, status: 'passed' });
+        const previousProgress = NATURAL_CREATION_STEPS[this.stepIndex - 1].progress;
+        this.progress = Math.round(previousProgress + ((step.progress - previousProgress) * (index + 1)) / (QUALITY_CHECKS.length + 1));
+        this.emit();
+      }, delay);
+    });
   }
 
   markSaved(value) {
@@ -207,8 +259,11 @@ export class NaturalCreationController {
   reset({ notify = true } = {}) {
     this.runToken += 1;
     this.error = '';
+    this.activeArtifact = null;
+    this.artifacts = [];
     this.intent = null;
     this.progress = 0;
+    this.qualityChecks = [];
     this.savedName = '';
     this.status = 'idle';
     this.stepIndex = -1;

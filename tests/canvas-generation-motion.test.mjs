@@ -13,8 +13,9 @@ test('node canvas makes master and frame generation visibly progressive', async 
   assert.match(css, /\.dot-ring-4/);
   assert.match(css, /@keyframes node-frame-reveal/);
   assert.match(css, /filter: blur\(19px\)/);
-  assert.match(css, /\.node-frame-strip\.is-revealing > span:nth-child\(8\)/);
-  assert.match(css, /animation-delay: 12\.6s/);
+  assert.doesNotMatch(css, /\.node-frame-strip\.is-revealing > span:nth-child\(8\)/);
+  assert.match(css, /\.node-frame-strip > span\.is-arrived/);
+  assert.match(css, /@keyframes node-pending-pulse/);
   assert.match(css, /\.graph-port\.is-connectable/);
   assert.match(css, /\.node-wire\.is-suggested/);
   assert.match(css, /@keyframes node-wire-commit/);
