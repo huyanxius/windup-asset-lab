@@ -122,7 +122,6 @@ function bindDemoFlow(context) {
       input.focus();
     });
   });
-  document.querySelector('[data-natural-skip]')?.addEventListener('click', () => naturalCreation.skip());
   document.querySelector('[data-natural-reset]')?.addEventListener('click', () => naturalCreation.reset());
   document.querySelector('[data-natural-save-form]')?.addEventListener('submit', (event) => {
     event.preventDefault();

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 import {
+  NATURAL_CREATION_ASSET_SEQUENCE,
   NATURAL_CREATION_DURATION_MS,
   NATURAL_CREATION_STEPS,
   NaturalCreationController,
@@ -21,18 +22,19 @@ test('natural language command becomes a deterministic asset intent', () => {
   assert.match(intent.style, /像素/);
 });
 
-test('natural creation runs every production stage in the expected time', () => {
+test('natural creation publishes every intermediate asset before completion', () => {
   const scheduled = [];
   const controller = new NaturalCreationController({
     schedule: (callback, delay) => scheduled.push({ callback, delay }),
   });
 
-  assert.equal(NATURAL_CREATION_DURATION_MS, 15_000);
-  assert.ok(NATURAL_CREATION_DURATION_MS >= 14_500 && NATURAL_CREATION_DURATION_MS <= 15_500);
+  assert.equal(NATURAL_CREATION_DURATION_MS, 20_300);
+  assert.ok(NATURAL_CREATION_DURATION_MS >= 20_000 && NATURAL_CREATION_DURATION_MS <= 21_000);
 
   controller.start('创建一个名叫纸鸢信使的角色，生成待机和行走并导出。');
   assert.equal(controller.snapshot().status, 'running');
   assert.equal(controller.snapshot().stepIndex, 0);
+  assert.equal(controller.snapshot().artifacts.length, 0);
 
   while (scheduled.length) scheduled.shift().callback();
 
@@ -42,22 +44,28 @@ test('natural creation runs every production stage in the expected time', () => 
   assert.equal(result.intent.name, '纸鸢信使');
   assert.equal(result.steps.length, NATURAL_CREATION_STEPS.length);
   assert.ok(result.steps.every((step) => step.status === 'completed'));
+  assert.equal(result.artifacts.length, 17);
+  assert.deepEqual(
+    result.artifacts.map((artifact) => artifact.id),
+    NATURAL_CREATION_ASSET_SEQUENCE.map((artifact) => artifact.id),
+  );
+  assert.equal(new Set(result.artifacts.map((artifact) => artifact.id)).size, 17);
+  assert.equal(result.qualityChecks.length, 5);
+  assert.ok(result.qualityChecks.every((check) => check.status === 'passed'));
 });
 
-test('natural creation can skip the transition and reset for another command', () => {
+test('natural creation cannot skip live asset arrivals and can reset for another command', () => {
   const controller = new NaturalCreationController({ schedule: () => {} });
   controller.start('做一个像素骑士并导出');
-  controller.skip();
-  assert.equal(controller.snapshot().status, 'completed');
-  assert.equal(controller.snapshot().progress, 100);
-
-  controller.markSaved('像素骑士快捷方案');
-  assert.equal(controller.snapshot().savedName, '像素骑士快捷方案');
+  assert.equal(typeof controller.skip, 'undefined');
+  assert.equal(controller.snapshot().status, 'running');
 
   const reset = controller.reset({ notify: false });
   assert.equal(reset.status, 'idle');
   assert.equal(reset.intent, null);
   assert.equal(reset.savedName, '');
+  assert.deepEqual(reset.artifacts, []);
+  assert.deepEqual(reset.qualityChecks, []);
 });
 
 test('studio exposes both creation entrances while the quick path avoids direct HTTP side effects', async () => {
@@ -75,7 +83,10 @@ test('studio exposes both creation entrances while the quick path avoids direct 
   assert.match(shell, /el\('progress'/);
   assert.match(shell, /预计约/);
   assert.ok((shell.match(/data-pointer-card/g) || []).length >= 5);
-  assert.match(shell, /data-natural-skip/);
+  assert.doesNotMatch(shell, /data-natural-skip/);
+  assert.doesNotMatch(app, /naturalCreation\.skip/);
+  assert.match(shell, /LIVE 生成记录/);
+  assert.match(shell, /snapshot\.artifacts/);
   assert.match(shell, /data-natural-save-form/);
   assert.match(shell, /studio-bar__mode-back/);
   assert.match(shell, /studio-mode-gateway__back/);

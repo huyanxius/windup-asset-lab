@@ -109,6 +109,9 @@ class HttpContractTest(unittest.TestCase):
         character_id = approved["character"]["id"]
         self.assertEqual(len(approved["character"]["assets"]["side"]["idle"]["frames"]), 8)
         self.assertEqual(len(approved["character"]["assets"]["side"]["walk"]["frames"]), 8)
+        _, repeated = self.request(f"/api/generations/{job['id']}/promote", {})
+        self.assertEqual(repeated["status"], "approved")
+        self.assertEqual(repeated["character"]["id"], character_id)
 
         _, library = self.request("/api/characters")
         character = next(item for item in library["characters"] if item["id"] == character_id)

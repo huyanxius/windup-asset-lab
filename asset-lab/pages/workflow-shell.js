@@ -1078,26 +1078,52 @@ function renderNaturalCommandInput(snapshot) {
 
 function renderNaturalProgress(snapshot) {
   const active = snapshot.steps[snapshot.stepIndex] || snapshot.steps[0];
-  const framesVisible = snapshot.stepIndex >= 2;
+  const arrivedIds = new Set(snapshot.artifacts.map((artifact) => artifact.id));
+  const masterArrived = arrivedIds.has('master');
+  const latestCheck = snapshot.qualityChecks.at(-1);
+  const activeArtifact = latestCheck
+    ? `质检 · ${latestCheck.label}`
+    : snapshot.activeArtifact?.label || '等待首个图像产物';
+  const renderLiveRail = (action, frames) => el('section', { className: 'natural-live-rail' }, [
+    el('header', {}, [
+      el('span', {}, [el('small', { text: `SIDE / ${action.toUpperCase()}` }), el('b', { text: '逐帧产物' })]),
+      el('strong', { text: `${snapshot.artifacts.filter((artifact) => artifact.action === action).length} / 8` }),
+    ]),
+    el('div', { className: 'natural-live-rail__frames', attributes: { 'aria-label': `${action} 中间产物` } }, frames.map((src, index) => {
+      const id = `${action}-${String(index + 1).padStart(2, '0')}`;
+      const arrived = arrivedIds.has(id);
+      return el('span', { className: arrived ? 'is-arrived' : 'is-pending' }, [
+        arrived ? el('img', { src, alt: `${action} 第 ${index + 1} 帧已生成` }) : el('i', { attributes: { 'aria-hidden': 'true' } }),
+        el('small', { text: String(index + 1).padStart(2, '0') }),
+      ]);
+    })),
+  ]);
   return el('section', { className: 'natural-creation natural-agent-screen natural-agent-screen--progress', attributes: { 'data-natural-status': snapshot.status } }, [
     renderNaturalScreenHeader('AI 资产生成', {
-      trailing: el('button', { className: 'natural-agent-skip', type: 'button', text: '跳过过渡', attributes: { 'data-natural-skip': '' } }),
+      trailing: el('div', { className: 'natural-agent-live', attributes: { 'aria-label': `已收到 ${snapshot.artifacts.length} 个图像产物` } }, [
+        el('i', { attributes: { 'aria-hidden': 'true' } }),
+        el('span', {}, [el('small', { text: 'LIVE 生成记录' }), el('b', { text: `${snapshot.artifacts.length} / 17` })]),
+      ]),
     }),
     el('div', { className: 'natural-agent-stage' }, [
-      el('section', { className: 'natural-progress__visual' }, [
-        el('div', { className: 'natural-progress__master', attributes: { 'data-pointer-card': 'subtle' } }, [
-          el('div', { className: 'natural-progress__resolve', attributes: { 'aria-hidden': 'true' } }, Array.from({ length: 100 }, (_, index) => el('i', { className: `resolve-ring-${Math.floor(index / 20)}` }))),
-          el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.intent.name}身份母版` }),
-          el('span', {}, [el('small', { text: 'IDENTITY MASTER' }), el('b', { text: snapshot.intent.name })]),
+      el('section', { className: 'natural-progress__visual natural-live-board' }, [
+        el('header', { className: 'natural-live-board__header' }, [
+          el('span', {}, [el('small', { text: 'CURRENT OUTPUT' }), el('b', { text: activeArtifact })]),
+          el('strong', { text: snapshot.qualityChecks.length ? `质检 ${snapshot.qualityChecks.length} / 5` : '产物实时到达' }),
         ]),
-        el('div', { className: `natural-progress__filmstrip ${framesVisible ? 'is-visible' : ''}` }, DEMO_CHARACTER_ASSETS.walkFrames.map((src, index) => el('span', {}, [
-          el('img', { src, alt: index === 0 ? 'Walk 八帧动作序列' : '' }),
-          el('small', { text: String(index + 1).padStart(2, '0') }),
-        ]))),
+        el('div', { className: `natural-live-master ${masterArrived ? 'is-arrived' : 'is-pending'}` }, [
+          el('div', { className: 'natural-progress__resolve', attributes: { 'aria-hidden': 'true' } }, Array.from({ length: 36 }, (_, index) => el('i', { className: `resolve-ring-${Math.floor(index / 8)}` }))),
+          masterArrived ? el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.intent.name} 身份母版已生成` }) : null,
+          el('span', {}, [el('small', { text: 'IDENTITY MASTER' }), el('b', { text: masterArrived ? snapshot.intent.name : '等待母版产物' })]),
+        ]),
+        el('div', { className: 'natural-live-sequences' }, [
+          renderLiveRail('idle', DEMO_CHARACTER_ASSETS.idleFrames),
+          renderLiveRail('walk', DEMO_CHARACTER_ASSETS.walkFrames),
+        ]),
       ]),
       el('aside', { className: 'natural-agent-runner' }, [
         el('header', {}, [
-          el('span', {}, [el('small', { text: `AI ASSET PIPELINE / ~${Math.round(NATURAL_CREATION_DURATION_MS / 1000)} SEC` }), el('b', { text: active.label })]),
+          el('span', {}, [el('small', { text: `AI ASSET PIPELINE / LIVE / ${snapshot.artifacts.length} OUTPUTS` }), el('b', { text: active.label })]),
           el('strong', { text: `${snapshot.progress}%` }),
         ]),
         el('p', { text: active.copy }),
@@ -1136,9 +1162,9 @@ function renderNaturalResult(snapshot) {
         ]),
         el('div', { className: 'natural-result__sequences' }, [
           el('header', {}, [el('span', {}, [el('small', { text: 'SIDE / WALK' }), el('b', { text: '8 FPS · LOOP' })]), el('i', { text: '8 FRAMES' })]),
-          renderFrameStrip(DEMO_CHARACTER_ASSETS.walkFrames, false, 'Walk 八帧动作序列'),
+          renderFrameStrip(DEMO_CHARACTER_ASSETS.walkFrames, null, 'Walk 八帧动作序列'),
           el('header', {}, [el('span', {}, [el('small', { text: 'SIDE / IDLE' }), el('b', { text: '8 FPS · LOOP' })]), el('i', { text: '8 FRAMES' })]),
-          renderFrameStrip(DEMO_CHARACTER_ASSETS.idleFrames, false, 'Idle 八帧动作序列'),
+          renderFrameStrip(DEMO_CHARACTER_ASSETS.idleFrames, null, 'Idle 八帧动作序列'),
         ]),
       ]),
       el('aside', { className: 'natural-agent-delivery' }, [
@@ -1312,7 +1338,11 @@ function jobIsRunning(snapshot, kind, action = null) {
   return (snapshot.jobs || []).some((job) => job.kind === kind && job.action === action);
 }
 
-function generationVisual(src, label, kind = 'image') {
+function activeJob(snapshot, kind, action = null) {
+  return (snapshot.jobs || []).find((job) => job.kind === kind && job.action === action) || null;
+}
+
+function generationVisual(src, label, kind = 'image', arrived = true) {
   return el('div', { className: `node-generation node-generation--${kind}` }, [
     el('div', { className: 'node-generation__dots', attributes: { 'aria-hidden': 'true' } }, Array.from({ length: 81 }, (_, index) => {
       const x = index % 9 - 4;
@@ -1320,7 +1350,7 @@ function generationVisual(src, label, kind = 'image') {
       const ring = Math.max(Math.abs(x), Math.abs(y));
       return el('i', { className: `dot-ring-${ring}` });
     })),
-    src ? el('img', { src, alt: label }) : null,
+    src && arrived ? el('img', { src, alt: label }) : null,
     el('small', { text: label }),
   ]);
 }
@@ -1334,10 +1364,15 @@ function selectedAssetSet(snapshot) {
   return { master, idle: Array(8).fill(master), walk };
 }
 
-function renderFrameStrip(frames, running, label) {
-  return el('div', { className: `node-frame-strip ${running ? 'is-revealing' : ''}`, attributes: { 'aria-label': label } }, frames.map((src, index) => (
-    el('span', {}, [el('img', { src, alt: index === 0 ? label : '' }), el('small', { text: String(index + 1).padStart(2, '0') })])
-  )));
+function renderFrameStrip(frames, received, label) {
+  const isLive = Number.isInteger(received);
+  return el('div', { className: `node-frame-strip ${isLive ? 'is-revealing' : ''}`, attributes: { 'aria-label': label } }, frames.map((src, index) => {
+    const arrived = !isLive || index < received;
+    return el('span', { className: arrived ? 'is-arrived' : 'is-pending' }, [
+      arrived ? el('img', { src, alt: index === 0 ? label : '' }) : el('i', { attributes: { 'aria-hidden': 'true' } }),
+      el('small', { text: String(index + 1).padStart(2, '0') }),
+    ]);
+  }));
 }
 
 function renderSourceNode(snapshot, focus) {
@@ -1356,6 +1391,7 @@ function renderSourceNode(snapshot, focus) {
 
 function renderMasterGenerator(snapshot, focus, projectContext, libraryState = {}) {
   const running = jobIsRunning(snapshot, 'master');
+  const job = activeJob(snapshot, 'master');
   const sourceField = snapshot.sourceId === 'upload'
     ? el('label', {}, [el('span', { text: '角色参考图' }), el('input', { type: 'file', attributes: { name: 'reference', accept: 'image/png,image/jpeg,image/webp', required: '' } })])
     : snapshot.sourceId === 'existing'
@@ -1369,7 +1405,13 @@ function renderMasterGenerator(snapshot, focus, projectContext, libraryState = {
     outputEnabled: ['review', 'confirmed'].includes(snapshot.master), className: running ? 'is-running' : '',
     body: [
       nodeStatus('母版任务', snapshot.master),
-      running ? generationVisual(DEMO_CHARACTER_ASSETS.base, '身份特征逐步成形') : el('form', { className: 'node-brief-form', id: 'masterBriefForm' }, [
+      running ? el('div', { className: 'master-arrival-grid', attributes: { 'aria-label': '母版候选实时到达' } }, masterCandidates.map((candidate, index) => {
+        const arrived = index < (job?.arrivals || 0);
+        return el('span', { className: arrived ? 'is-arrived' : 'is-pending' }, [
+          arrived ? el('img', { src: candidate.src, alt: `${candidate.label}候选已生成` }) : el('i', { attributes: { 'aria-hidden': 'true' } }),
+          el('small', { text: arrived ? `候选 0${index + 1}` : '生成中' }),
+        ]);
+      })) : el('form', { className: 'node-brief-form', id: 'masterBriefForm' }, [
         el('label', {}, [el('span', { text: '角色名称' }), el('input', { attributes: { name: 'name', required: '', maxlength: '40', value: snapshot.master === 'review' ? snapshot.profile.name : '', placeholder: '输入角色名称' } })]),
         el('label', {}, [el('span', { text: '身份与外观' }), el('textarea', { text: snapshot.master === 'review' ? snapshot.profile.description : '', attributes: { name: 'description', required: '', maxlength: '240', rows: '3', placeholder: '描述身份、服装、体型和识别特征' } })]),
         el('label', {}, [el('span', { text: '美术约束' }), el('textarea', { text: snapshot.master === 'review' ? snapshot.profile.style : projectContext.style || '', attributes: { name: 'style', required: '', maxlength: '180', rows: '2', placeholder: '输入风格、色彩和材质约束' } })]),
@@ -1407,12 +1449,13 @@ function renderKeyframeNode(snapshot, action, x, y, focus = false, focusGroup = 
   const label = action === 'walk' ? 'Walk 第一帧' : 'Idle 第一帧';
   const frames = selectedAssetSet(snapshot)[action];
   const running = jobIsRunning(snapshot, 'keyframe', action);
+  const job = activeJob(snapshot, 'keyframe', action);
   return graphNode({
     id: `${action}-key`, eyebrow: `04 · ${action.toUpperCase()}`, title: label, x, y, focus, focusGroup,
     outputEnabled: branch.keyframe === 'confirmed', className: running ? 'is-running' : '',
     body: [
       nodeStatus('关键帧', branch.keyframe),
-      running ? generationVisual(frames[0], `${label}正在生成`) : null,
+      running ? generationVisual(frames[0], job?.arrivals ? `${label}已到达` : `${label}正在生成`, 'image', Boolean(job?.arrivals)) : null,
       ['review', 'confirmed'].includes(branch.keyframe) ? el('figure', { className: 'keyframe-preview' }, [el('img', { src: frames[0], alt: label }), el('figcaption', { text: `${action} · frame 01` })]) : null,
       ['ready', 'review'].includes(branch.keyframe) ? el('form', { className: 'node-brief-form', attributes: { 'data-keyframe-form': action } }, [
         el('label', {}, [el('span', { text: '动作描述' }), el('textarea', { text: branch.brief, attributes: { name: 'brief', required: '', rows: '3', maxlength: '180', placeholder: action === 'walk' ? '描述步态、重心、速度和情绪' : '描述呼吸、重心和待机细节' } })]),
@@ -1428,12 +1471,13 @@ function renderAnimationNode(snapshot, action, x, y, focus = false, focusGroup =
   const label = action === 'walk' ? 'Walk 动画' : 'Idle 动画';
   const frames = selectedAssetSet(snapshot)[action];
   const running = jobIsRunning(snapshot, 'animation', action);
+  const job = activeJob(snapshot, 'animation', action);
   return graphNode({
     id: `${action}-animation`, eyebrow: `05 · ${action.toUpperCase()}`, title: label, x, y, focus, focusGroup,
     outputEnabled: branch.animation === 'confirmed', className: running ? 'is-running' : '',
     body: [
       nodeStatus('8 FPS · 循环', branch.animation),
-      running || ['review', 'confirmed'].includes(branch.animation) ? renderFrameStrip(frames, running, `${label}八帧预览`) : el('p', { text: '首帧确认后，再连接并生成完整动作。' }),
+      running || ['review', 'confirmed'].includes(branch.animation) ? renderFrameStrip(frames, running ? job?.arrivals || 0 : null, `${label}八帧预览`) : el('p', { text: '首帧确认后，再连接并生成完整动作。' }),
       ['ready', 'review'].includes(branch.animation) ? el('form', { className: 'node-brief-form node-animation-form', attributes: { 'data-animation-form': action } }, [
         el('label', {}, [el('span', { text: '动画 FPS' }), el('select', { attributes: { name: 'fps', required: '' } }, [
           el('option', { text: '请选择', attributes: { value: '' } }),
@@ -1462,13 +1506,14 @@ function renderCustomActionNode() {
 
 function renderPublishNode(snapshot, focus, projectContext, workflowState = {}) {
   const running = jobIsRunning(snapshot, 'publish');
+  const upstreamReady = Object.values(snapshot.actions).every((branch) => branch.animation === 'confirmed');
   const previewHref = `./review.html?character=${encodeURIComponent(snapshot.masterCandidate || 'boy')}&view=side&action=walk`;
   return graphNode({
     id: 'publish', eyebrow: '06 · ASSET', title: snapshot.completed ? '项目资产已就绪' : '导入项目资产', x: 2250, y: 330, focus,
     output: false, className: running ? 'is-running' : '',
     body: [
       nodeStatus('双分支校验', snapshot.completed ? 'confirmed' : running ? 'generating' : 'locked'),
-      running ? generationVisual(selectedAssetSet(snapshot).master, '正在保存母版、动作与版本关系') : null,
+      running ? generationVisual(null, '正在保存母版、动作与版本关系', 'package') : null,
       snapshot.completed ? el('div', { className: 'publish-complete' }, [
         el('b', { text: '版本 v1 · 选择下一步' }),
         el('span', { text: '母版、Idle 与 Walk 已完成' }),
@@ -1490,7 +1535,16 @@ function renderPublishNode(snapshot, focus, projectContext, workflowState = {}) 
           el('button', { type: 'submit', text: workflowState.saving ? '正在保存…' : '保存流程', attributes: workflowState.saving ? { disabled: '' } : {} }),
           workflowState.message ? el('small', { text: workflowState.message }) : null,
         ]),
-      ]) : el('button', { className: 'node-action', type: 'button', text: '确认导入项目资产', attributes: { 'data-publish': '', 'data-connection-required': 'walk-animation:publish,idle-animation:publish' } }),
+      ]) : el('button', {
+        className: 'node-action',
+        type: 'button',
+        text: '确认导入项目资产',
+        attributes: {
+          'data-publish': '',
+          'data-connection-required': 'walk-animation:publish,idle-animation:publish',
+          'data-node-ready': String(upstreamReady),
+        },
+      }),
     ],
   });
 }

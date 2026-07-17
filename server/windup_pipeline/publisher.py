@@ -44,6 +44,7 @@ class AssetPublisher:
 
         staging = self.characters_root / f".{character_id}-{job['id']}.tmp"
         shutil.rmtree(staging, ignore_errors=True)
+        created_character = False
         try:
             target_base = staging / "base.png"
             target_base.parent.mkdir(parents=True, exist_ok=True)
@@ -71,20 +72,24 @@ class AssetPublisher:
             if character_root.exists():
                 raise ValueError("目标角色已存在，未覆盖正式资产")
             staging.replace(character_root)
+            created_character = True
+            card_file = character_root / "card.json"
+            self.catalog.register(card, card_file)
+            character = {
+                "id": character_id,
+                "label": card["label"],
+                "base": card["base"],
+                "root": str(character_root.relative_to(self.root)),
+                "description": card["description"],
+                "assets": self.catalog.manifest(character_id),
+            }
         except Exception:
             shutil.rmtree(staging, ignore_errors=True)
+            if created_character:
+                shutil.rmtree(character_root, ignore_errors=True)
+                self.catalog.records.pop(character_id, None)
             raise
 
-        card_file = character_root / "card.json"
-        self.catalog.register(card, card_file)
-        character = {
-            "id": character_id,
-            "label": card["label"],
-            "base": card["base"],
-            "root": str(character_root.relative_to(self.root)),
-            "description": card["description"],
-            "assets": self.catalog.manifest(character_id),
-        }
         return {
             "message": "角色与基础动作已加入资产库",
             "character": character,
