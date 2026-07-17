@@ -17,7 +17,8 @@ test('character creation exposes and enforces a starter action package', async (
   assert.match(source, /api\.upload\('\/api\/projects\/windup-demo\/references'/);
   assert.match(source, /referenceAssetId/);
   assert.match(source, /completePackage/);
-  assert.match(source, /provider\.contractCompatible/);
+  assert.match(source, /createDemoApiClient/);
+  assert.doesNotMatch(html, /id="apiKey"|七牛云/);
 });
 
 test('full action generation selects the coherent sheet route and reports its cost', async () => {
@@ -29,12 +30,13 @@ test('full action generation selects the coherent sheet route and reports its co
   assert.match(html, /id="jobMetrics"/);
   assert.match(source, /route: generationDefaults\.defaultRoute/);
   assert.match(source, /sourceCallCount/);
-  assert.match(source, /provider\.contractCompatible/);
+  assert.match(source, /createDemoApiClient/);
   assert.match(source, /generationJob\(/);
   assert.match(source, /characterRecords\(/);
+  assert.doesNotMatch(html, /id="apiKey"|七牛云/);
 });
 
-test('custom characters are loaded before the editor chooses a fallback asset', async () => {
+test('custom characters load before editor fallback and never require HTTP', async () => {
   const [entry, editor] = await Promise.all([
     readFile(new URL('app.js', assetLab), 'utf8'),
     readFile(new URL('pages/editor.js', assetLab), 'utf8'),
@@ -42,6 +44,8 @@ test('custom characters are loaded before the editor chooses a fallback asset', 
   assert.match(entry, /bootstrapEditor\(\)\.catch/);
   assert.match(editor, /await loadRequestedCharacter/);
   assert.match(editor, /characterRecords\(/);
+  assert.match(editor, /createDemoApiClient/);
+  assert.doesNotMatch(editor, /createApiClient|fetch\(/);
   assert.doesNotMatch(editor, /catch \{\s*\/\/ Built-in assets remain available/);
 });
 
@@ -59,5 +63,5 @@ test('character library keeps one outfit and one view in focus', async () => {
   assert.match(source, /viewAssets\(character, activeView\)/);
   assert.match(source, /history\.replaceState/);
   assert.match(source, /characterSearch\.addEventListener\('input', filterCharacters\)/);
-  assert.match(source, /setLibraryState\('error'/);
+  assert.match(source, /createDemoApiClient\(\{ storage: null \}\)/);
 });

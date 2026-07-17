@@ -1,45 +1,32 @@
-import { createApiClient } from './core/api-client.js';
+import { createDemoApiClient } from './core/demo-api-client.js';
 import { characterRecords, generationJob } from './core/api-contract.js';
 import { createJobPoller } from './core/job-poller.js';
 import { characterCatalog, mergeCharacterRecords } from './data/character-catalog.js';
 import { DEFAULT_DEMO_CHARACTER_ID } from './data/default-demo-character.js';
-import { ProviderSessionController } from './features/provider-session-controller.js';
 import { WorkflowStepper } from './features/workflow-stepper.js';
 import { CONTRACT_VERSION, generationDefaults } from './data/generated-contract.js';
 
 const $ = (id) => document.getElementById(id);
 const els = Object.fromEntries([
-  'serviceState','providerState','providerDot','apiKey','model','connectBtn','connectionMessage',
+  'serviceState',
   'generationForm','character','characterPortrait','view','action','mode','frameField','frame','prompt','startBtn',
   'workflowSteps','candidateGrid','jobPercent','jobProgress','jobTitle','jobMessage','jobMetrics','strategyNote','acceptBtn','editorLink',
 ].map((id) => [id, $(id)]));
-const api = createApiClient();
+const api = createDemoApiClient();
 const poller = createJobPoller(api);
-const state = { busy: false, job: null, catalogReady: false };
-const stepper = new WorkflowStepper(els.workflowSteps, ['connect', 'define', 'review']);
-const provider = new ProviderSessionController({
-  api,
-  elements: els,
-  expectedContractVersion: CONTRACT_VERSION,
-  onChange: syncControls,
-  onConnected: () => stepper.select('define'),
-});
+const state = { busy: false, job: null, catalogReady: false, ready: false, model: '' };
+const stepper = new WorkflowStepper(els.workflowSteps, ['demo', 'define', 'review']);
 
 function syncControls() {
-  const ready = provider.connected
-    && provider.contractCompatible
+  const ready = state.ready
     && state.catalogReady
-    && !state.busy
-    && Boolean(provider.model);
+    && !state.busy;
   els.startBtn.disabled = !ready;
   els.startBtn.textContent = state.busy
     ? '正在生成…'
-    : provider.connected && !provider.contractCompatible
-      ? '生成服务版本不匹配'
-      : provider.connected && !state.catalogReady
-        ? '角色资产未同步'
-        : provider.connected ? '开始生成候选资产' : '连接服务后开始生成';
-  els.connectBtn.disabled = state.busy || provider.busy;
+    : !state.catalogReady
+      ? '正在准备演示资产'
+      : '开始生成演示候选';
 }
 
 function syncCharacter() {
@@ -112,10 +99,10 @@ function renderJob(job) {
 
 async function startGeneration(event) {
   event.preventDefault();
-  if (!provider.requireConnection()) return;
+  if (!state.ready) return;
   if (!state.catalogReady) {
     els.jobTitle.textContent = '角色资产尚未同步';
-    els.jobMessage.textContent = '请先恢复角色资产接口，再开始真实生成。';
+    els.jobMessage.textContent = '演示资产尚未准备完成，请刷新页面重试。';
     return;
   }
   state.busy = true;
@@ -132,7 +119,7 @@ async function startGeneration(event) {
       route: generationDefaults.defaultRoute,
       frameIndex: Math.max(0, Math.min(7, Number(els.frame.value) - 1)),
       customPrompt: els.prompt.value.trim(),
-      model: provider.model,
+      model: state.model,
     }), CONTRACT_VERSION);
     renderJob(job);
     poller.poll(job.id, (next, error) => {
@@ -157,7 +144,7 @@ async function acceptGeneration() {
       CONTRACT_VERSION,
     );
     renderJob(job);
-    els.jobMessage.textContent = '候选资产已采用，正式资产已备份，可返回审核台。';
+    els.jobMessage.textContent = '演示候选已加入本地资产库，可返回审核台。';
     const query = new URLSearchParams({ character: job.request.character, view: job.request.view, action: job.request.action });
     els.editorLink.href = `./review.html?${query}`;
   } catch (error) {
@@ -173,36 +160,41 @@ async function boot() {
   els.mode.value = query.get('mode') || 'full';
   els.frame.value = query.get('frame') || '1';
   syncMode();
-  const [, charactersResult] = await Promise.allSettled([
-    provider.boot(),
+  const [healthResult, charactersResult] = await Promise.allSettled([
+    api.get('/api/health'),
     api.get('/api/characters'),
   ]);
+  if (healthResult.status === 'fulfilled') {
+    state.ready = true;
+    state.model = healthResult.value.model;
+    els.serviceState.textContent = healthResult.value.fallback
+      ? '演示模式 · 内存保底'
+      : '演示模式 · 本地保存';
+  }
   try {
     if (charactersResult.status === 'rejected') throw charactersResult.reason;
     const records = characterRecords(charactersResult.value, CONTRACT_VERSION);
     mergeCharacterRecords(records, (path) => api.assetUrl(path));
     state.catalogReady = true;
   } catch (error) {
-    state.catalogReady = false;
-    els.jobTitle.textContent = '角色资产同步失败';
-    els.jobMessage.textContent = error?.message || '无法读取角色资产。';
+    state.catalogReady = true;
+    els.jobTitle.textContent = '已启用内置资产保底';
+    els.jobMessage.textContent = error?.message || '演示资产状态损坏，已回退到打包内置角色。';
   }
   els.character.replaceChildren(...Object.entries(characterCatalog).map(([id, item]) => new Option(item.label, id)));
   const requestedCharacter = query.get('character');
   if (requestedCharacter && !characterCatalog[requestedCharacter]) {
-    state.catalogReady = false;
-    els.jobTitle.textContent = '找不到指定角色';
-    els.jobMessage.textContent = `角色 ${requestedCharacter} 不存在或尚未完成入库，未回退到演示角色。`;
+    els.jobTitle.textContent = '已回退到默认演示角色';
+    els.jobMessage.textContent = `找不到 ${requestedCharacter}，已使用内置少年继续演示。`;
   }
   els.character.value = characterCatalog[requestedCharacter]
     ? requestedCharacter
     : DEFAULT_DEMO_CHARACTER_ID;
   syncCharacter();
-  if (provider.connected) stepper.select('define');
+  stepper.select('define');
   syncControls();
 }
 
-provider.bind();
 els.character.addEventListener('change', syncCharacter);
 els.mode.addEventListener('change', syncMode);
 els.generationForm.addEventListener('submit', startGeneration);

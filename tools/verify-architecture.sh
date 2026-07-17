@@ -7,8 +7,13 @@ cd "$ROOT"
 node tools/generate-contract.mjs --check
 node tools/check-boundaries.mjs
 node --test tests/*.test.mjs
-python3 -m unittest discover -s tests -p 'test_*.py'
-python3 -m py_compile server/app.py server/windup_pipeline/*.py
+if command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; then
+  PYTHON=python3
+else
+  PYTHON=python
+fi
+"$PYTHON" -m unittest discover -s tests -p 'test_*.py'
+"$PYTHON" -m py_compile server/app.py server/windup_pipeline/*.py
 
 while IFS= read -r -d '' file; do
   node --check "$file"
