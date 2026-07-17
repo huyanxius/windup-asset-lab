@@ -12969,3 +12969,108 @@ body:has(.studio-mode-gateway), body:has(.natural-agent-screen) {
   }
 
 }
+
+/* Pointer-aware card feedback keeps the existing light Studio palette while
+   adding a small spatial response for mouse users. */
+[data-pointer-card] {
+  --card-lift: 0px;
+  --card-scale: 1;
+  --pointer-glow-opacity: 0;
+  --pointer-rotate-x: 0deg;
+  --pointer-rotate-y: 0deg;
+  --pointer-x: 50%;
+  --pointer-y: 50%;
+  position: relative;
+  isolation: isolate;
+  transform: perspective(1000px) translateY(var(--card-lift)) rotateX(var(--pointer-rotate-x)) rotateY(var(--pointer-rotate-y)) scale(var(--card-scale));
+  transform-style: preserve-3d;
+  transition-property: transform, border-color, background-color, box-shadow;
+  transition-duration: 170ms, 220ms, 220ms, 220ms;
+  transition-timing-function: cubic-bezier(.22, 1, .36, 1);
+}
+
+[data-pointer-card]::before {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  background: radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(75, 111, 84, .14), transparent 42%);
+  opacity: var(--pointer-glow-opacity);
+  transition: opacity 180ms ease-out;
+  pointer-events: none;
+}
+
+[data-pointer-card].is-pointer-active {
+  --pointer-glow-opacity: 1;
+}
+
+button[data-pointer-card]:hover, button[data-pointer-card]:focus-visible {
+  --card-lift: -5px;
+}
+
+button[data-pointer-card] {
+  cursor: pointer;
+}
+
+button[data-pointer-card]:active {
+  --card-lift: -1px;
+  --card-scale: .985;
+}
+
+.natural-agent-preview[data-pointer-card], .natural-progress__master[data-pointer-card], .natural-result__master[data-pointer-card] {
+  transition-duration: 200ms, 220ms, 220ms, 220ms;
+}
+
+.natural-agent-suggestion, .natural-agent-composer__submit, .natural-agent-back, .natural-agent-skip, .natural-agent-switch button, .natural-agent-examples button, .natural-result__options button, .natural-result__options a {
+  transition-property: transform, border-color, color, background-color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: cubic-bezier(.22, 1, .36, 1);
+}
+
+.natural-agent-suggestion:active {
+  transform: translate(-50%, -50%) scale(.99);
+}
+
+.natural-agent-composer__submit:active, .natural-agent-back:active, .natural-agent-skip:active, .natural-agent-switch button:active, .natural-agent-examples button:active, .natural-result__options button:active, .natural-result__options a:active {
+  transform: scale(.97);
+}
+
+.natural-agent-preview, .natural-progress__master, .natural-result__master, .natural-result__sequences {
+  animation: natural-card-settle 420ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.natural-result__sequences {
+  animation-delay: 70ms;
+}
+
+@keyframes natural-card-settle {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce), (pointer: coarse) {
+  [data-pointer-card] {
+    --card-lift: 0px;
+    --card-scale: 1;
+    --pointer-glow-opacity: 0;
+    --pointer-rotate-x: 0deg;
+    --pointer-rotate-y: 0deg;
+    transform: none;
+  }
+
+  [data-pointer-card]::before {
+    display: none;
+  }
+
+  .natural-agent-preview, .natural-progress__master, .natural-result__master, .natural-result__sequences {
+    animation: none;
+  }
+}

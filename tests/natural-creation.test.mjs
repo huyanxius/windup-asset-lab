@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 import {
+  NATURAL_CREATION_DURATION_MS,
   NATURAL_CREATION_STEPS,
   NaturalCreationController,
   parseNaturalCreationCommand,
@@ -26,8 +27,8 @@ test('natural creation runs every simulated stage without an API dependency', ()
     schedule: (callback, delay) => scheduled.push({ callback, delay }),
   });
 
-  const totalDuration = NATURAL_CREATION_STEPS.reduce((sum, step) => sum + step.duration, 0);
-  assert.ok(totalDuration >= 8_000 && totalDuration <= 10_000);
+  assert.equal(NATURAL_CREATION_DURATION_MS, 10_800);
+  assert.ok(NATURAL_CREATION_DURATION_MS >= 10_500 && NATURAL_CREATION_DURATION_MS <= 12_000);
 
   controller.start('创建一个名叫纸鸢信使的角色，生成待机和行走并导出。');
   assert.equal(controller.snapshot().status, 'running');
@@ -72,6 +73,8 @@ test('studio exposes both creation entrances while the quick path stays browser-
   assert.match(shell, /快速开始/);
   assert.match(shell, /id: 'naturalCreationForm'/);
   assert.match(shell, /el\('progress'/);
+  assert.match(shell, /预计约/);
+  assert.ok((shell.match(/data-pointer-card/g) || []).length >= 5);
   assert.match(shell, /data-natural-skip/);
   assert.match(shell, /data-natural-save-form/);
   assert.match(shell, /studio-bar__mode-back/);

@@ -5,6 +5,7 @@ import {
   DEMO_PRODUCTION_STEPS,
   DEMO_SOURCE_OPTIONS,
 } from '../features/demo-production.js';
+import { NATURAL_CREATION_DURATION_MS } from '../features/natural-creation.js';
 import {
   backHrefFor,
   breadcrumbsFor,
@@ -614,7 +615,7 @@ function renderDemoSourceChoices(mode) {
     el('button', {
       className: 'demo-source-card',
       type: 'button',
-      attributes: { 'data-demo-source': source.id },
+      attributes: { 'data-demo-source': source.id, 'data-pointer-card': '' },
     }, [
       el('span', { text: String(index + 1).padStart(2, '0') }),
       el('small', { text: source.eyebrow }),
@@ -988,7 +989,7 @@ function renderStudioModeChooser() {
       el('button', {
         className: 'studio-mode-card studio-mode-card--workflow',
         type: 'button',
-        attributes: { 'data-studio-mode': 'workflow' },
+        attributes: { 'data-studio-mode': 'workflow', 'data-pointer-card': '' },
       }, [
         el('span', { className: 'studio-mode-card__eyebrow', text: 'STEP BY STEP' }),
         el('span', { className: 'studio-mode-card__index', text: '01' }),
@@ -1002,7 +1003,7 @@ function renderStudioModeChooser() {
       el('button', {
         className: 'studio-mode-card studio-mode-card--natural',
         type: 'button',
-        attributes: { 'data-studio-mode': 'natural' },
+        attributes: { 'data-studio-mode': 'natural', 'data-pointer-card': '' },
       }, [
         el('span', { className: 'studio-mode-card__eyebrow', text: 'ONE COMMAND' }),
         el('span', { className: 'studio-mode-card__index', text: '02' }),
@@ -1058,7 +1059,7 @@ function renderNaturalCommandInput(snapshot) {
       ]),
       el('div', { className: 'natural-agent-composer__meta' }, [
         el('span', { text: '像素角色' }),
-        el('small', { text: '本地样例 · 8 FPS' }),
+        el('small', { text: `本地样例 · 预计约 ${Math.round(NATURAL_CREATION_DURATION_MS / 1000)} 秒 · 8 FPS` }),
       ]),
       el('button', { className: 'natural-agent-composer__submit', type: 'submit', text: '开始生成' }),
       snapshot.error ? el('p', { className: 'natural-command-form__error', text: snapshot.error }) : null,
@@ -1068,7 +1069,7 @@ function renderNaturalCommandInput(snapshot) {
       text: index === 0 ? '轻装信使' : '暗色游侠',
       attributes: { 'data-natural-example': example },
     }))),
-    el('aside', { className: 'natural-agent-preview' }, [
+    el('aside', { className: 'natural-agent-preview', attributes: { 'data-pointer-card': 'subtle' } }, [
       el('span', {}, [el('b', { text: 'OUTPUT PREVIEW' }), el('small', { text: 'IDENTITY / IDLE / WALK' })]),
       el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: '样例角色输出预览' }),
     ]),
@@ -1084,7 +1085,7 @@ function renderNaturalProgress(snapshot) {
     }),
     el('div', { className: 'natural-agent-stage' }, [
       el('section', { className: 'natural-progress__visual' }, [
-        el('div', { className: 'natural-progress__master' }, [
+        el('div', { className: 'natural-progress__master', attributes: { 'data-pointer-card': 'subtle' } }, [
           el('div', { className: 'natural-progress__resolve', attributes: { 'aria-hidden': 'true' } }, Array.from({ length: 100 }, (_, index) => el('i', { className: `resolve-ring-${Math.floor(index / 20)}` }))),
           el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.intent.name}样例母版` }),
           el('span', {}, [el('small', { text: 'IDENTITY MASTER' }), el('b', { text: snapshot.intent.name })]),
@@ -1096,7 +1097,7 @@ function renderNaturalProgress(snapshot) {
       ]),
       el('aside', { className: 'natural-agent-runner' }, [
         el('header', {}, [
-          el('span', {}, [el('small', { text: 'LOCAL SIMULATION / NO API' }), el('b', { text: active.label })]),
+          el('span', {}, [el('small', { text: `LOCAL SIMULATION / ~${Math.round(NATURAL_CREATION_DURATION_MS / 1000)} SEC` }), el('b', { text: active.label })]),
           el('strong', { text: `${snapshot.progress}%` }),
         ]),
         el('p', { text: active.copy }),
@@ -1129,7 +1130,7 @@ function renderNaturalResult(snapshot) {
     renderNaturalScreenHeader('AI 资产生成'),
     el('div', { className: 'natural-agent-result-stage' }, [
       el('section', { className: 'natural-result__assets' }, [
-        el('figure', { className: 'natural-result__master' }, [
+        el('figure', { className: 'natural-result__master', attributes: { 'data-pointer-card': 'subtle' } }, [
           el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.intent.name}身份母版` }),
           el('figcaption', {}, [el('small', { text: 'IDENTITY MASTER' }), el('b', { text: snapshot.intent.name })]),
         ]),

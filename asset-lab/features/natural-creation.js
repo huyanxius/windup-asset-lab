@@ -3,38 +3,43 @@ export const NATURAL_CREATION_STEPS = Object.freeze([
     id: 'interpret',
     label: '理解创作指令',
     copy: '提取角色身份、视角、动作和交付格式。',
-    duration: 1200,
+    duration: 1500,
     progress: 16,
   }),
   Object.freeze({
     id: 'master',
     label: '创建身份母版',
     copy: '使用样例资产模拟角色轮廓、服装和色彩锁定。',
-    duration: 1600,
+    duration: 2100,
     progress: 38,
   }),
   Object.freeze({
     id: 'motion',
     label: '生成动作序列',
     copy: '组织 Idle 与 Walk 的八帧循环动画。',
-    duration: 2100,
+    duration: 2900,
     progress: 66,
   }),
   Object.freeze({
     id: 'quality',
     label: '执行质量检查',
     copy: '模拟检查透明背景、脚底基线、相邻位移和循环接缝。',
-    duration: 1700,
+    duration: 2300,
     progress: 84,
   }),
   Object.freeze({
     id: 'package',
     label: '准备导出资产',
     copy: '整理 Sprite Sheet、JSON metadata 与预览入口。',
-    duration: 1400,
+    duration: 2000,
     progress: 96,
   }),
 ]);
+
+export const NATURAL_CREATION_DURATION_MS = NATURAL_CREATION_STEPS.reduce(
+  (total, step) => total + step.duration,
+  0,
+);
 
 const STYLE_TERMS = Object.freeze([
   '低饱和',

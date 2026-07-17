@@ -2,6 +2,7 @@ import { startBrandWave } from './features/brand-wave.js';
 import { DEMO_CHARACTER_ASSETS, DemoProductionController } from './features/demo-production.js';
 import { NaturalCreationController } from './features/natural-creation.js';
 import { NodeCanvasController } from './features/node-canvas.js';
+import { attachPointerCardMotion } from './features/pointer-card-motion.js';
 import { buildSpritePack } from './features/sprite-packer.js';
 import { startHomeIdleCast } from './features/home-idle-cast.js';
 import { startNarrativeFields } from './features/narrative-field.js';
@@ -18,6 +19,7 @@ let stopNarrativeFields = () => {};
 let stopHomeIdleCast = () => {};
 let stopScrollBird = () => {};
 let stopRouteTransition = () => {};
+let stopPointerCardMotion = () => {};
 let renderToken = 0;
 let activeRouteId = null;
 const api = createApiClient();
@@ -364,10 +366,12 @@ function render(options = {}) {
   stopNarrativeFields();
   stopHomeIdleCast();
   stopScrollBird();
+  stopPointerCardMotion();
   stopBrandWave = () => {};
   stopNarrativeFields = () => {};
   stopHomeIdleCast = () => {};
   stopScrollBird = () => {};
+  stopPointerCardMotion = () => {};
   const context = parseWorkflowLocation(window.location.hash);
   const requestedSource = context.query.get('source');
   if (requestedSource && demoProduction.snapshot().sourceId !== requestedSource) {
@@ -394,6 +398,7 @@ function render(options = {}) {
     stopScrollBird = startScrollBird(document.querySelector('[data-bird-layer="transition"]'));
   }
   bindDemoFlow(context);
+  stopPointerCardMotion = attachPointerCardMotion(root);
   document.querySelector('[data-library-retry]')?.addEventListener('click', loadAssetLibrary);
   if (options.focus) document.querySelector('#workflowPageTitle')?.focus({ preventScroll: true });
   if (!options.preserveScroll) window.scrollTo({ top: 0, behavior: 'instant' });
