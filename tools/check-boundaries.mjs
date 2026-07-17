@@ -23,7 +23,7 @@ function fail(file, rule) {
 const javascript = (await files(assetRoot)).filter((file) => ['.js', '.mjs'].includes(extname(file)));
 for (const file of javascript) {
   const source = await readFile(file, 'utf8');
-  const path = relative(assetRoot, file);
+  const path = relative(assetRoot, file).replaceAll('\\', '/');
   const imports = [...source.matchAll(/from\s+['"]([^'"]+)['"]/g)].map((match) => match[1]);
   if (path.startsWith('core/') && imports.some((value) => value.includes('/pages/') || value.includes('/features/'))) {
     fail(file, 'core may not depend on pages or features');
