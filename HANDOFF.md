@@ -1,6 +1,6 @@
 # Windup 开发交接
 
-> 更新：2026-07-16
+> 更新：2026-07-17
 >
 > GitHub：<https://github.com/huyanxius/windup-asset-lab>
 >
@@ -21,16 +21,19 @@
 
 ```bash
 cd /Users/huyan/Desktop/点灯人-issue-14
-PATH=/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin python3 -m server.app --demo
+chmod +x start.command
+./start.command
 ```
+
+Finder 中也可以直接双击 `start.command`。脚本会同时启动 5174 工作台和 5173 Cocos Runtime，服务日志写入 macOS 临时目录，按 `Control-C` 结束本次启动的两个进程。
 
 | Surface | URL |
 |---|---|
-| 产品首页 | <http://127.0.0.1:4174/asset-lab/> |
-| 项目资产 | <http://127.0.0.1:4174/asset-lab/#/library> |
-| 节点创作画布 | <http://127.0.0.1:4174/asset-lab/#/studio> |
-| 逐帧审核台 | <http://127.0.0.1:4174/asset-lab/review.html> |
-| Cocos Web Runtime | <http://127.0.0.1:4173/> |
+| 产品首页 | <http://127.0.0.1:5174/asset-lab/> |
+| 项目资产 | <http://127.0.0.1:5174/asset-lab/#/library> |
+| 节点创作画布 | <http://127.0.0.1:5174/asset-lab/#/studio> |
+| 逐帧审核台 | <http://127.0.0.1:5174/asset-lab/review.html> |
+| Cocos Web Runtime | <http://127.0.0.1:5173/> |
 
 工作台为原生 ES Modules + Python 服务，不是 React/Vite 项目，不使用 `npm run dev`。
 
@@ -44,6 +47,8 @@ PATH=/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin python3 -m server.app --dem
 - 最终节点提供导出资产和发送到预览台。
 - 普通流程逐步人工确认；已验证流程可保存为后端模板并用于新角色自动运行。
 - 自动复用仍在候选采用前停下，用户确认后才调用 promote 原子入库。
+- 创作页新增双入口；原节点工作流保留三种素材来源，自然语言快捷创建使用本地样例数据模拟五阶段生产，并复用现有导出、预览和保存操作。
+- 自然语言输入、进度和结果页沿用原工作流的浅灰、灰白与墨绿色，并与双入口、节点工作流之间提供明确返回路径。
 
 ## 流程复用数据与 API
 
