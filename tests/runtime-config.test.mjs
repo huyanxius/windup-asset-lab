@@ -12,3 +12,14 @@ test('runtime endpoints are configurable without source edits', () => {
   assert.equal(config.gameOrigin, 'https://game.example.com');
   assert.equal(config.gameUrl, 'https://game.example.com/build/');
 });
+
+test('backend-hosted asset lab uses the current origin on a custom local port', () => {
+  const config = resolveRuntimeConfig({
+    hostname: '127.0.0.1',
+    port: '4274',
+    origin: 'http://127.0.0.1:4274',
+    pathname: '/asset-lab/',
+  });
+
+  assert.equal(config.apiBase, '');
+});

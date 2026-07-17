@@ -9,10 +9,11 @@ export function resolveRuntimeConfig(
   overrides = globalThis.WINDUP_CONFIG || {},
 ) {
   const local = LOCAL_HOSTS.has(locationLike.hostname);
+  const backendHosted = String(locationLike.pathname || '').startsWith('/asset-lab');
   const apiBase = clean(
     overrides.apiBase
       ?? globalThis.WINDUP_API_BASE
-      ?? (local && locationLike.port !== '4174' ? 'http://127.0.0.1:4174' : ''),
+      ?? (local && locationLike.port !== '4174' && !backendHosted ? 'http://127.0.0.1:4174' : ''),
   );
   const gameOrigin = clean(
     overrides.gameOrigin
