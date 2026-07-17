@@ -180,6 +180,8 @@ windup-asset-lab/
 │       ├── publisher.py                # Atomic promotion with backup and rollback
 │       ├── review_store.py             # Optimistic lock versioned review storage
 │       ├── job_store.py                # Thread-safe task persistence boundary
+│       ├── project_models.py           # Validated MS1 project relationship models
+│       ├── project_store.py            # Atomic Project graph store and asset-tree read model
 │       ├── session_store.py            # Non-persistent session-level API credentials
 │       ├── asset_catalog.py            # Formal asset discovery and manifest generation
 │       ├── skeleton_gen.py             # Deterministic OpenPose skeleton generation for walk
@@ -216,6 +218,8 @@ windup-asset-lab/
 │   └── HANDOFF.md                      # Project handoff notes and asset gaps
 │
 ├── generation-data/                    # Runtime data (NOT committed to Git)
+│   ├── projects/                       # Project, character, outfit, master, action, and frame graph
+│   ├── records/                        # GenerationRecord audit documents
 │   ├── jobs/                           # Candidate assets per generation job
 │   ├── reviews/                        # Versioned review decisions
 │   ├── backups/                        # Pre-promotion backups
@@ -480,6 +484,7 @@ Backend:
 | Playback & movement | motion reducer | Page session | Browser memory |
 | API credentials | `ProviderSessionStore` | Backend session | Process memory only |
 | Generation tasks | `JobStore` | Recoverable | `generation-data/jobs/` |
+| Project relationship graph | `ProjectStore` | Long-term | `generation-data/projects/`, `generation-data/records/` |
 | Review decisions | `ReviewStore` | Cross-page/collaborative | `generation-data/reviews/` |
 | Candidate assets | job | Pre-review | Job directory |
 | Formal assets | `AssetCatalog` / `AssetPublisher` | Long-term | `assets/resources/`, `generation-data/characters/` |
@@ -596,6 +601,20 @@ GET /api/provider/models
 ```
 
 Returns available image models from the contract.
+
+### Project and Asset Tree
+
+```http
+POST /api/projects
+GET /api/projects/{project_id}
+GET /api/projects/{project_id}/assets
+```
+
+Projects are validated against the MS1 contract (`side`, 256 × 256, Cocos target) and written atomically.
+The asset-tree response owns the complete `Character → Identity → Outfit → MasterSetVersion →
+ActionInstance → FrameRecord → GenerationRecord` relationship graph, including explicit missing and
+partial action cells. Built-in characters are mapped into `project-windup-demo` without changing the
+legacy `/api/characters` response.
 
 ### Character Management
 

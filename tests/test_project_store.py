@@ -113,6 +113,12 @@ class ProjectModelTest(unittest.TestCase):
                 "index": 0, "assetPath": "../../secret.png", "reviewStatus": "pending",
                 "recordId": None, "qc": {"passed": False, "warnings": []},
             })
+        with self.assertRaises(ValueError):
+            FrameRecord.from_dict({
+                "id": "frame-demo", "actionInstanceId": "action-demo",
+                "index": 0, "assetPath": "C:/secret.png", "reviewStatus": "pending",
+                "recordId": None, "qc": {"passed": False, "warnings": []},
+            })
 
 
 class ProjectStoreTest(unittest.TestCase):

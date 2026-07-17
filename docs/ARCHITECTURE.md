@@ -69,6 +69,8 @@ server/
    ├─ generation_executor.py    # 后台任务执行、进度与溯源
    ├─ action_pipeline.py        # 动作条/单帧双路由与回退
    ├─ asset_catalog.py          # 正式角色目录与动作清单
+   ├─ project_models.py         # Project 关系模型与反序列化校验
+   ├─ project_store.py          # 原子关系 Store 与资产树 read model
    ├─ publisher.py              # 原子入库、备份与失败回滚
    ├─ processing.py             # 抠图、动作条切分、归一化与连续性质检
    ├─ job_store.py              # 线程安全的任务持久化边界
@@ -83,7 +85,7 @@ flowchart LR
   UI["独立页面"] --> API["api-client"]
   API --> HTTP["app.py 路由"]
   HTTP --> App["GenerationApplication"]
-  App --> Store["JobStore / ReviewStore"]
+  App --> Store["ProjectStore / JobStore / ReviewStore"]
   App --> Executor["GenerationExecutor"]
   App --> Publisher["AssetPublisher"]
   Executor --> Session["ProviderSession snapshot"]
@@ -127,6 +129,7 @@ queued → generating → awaiting_review → approved
 | 播放/暂停、自动/手动移动、方向、位置 | `motion-state.js` | 发送事件给纯 reducer |
 | 8 FPS 定时器 | `PlaybackClock` | 启停一个时钟，不直接创建 interval |
 | 审核结论 | 前端 `ReviewStore` + 后端 `ReviewStore` | 本地即时更新，服务端版本同步，409 时按本帧意图合并 |
+| Project、角色身份、造型、母版、动作实例、帧与生成记录关系 | `ProjectStore` | 通过 Project 用例和资产树 read model 读写，不扫描目录拼装第二套关系 |
 | API 凭据 | `ProviderSessionStore` | HttpOnly 会话标识隔离；任务线程仅接收凭据快照 |
 | DOM 表现 | `EditorView` | 读取状态并渲染，不反向修改领域状态 |
 | 浏览器输入 | `editor-bindings.js` | 将事件翻译成应用命令 |
@@ -145,6 +148,10 @@ queued → generating → awaiting_review → approved
 ### 增加角色
 
 内建角色加到目录；用户角色通过 `/api/characters/generations` 创建。默认角色包包含母版、side/idle 和 side/walk；`AssetPublisher` 在临时目录完成全部复制后再原子入库。角色母版、动作候选和正式帧必须保持不同目录。
+
+内建角色在服务准备阶段以兼容映射写入 `project-windup-demo`。Project 关系由 `ProjectStore`
+持久化；`GET /api/projects/{project_id}/assets` 是资产树、资产缺口和 GenerationRecord 摘要的
+唯一后端 read model。页面不得重新扫描 `AssetCatalog` 拼装平行关系。
 
 ### 更换整套动作策略
 

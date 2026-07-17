@@ -24,6 +24,7 @@ from .domain import (
 )
 from .generation_executor import GenerationExecutor
 from .job_store import JobStore
+from .project_store import DEFAULT_PROJECT_ID, ProjectStore
 from .publisher import AssetPublisher
 from .review_store import ReviewStore
 from .session_store import ProviderSession, ProviderSessionStore
@@ -40,6 +41,7 @@ class GenerationApplication:
         self.demo = demo
         self.jobs = JobStore(self.jobs_root)
         self.reviews = ReviewStore(self.data_root / "reviews")
+        self.projects = ProjectStore(self.data_root / "projects", self.data_root / "records")
         self.sessions = ProviderSessionStore(config.API_KEY, config.IMAGE_MODEL)
         self.assets = AssetCatalog(root, self.characters_root)
         self.catalog = self.assets.records
@@ -63,6 +65,7 @@ class GenerationApplication:
         for path in (self.jobs_root, self.backups_root, self.characters_root):
             path.mkdir(parents=True, exist_ok=True)
         self.assets.load_custom()
+        self.projects.prepare_default(self.assets)
         self.jobs.load(now_iso())
         if config.API_KEY and not self.demo:
             try:
@@ -84,6 +87,7 @@ class GenerationApplication:
             "provider": "七牛云 QnAIGC",
             "contractVersion": CONTRACT_VERSION,
             "fps": FPS,
+            "defaultProjectId": DEFAULT_PROJECT_ID,
             "characters": self.assets.summaries(),
         }
 
@@ -123,6 +127,15 @@ class GenerationApplication:
 
     def characters(self) -> dict:
         return self.assets.characters()
+
+    def create_project(self, payload: dict) -> dict:
+        return self.projects.create_project(payload)
+
+    def project(self, project_id: str) -> dict | None:
+        return self.projects.get_project(project_id)
+
+    def project_assets(self, project_id: str) -> dict | None:
+        return self.projects.asset_tree(project_id)
 
     def official_frame(self, character_id: str, view: str, action: str, frame_index: int) -> Path:
         return self.assets.official_frame(character_id, view, action, frame_index)
