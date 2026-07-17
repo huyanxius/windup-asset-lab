@@ -43,3 +43,9 @@
 - **决定：** `AssetCatalog` 只读取正式资产，`GenerationExecutor` 只执行候选任务，`AssetPublisher` 只负责带备份的正式采用。
 - **原因：** 把目录扫描、模型调用、任务状态和文件覆盖堆在应用服务中，会让任何新流程同时改动多个风险域。
 - **结果：** `GenerationApplication` 只做校验与编排；新角色在临时目录完整组装后原子入库，动作采用失败时恢复备份。
+
+## ADR-008 · 工作流模板只复用配置，不复用任务或候选资产
+
+- **决定：** 已验证画布可保存项目约束、节点顺序、动作描述与 FPS；每次复用必须创建新 character job。
+- **原因：** 重用旧 job 或候选图片会破坏溯源、质检和正式资产边界，也可能误带用户输入或凭据。
+- **结果：** `WorkflowTemplateStore` 与 `JobStore` 分离；模板运行记录 ID/版本来源，生成结果仍在 `awaiting_review` 等待明确 promote。

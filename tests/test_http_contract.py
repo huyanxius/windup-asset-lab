@@ -115,6 +115,19 @@ class HttpContractTest(unittest.TestCase):
         self.assertEqual(set(character["assets"]["side"]), {"idle", "walk"})
         self.assertTrue((self.root / character["base"]).exists())
 
+    def test_quick_start_turns_one_natural_language_prompt_into_a_character_job(self):
+        prompt = "创建一名叫做雾灯守夜人的低饱和像素角色，需要待机呼吸和缓慢行走动作。"
+        status, job = self.request("/api/quick-start", {"prompt": prompt})
+
+        self.assertEqual(status, 202)
+        self.assertEqual(job["request"]["name"], "雾灯守夜人")
+        self.assertEqual(job["request"]["description"], prompt)
+        self.assertEqual(job["request"]["starterActions"], ["idle", "walk"])
+        self.assertEqual(job["request"]["quickStart"]["mode"], "natural-language")
+        current = self.wait_for_job(job["id"])
+        self.assertEqual(current["status"], "awaiting_review")
+        self.assertEqual(len(current["outputs"]), 17)
+
     def test_full_walk_uses_skeleton_frames_route_and_promotes_eight_frames(self):
         status, job = self.request("/api/generations", {
             "character": "lamplighter", "view": "side", "action": "walk",
@@ -126,6 +139,46 @@ class HttpContractTest(unittest.TestCase):
         self.assertEqual(current["generationRoute"], "frames")
         self.assertEqual(len(current["outputs"]), 8)
         self.assertEqual(current["quality"]["frameCount"], 8)
+
+    def test_workflow_templates_persist_and_start_a_new_character_run(self):
+        status, template = self.request("/api/workflows", {
+            "name": "Side character starter",
+            "description": "Generate a reusable identity, idle and walk package.",
+            "project": {
+                "view": "side", "directions": "1", "canvasSize": "256",
+                "style": "restrained low-saturation pixel art",
+            },
+            "pipeline": {
+                "source": "zero", "actions": ["idle", "walk"], "fps": 8,
+                "briefs": {"idle": "quiet breathing", "walk": "light measured steps"},
+            },
+            "graph": {
+                "nodes": ["source", "master-gen", "master", "walk-key", "idle-key"],
+                "connections": [["source", "master-gen"], ["master-gen", "master"], ["source", "publish"]],
+                "positions": {"source": {"x": 72, "y": 280}, "master": {"x": 950, "y": 240}},
+                "viewport": {"x": -220, "y": 90, "scale": 0.82},
+            },
+            "execution": {"mode": "automatic"},
+        })
+        self.assertEqual(status, 201)
+        self.assertEqual(template["execution"]["approval"], "final_asset")
+        self.assertEqual(template["graph"]["connections"], [["source", "master-gen"], ["master-gen", "master"]])
+        self.assertEqual(template["graph"]["positions"]["master"], {"x": 950, "y": 240})
+        self.assertEqual(template["graph"]["viewport"]["scale"], 0.82)
+
+        _, listing = self.request("/api/workflows")
+        self.assertEqual(listing["workflows"][0]["id"], template["id"])
+
+        status, job = self.request(f"/api/workflows/{template['id']}/runs", {
+            "name": "Reusable Hero",
+            "description": "A clear side-view courier with a readable silhouette for a platform game.",
+        })
+        self.assertEqual(status, 202)
+        current = self.wait_for_job(job["id"])
+        self.assertEqual(current["status"], "awaiting_review")
+        self.assertEqual(current["request"]["starterActions"], ["idle", "walk"])
+        self.assertEqual(current["request"]["workflow"]["templateId"], template["id"])
+        self.assertEqual(self.application.workflows.get(template["id"])["runCount"], 1)
 
 
 if __name__ == "__main__":

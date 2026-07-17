@@ -43,7 +43,7 @@ flowchart TD
   Features --> Core
   Core --> Data["data / generated contract"]
   HTTP["server/app.py · HTTP adapter"] --> App["GenerationApplication"]
-  App --> Stores["JobStore / ReviewStore / SessionStore"]
+  App --> Stores["JobStore / ReviewStore / WorkflowTemplateStore / SessionStore"]
   App --> Executor["GenerationExecutor"]
   App --> Publisher["AssetPublisher"]
   Executor --> Pipeline["ActionPipeline / Provider / Processing"]
@@ -62,6 +62,7 @@ flowchart TD
 | API 凭据 | `ProviderSessionStore` | 后端会话 | 仅进程内存 |
 | 生成任务 | `JobStore` | 可恢复 | `generation-data/jobs` |
 | 审核结论 | `ReviewStore` | 跨页面/协作 | `generation-data/reviews` |
+| 工作流模板 | `WorkflowTemplateStore` | 可复用/可审计 | `generation-data/workflows` |
 | 候选资产 | job | 审核前 | job 目录 |
 | 正式资产 | `AssetCatalog` / `AssetPublisher` | 版本长期 | `assets/resources`、`generation-data/characters` |
 | 溯源与备份 | promotion flow | 审计长期 | provenance/backups |
@@ -76,6 +77,7 @@ flowchart TD
 |---|---|---|
 | 单进程同时任务经常排队或重启丢执行态 | 后台线程 → Redis/云任务队列 | generation job API/status |
 | 任务/审核文件达到数万或需要查询统计 | JSON Store → SQLite/PostgreSQL | Store 方法和版本语义 |
+| 流程模板需要多人编辑、共享或版本回滚 | 单机 Workflow Store → 版本化团队存储 | workflow template API/run provenance |
 | 多成员远程访问或涉及计费 | 内存会话 → 账户、RBAC、密钥托管 | provider session API |
 | 资产体积不适合 Git/本机磁盘 | 文件目录 → 对象存储 + CDN | asset URL resolver |
 | 前端领域模型继续增长并跨多人频繁修改 | 生成 `.d.ts` → 全面 TypeScript | versioned product contract |

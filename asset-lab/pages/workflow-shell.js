@@ -53,8 +53,14 @@ const listRoutes = new Set([
 ]);
 
 function el(tagName, options = {}, children = []) {
-  const node = document.createElement(tagName);
-  if (options.className) node.className = options.className;
+  const isSvg = tagName === 'svg';
+  const node = isSvg
+    ? document.createElementNS('http://www.w3.org/2000/svg', tagName)
+    : document.createElement(tagName);
+  if (options.className) {
+    if (isSvg) node.setAttribute('class', options.className);
+    else node.className = options.className;
+  }
   if (options.text !== undefined) node.textContent = options.text;
   if (options.href) node.href = options.href;
   if (options.src) node.src = options.src;
@@ -92,6 +98,72 @@ function renderHeader(context) {
   });
 
   return el('header', { className: 'product-header' }, [brand, nav]);
+}
+
+function renderStudioBar(context, projectContext, workflowState = {}) {
+  const nav = el('nav', { className: 'studio-bar__nav', attributes: { 'aria-label': '创作导航' } }, navItems.map((item) => el('a', {
+    className: routeIsActive(item, context) ? 'is-active' : '',
+    href: hashFor(item.id, { params: context.params }),
+    text: item.label,
+    attributes: item.id === 'demoBuilder' ? { 'data-start-creation': '', 'aria-label': '新建一次创作' } : {},
+  })));
+  return el('header', { className: 'studio-bar' }, [
+    el('div', { className: 'studio-bar__left' }, [
+      el('a', { className: 'studio-bar__brand', href: hashFor('home') }, [
+        el('span', { className: 'product-brand__mark', attributes: { 'aria-hidden': 'true' } }),
+        el('b', { text: 'Windup' }),
+      ]),
+      projectContext ? el('span', { className: 'studio-bar__project' }, [
+        el('b', { text: projectContext.projectName }),
+        el('small', { text: `${projectLabels[projectContext.view]} · ${projectLabels[projectContext.directions]} · ${projectContext.canvasSize}²` }),
+      ]) : el('span', { className: 'studio-bar__project' }, [el('b', { text: '新建角色项目' }), el('small', { text: '填写项目素材边界' })]),
+    ]),
+    el('div', { className: 'studio-bar__right' }, [
+      nav,
+      el('div', { className: 'studio-bar__actions' }, [
+        el('button', { type: 'button', text: '全屏', attributes: { 'data-browser-fullscreen': '', 'aria-label': '切换浏览器全屏' } }),
+        el('button', { type: 'button', attributes: { 'data-workflow-library-open': '' } }, [
+          el('span', { text: '流程库' }),
+          el('i', { text: String((workflowState.items || []).length), attributes: { 'aria-label': `${(workflowState.items || []).length} 个已保存工作流` } }),
+        ]),
+        projectContext ? el('button', { type: 'button', text: '编辑项目', attributes: { 'data-edit-project': '' } }) : null,
+        projectContext ? el('button', { type: 'button', text: '整理节点', attributes: { 'data-node-arrange': '' } }) : null,
+        projectContext ? el('button', { type: 'button', text: '重置流程', attributes: { 'data-demo-reset': '' } }) : null,
+      ]),
+    ]),
+  ]);
+}
+
+function renderWorkflowLibrary(workflowState = {}) {
+  if (!workflowState.open) return null;
+  const templates = workflowState.items || [];
+  return el('div', { className: 'workflow-library-layer', attributes: { 'data-workflow-library-layer': '' } }, [
+    el('section', { className: 'workflow-library-panel', attributes: { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'workflowLibraryTitle' } }, [
+      el('header', {}, [
+        el('div', {}, [el('span', { className: 'overline', text: 'REUSABLE WORKFLOWS' }), el('h2', { id: 'workflowLibraryTitle', text: '工作流' }), el('p', { text: '保存已验证的节点配置，为新角色自动重放生成流程。' })]),
+        el('button', { type: 'button', text: '×', attributes: { 'data-workflow-library-close': '', 'aria-label': '关闭工作流库' } }),
+      ]),
+      workflowState.status === 'loading' ? el('div', { className: 'workflow-library-empty' }, [el('b', { text: '正在读取工作流…' })]) : null,
+      workflowState.status === 'error' ? el('div', { className: 'workflow-library-empty' }, [el('b', { text: '工作流库读取失败' }), el('p', { text: workflowState.message })]) : null,
+      workflowState.status === 'ready' && !templates.length ? el('div', { className: 'workflow-library-empty' }, [
+        el('b', { text: '还没有保存的工作流' }),
+        el('p', { text: '完整跑完一次母版、Idle 和 Walk，在最终节点点击「保存工作流」。' }),
+      ]) : null,
+      templates.length ? el('div', { className: 'workflow-library-list' }, templates.map((template) => el('article', {}, [
+        el('header', {}, [
+          el('span', {}, [el('b', { text: template.name }), el('small', { text: `v${template.version} · 已运行 ${template.runCount || 0} 次` })]),
+          el('i', { text: template.execution?.mode === 'automatic' ? '自动运行' : '分步确认' }),
+        ]),
+        el('dl', {}, [
+          el('div', {}, [el('dt', { text: '视角' }), el('dd', { text: projectLabels[template.project.view] || template.project.view })]),
+          el('div', {}, [el('dt', { text: '规格' }), el('dd', { text: `${template.project.canvasSize} · ${template.pipeline.fps} FPS` })]),
+          el('div', {}, [el('dt', { text: '节点' }), el('dd', { text: template.pipeline.actions.join(' + ') })]),
+        ]),
+        el('button', { type: 'button', text: '进入并复用', attributes: { 'data-workflow-enter': template.id } }),
+      ]))) : null,
+      workflowState.message ? el('footer', { text: workflowState.message }) : null,
+    ]),
+  ]);
 }
 
 function renderHome(context) {
@@ -553,203 +625,702 @@ function renderDemoSourceSummary(source) {
   ]);
 }
 
-function demoCanvasNodeState(snapshot, index) {
-  if (snapshot.completed) return { className: 'is-revealed is-done', label: '完成' };
-  if (snapshot.status === 'draft') {
-    return index === 0
-      ? { className: 'is-revealed is-current', label: '等待确认' }
-      : { className: 'is-locked', label: '等待上一步' };
-  }
-  if (index < snapshot.stepIndex) return { className: 'is-revealed is-done', label: '完成' };
-  if (index === snapshot.stepIndex) {
-    const label = {
-      action: '生成中',
-      identity: '锁定中',
-      master: '生成中',
-      package: '打包中',
-      promote: '采用中',
-      quality: '检查中',
-      slice: '切分中',
-    }[DEMO_PRODUCTION_STEPS[index]?.id] || '处理中';
-    return { className: 'is-revealed is-current', label };
-  }
-  return { className: 'is-locked', label: '等待上一步' };
+
+const workbenchStages = Object.freeze([
+  ['角色定义', '身份与来源'],
+  ['母版确认', '人工选择'],
+  ['动作生成', '规格与候选'],
+  ['动作检查', '逐帧审核'],
+  ['正式入库', '版本与交付'],
+]);
+
+function workbenchStageIndex(snapshot) {
+  if (snapshot.completed || snapshot.stepIndex >= 5) return 4;
+  if (snapshot.status === 'action_review') return 3;
+  if (snapshot.status === 'action_setup' || snapshot.stepIndex >= 2) return 2;
+  if (snapshot.status === 'master_review' || snapshot.stepIndex === 1) return 1;
+  return 0;
 }
 
-function renderDemoNode(snapshot, index, modifier, eyebrow, title, children, tagName = 'article', options = {}) {
-  const state = demoCanvasNodeState(snapshot, index);
-  return el(tagName, {
-    className: `production-node production-node--${modifier} ${state.className}`,
-    id: options.id,
-    attributes: {
-      ...(options.attributes || {}),
-      'data-canvas-node-index': String(index),
-      'data-demo-step': DEMO_PRODUCTION_STEPS[index]?.id || '',
-    },
-  }, [
-    el('header', { className: 'production-node__header' }, [
-      el('div', {}, [el('span', { text: `0${index + 1}` }), el('small', { text: eyebrow })]),
-      el('b', { text: state.label, attributes: { 'data-demo-step-state': '' } }),
+function renderWorkbenchFlow(snapshot) {
+  const activeIndex = workbenchStageIndex(snapshot);
+  return el('ol', { className: 'workbench-flow', attributes: { 'aria-label': '创作阶段' } }, workbenchStages.map(([title, copy], index) => (
+    el('li', { className: index < activeIndex ? 'is-done' : index === activeIndex ? 'is-current' : '' }, [
+      el('i', { text: index < activeIndex ? '✓' : String(index + 1) }),
+      el('span', {}, [el('b', { text: title }), el('small', { text: copy })]),
+    ])
+  )));
+}
+
+function renderWorkbenchAssets(libraryState = {}, snapshot) {
+  const characters = libraryState.characters || [];
+  const assetUrl = libraryState.assetUrl || ((path) => path);
+  const items = characters.length
+    ? characters.map((character, index) => {
+      const summary = characterSummary(character);
+      return el('a', {
+        className: index === 0 ? 'workbench-asset is-active' : 'workbench-asset',
+        href: hashFor('library', { query: { character: character.id } }),
+      }, [
+        el('img', { src: assetUrl(character.base), alt: '' }),
+        el('span', {}, [el('b', { text: character.label }), el('small', { text: `${summary.entries.length} 组动作 · ${summary.frameCount} 帧` })]),
+        el('i', { text: '›' }),
+      ]);
+    })
+    : [el('p', { className: 'workbench-assets__empty', text: libraryState.status === 'loading' ? '正在同步资产…' : '尚无正式资产' })];
+  return el('aside', { className: 'workbench-assets' }, [
+    el('header', {}, [
+      el('span', { className: 'overline', text: 'PROJECT ASSETS' }),
+      el('h2', { text: '项目资产' }),
+      el('small', { text: '角色 · 造型 · 动作' }),
     ]),
-    el('h2', { text: title }),
-    ...children,
+    el('div', { className: 'workbench-assets__tree' }, items),
+    el('div', { className: 'workbench-assets__draft' }, [
+      el('span', {}, [el('i', { text: '◇' }), el('b', { text: snapshot.profile.name })]),
+      el('small', { text: snapshot.completed ? '正式版本 v1' : '当前创作 · 尚未入库' }),
+    ]),
   ]);
 }
 
-function renderDemoCanvas(snapshot = { profile: DEFAULT_DEMO_PROFILE, status: 'draft', stepIndex: -1 }) {
-  const profile = snapshot.profile || DEFAULT_DEMO_PROFILE;
-  const fieldsDisabled = snapshot.status !== 'draft' ? { disabled: '' } : {};
-  const identity = snapshot.source
-    ? renderDemoNode(snapshot, 0, 'identity', 'CHARACTER BRIEF', '先确定，他是谁。', [
-      renderDemoSourceSummary(snapshot.source),
-      el('p', { className: 'production-node__lead', text: '角色判断由你完成。确认后，Windup 沿同一身份母版继续生产。' }),
-      el('div', { className: 'production-identity-fields' }, [
-        el('label', {}, [
-          el('span', { text: '角色姓名' }),
-          el('input', { attributes: { ...fieldsDisabled, name: 'name', maxlength: '40', required: '', value: profile.name } }),
-        ]),
-        el('label', {}, [
-          el('span', { text: '游戏定位' }),
-          el('input', { attributes: { ...fieldsDisabled, name: 'role', maxlength: '100', required: '', value: profile.role } }),
-        ]),
-        el('label', {}, [
-          el('span', { text: '角色识别点' }),
-          el('textarea', { text: profile.description, attributes: { ...fieldsDisabled, name: 'description', maxlength: '240', required: '', rows: '4' } }),
-        ]),
-        el('label', {}, [
-          el('span', { text: '视觉约束' }),
-          el('textarea', { text: profile.style, attributes: { ...fieldsDisabled, name: 'style', maxlength: '180', required: '', rows: '3' } }),
-        ]),
+function renderGeneratingStage(snapshot) {
+  const actionStage = snapshot.stepIndex >= 2 && snapshot.stepIndex <= 4;
+  const deliveryStage = snapshot.stepIndex >= 5;
+  const revealedFrames = snapshot.stepIndex === 2 ? 2 : snapshot.stepIndex === 3 ? 6 : 8;
+  const title = deliveryStage
+    ? '正在保存正式版本'
+    : actionStage
+      ? '正在生成动作候选'
+      : '正在生成角色母版';
+  const copy = deliveryStage
+    ? '候选帧、检查结果和版本来源正在写入项目资产。'
+    : snapshot.activeStep?.copy || '正在处理当前生成阶段。';
+  return el('section', { className: `workbench-generation workbench-generation--${actionStage ? 'action' : deliveryStage ? 'delivery' : 'master'}` }, [
+    el('div', { className: 'generation-status' }, [
+      el('span', { className: 'generation-status__pulse', attributes: { 'aria-hidden': 'true' } }),
+      el('div', {}, [el('span', { className: 'overline', text: 'GENERATING' }), el('h2', { text: title }), el('p', { text: copy })]),
+      el('strong', { text: `${snapshot.progress}%` }),
+    ]),
+    actionStage
+      ? el('div', { className: 'generation-frame-field' }, DEMO_CHARACTER_ASSETS.frames.map((src, index) => (
+        el('span', { className: index < revealedFrames ? 'is-revealed' : '' }, [
+          el('img', { src, alt: `候选动作第 ${index + 1} 帧` }),
+          el('small', { text: String(index + 1).padStart(2, '0') }),
+        ])
+      )))
+      : el('div', { className: 'generation-master-field' }, [
+        el('span', { className: 'generation-grid', attributes: { 'aria-hidden': 'true' } }),
+        el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: '正在生成的角色母版' }),
+        el('div', { className: 'generation-particles', attributes: { 'aria-hidden': 'true' } }, Array.from({ length: 18 }, () => el('i'))),
       ]),
-      el('div', { className: 'production-node__action' }, snapshot.status === 'draft' ? [
-        el('span', {}, [el('b', { text: '默认生产包' }), el('small', { text: '待机 + 侧视行走 · 各 8 帧 · 8 FPS' })]),
-        el('button', { className: 'button button--primary', type: 'submit', text: '确认角色并开始生产' }),
-      ] : [
-        el('span', {}, [el('b', { text: profile.name, attributes: { 'data-demo-profile-name': '' } }), el('small', { text: snapshot.completed ? '生产链已完成' : '身份已提交，正在生产' })]),
-        snapshot.completed ? el('button', { className: 'button button--ghost', type: 'button', text: '重新生成', attributes: { 'data-demo-reset': '' } }) : null,
-      ]),
-    ], 'form', { id: 'demoCharacterForm' })
-    : renderDemoNode(snapshot, 0, 'identity source', 'CHOOSE A SOURCE', '这个角色，从哪里开始？', [
-      el('p', { className: 'production-node__lead', text: '三条起点只决定第一份身份依据；后续母版、动作、检查与交付使用同一条生产链。' }),
-      renderDemoSourceChoices('canvas'),
+    el('div', { className: 'generation-progress' }, [el('i')]),
+  ]);
+}
+
+function renderDefinitionStage(snapshot) {
+  if (!snapshot.source) {
+    return el('section', { className: 'workbench-definition workbench-definition--source' }, [
+      el('span', { className: 'overline', text: 'STARTING POINT' }),
+      el('h2', { text: '选择角色的起点' }),
+      el('p', { text: '来源只决定第一份身份依据，确认母版后再进入动作生产。' }),
+      renderDemoSourceChoices('workbench'),
     ]);
-
-  const master = renderDemoNode(snapshot, 1, 'master', 'IDENTITY MASTER', '身份母版', [
-    el('div', { className: 'production-master-preview' }, [
-      el('span', { className: 'production-master-preview__grid', attributes: { 'aria-hidden': 'true' } }),
-      el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: '角色侧视身份母版' }),
-      el('small', { text: 'FEET BASELINE · 256 × 256' }),
+  }
+  const profile = snapshot.profile || DEFAULT_DEMO_PROFILE;
+  return el('form', { className: 'workbench-definition', id: 'demoCharacterForm' }, [
+    el('header', {}, [
+      el('div', {}, [el('span', { className: 'overline', text: 'CHARACTER BRIEF' }), el('h2', { text: '定义角色身份' })]),
+      renderDemoSourceSummary(snapshot.source),
     ]),
-    el('dl', { className: 'production-specs' }, [
-      el('div', {}, [el('dt', { text: '视角' }), el('dd', { text: '侧视 · 朝右' })]),
-      el('div', {}, [el('dt', { text: '背景' }), el('dd', { text: '透明 Alpha' })]),
-      el('div', {}, [el('dt', { text: '身份' }), el('dd', { text: '已锁定' })]),
+    el('div', { className: 'workbench-definition__fields' }, [
+      el('label', {}, [el('span', { text: '角色姓名' }), el('input', { attributes: { name: 'name', maxlength: '40', required: '', value: profile.name } })]),
+      el('label', {}, [el('span', { text: '游戏定位' }), el('input', { attributes: { name: 'role', maxlength: '100', required: '', value: profile.role } })]),
+      el('label', {}, [el('span', { text: '角色识别点' }), el('textarea', { text: profile.description, attributes: { name: 'description', maxlength: '240', required: '', rows: '4' } })]),
+      el('label', {}, [el('span', { text: '视觉约束' }), el('textarea', { text: profile.style, attributes: { name: 'style', maxlength: '180', required: '', rows: '3' } })]),
     ]),
-  ]);
-
-  const action = renderDemoNode(snapshot, 2, 'action', 'ACTION DIRECTION', '待机与侧视行走', [
-    el('div', { className: 'production-action-preview production-action-preview--pair' }, [
-      el('figure', {}, [el('img', { src: DEMO_CHARACTER_ASSETS.idleFrames[3], alt: '呼吸待机关键姿态' }), el('figcaption', { text: 'IDLE' })]),
-      el('figure', {}, [el('img', { src: DEMO_CHARACTER_ASSETS.walkFrames[3], alt: '侧视行走关键姿态' }), el('figcaption', { text: 'WALK' })]),
-    ]),
-    el('div', { className: 'production-action-facts' }, [
-      el('span', {}, [el('small', { text: '动作' }), el('b', { text: 'idle + walk / side' })]),
-      el('span', {}, [el('small', { text: '播放' }), el('b', { text: '8 FPS · LOOP' })]),
-      el('span', {}, [el('small', { text: '来源' }), el('b', { text: '任务批次 WU-0716-01' })]),
+    el('footer', {}, [
+      el('span', {}, [el('b', { text: '下一步：生成角色母版' }), el('small', { text: '生成结束后必须由你确认，不会自动继续。' })]),
+      el('button', { className: 'button button--primary', type: 'submit', text: '生成角色母版' }),
     ]),
   ]);
+}
 
-  const frames = renderDemoNode(snapshot, 3, 'frames', 'NORMALIZED FRAMES', '行走的八个相位，成为一套动作。', [
-    el('p', { className: 'production-node__lead', text: '生成结果按八个相位逐帧落入画布，再统一透明底、脚底锚点和命名。' }),
-    el('div', { className: 'production-frame-grid', attributes: { 'aria-label': '侧视行走八帧资产' } }, DEMO_CHARACTER_ASSETS.frames.map((src, index) => (
-      el('span', {}, [el('img', { src, alt: `行走动作第 ${index + 1} 帧` }), el('small', { text: String(index + 1).padStart(2, '0') })])
-    ))),
-    el('footer', { className: 'production-node__meta' }, [el('span', { text: '256 × 256' }), el('span', { text: 'PNG · Alpha' }), el('span', { text: 'feet-center' })]),
+function renderMasterReview(snapshot) {
+  return el('section', { className: 'workbench-review workbench-review--master' }, [
+    el('header', {}, [
+      el('div', {}, [el('span', { className: 'overline', text: 'MASTER CANDIDATE' }), el('h2', { text: '确认角色母版' }), el('p', { text: '动作生产会继承这张母版的身份、比例、朝向和视觉特征。' })]),
+      el('span', { className: 'review-required', text: '需要确认' }),
+    ]),
+    el('div', { className: 'master-candidate' }, [
+      el('div', { className: 'master-candidate__image' }, [
+        el('span', { className: 'generation-grid', attributes: { 'aria-hidden': 'true' } }),
+        el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.profile.name} 角色母版候选` }),
+        el('small', { text: '256 × 256 · SIDE · ALPHA' }),
+      ]),
+      el('div', { className: 'master-candidate__facts' }, [
+        el('span', { className: 'status-chip', text: '候选 01' }),
+        el('h3', { text: snapshot.profile.name }),
+        el('p', { text: snapshot.profile.description }),
+        el('dl', {}, [
+          el('div', {}, [el('dt', { text: '比例' }), el('dd', { text: '一致' })]),
+          el('div', {}, [el('dt', { text: '脚底线' }), el('dd', { text: '238 px' })]),
+          el('div', {}, [el('dt', { text: '透明背景' }), el('dd', { text: '通过' })]),
+        ]),
+      ]),
+    ]),
+    el('footer', {}, [
+      el('button', { className: 'button button--ghost', type: 'button', text: '重新生成母版', attributes: { 'data-regenerate-master': '' } }),
+      el('button', { className: 'button button--primary', type: 'button', text: '确认母版并配置动作', attributes: { 'data-confirm-master': '' } }),
+    ]),
   ]);
+}
 
-  const checks = ['透明画布', '脚底基线', '主体高度', '相邻位移', '轮廓波动', '循环接缝'];
-  const quality = renderDemoNode(snapshot, 4, 'quality', 'QUALITY GATE', '自动检查', [
-    el('div', { className: 'production-quality-score' }, [el('strong', { text: '6/6' }), el('span', { text: '规则通过' })]),
-    el('ul', { className: 'production-quality-list' }, checks.map((check) => el('li', {}, [
-      el('i', { text: '✓' }), el('span', { text: check }), el('b', { text: '通过' }),
+function renderActionSetup(snapshot) {
+  return el('section', { className: 'workbench-action-setup' }, [
+    el('header', {}, [
+      el('div', {}, [el('span', { className: 'overline', text: 'ACTION SETUP' }), el('h2', { text: '选择本次生成的动作' }), el('p', { text: '母版已经确认。动作只有在确认规格后才会开始生成。' })]),
+      el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: '已确认角色母版' }),
+    ]),
+    el('div', { className: 'action-choice-grid' }, [
+      ['呼吸待机', 'idle', '8 帧 · 8 FPS · 循环'],
+      ['侧视行走', 'walk', '8 帧 · 8 FPS · 循环'],
+    ].map(([label, value, meta]) => el('label', {}, [
+      el('input', { type: 'checkbox', attributes: { name: 'actions', value, checked: '' } }),
+      el('span', {}, [el('b', { text: label }), el('small', { text: meta })]),
+      el('i', { text: '✓' }),
     ]))),
-    el('a', { className: 'production-node__link', href: './review.html?character=boy&view=side&action=walk', text: '打开逐帧检查 →' }),
-  ]);
-
-  const promote = renderDemoNode(snapshot, 5, 'promote', 'FORMAL ASSET', '采用为正式版本', [
-    el('p', { className: 'production-node__lead', text: '候选结果不会覆盖正式资产。确认采用后，旧版本仍可回退。' }),
-    el('div', { className: 'production-version-stack' }, [
-      el('figure', {}, [el('img', { src: DEMO_CHARACTER_ASSETS.frames[1], alt: '' }), el('figcaption', { text: '候选批次' })]),
-      el('span', { text: '→' }),
-      el('figure', { className: 'is-formal' }, [el('img', { src: DEMO_CHARACTER_ASSETS.frames[1], alt: '' }), el('figcaption', { text: '正式 v1' })]),
-    ]),
-    el('span', { className: 'production-adoption-note', text: '来源、规格和检查结果已随版本保存' }),
-  ]);
-
-  const packageNode = renderDemoNode(snapshot, 6, 'package', 'READY FOR GAME', '进入你的游戏项目。', [
-    el('div', { className: 'production-targets' }, [
-      el('span', {}, [el('img', { src: 'https://cdn.simpleicons.org/cocos/263F2D', alt: 'Cocos 图标' }), el('b', { text: 'Cocos Creator' })]),
-      el('span', {}, [el('img', { src: 'https://cdn.simpleicons.org/wechat/263F2D', alt: '微信图标' }), el('b', { text: '微信小游戏' })]),
-    ]),
-    el('ul', { className: 'production-deliverables' }, [
-      ['透明 PNG', '16 帧'], ['Sprite Sheet', '2 张'], ['动作 Metadata', '8 FPS'], ['锚点说明', 'feet-center'],
-    ].map(([label, value]) => el('li', {}, [el('span', { text: label }), el('b', { text: value })]))),
-    el('div', {
-      className: snapshot.completed ? 'production-result-actions is-visible' : 'production-result-actions',
-      attributes: { 'data-demo-result': '', ...(snapshot.completed ? {} : { hidden: '' }) },
-    }, [
-      el('a', { className: 'button button--primary', href: './review.html?character=boy&view=side&action=walk', text: '检查动作' }),
-      el('a', { className: 'button button--ghost', href: hashFor('library', { query: { character: 'boy' } }), text: '查看资产' }),
-      el('a', { className: 'production-node__link', href: '#', text: '下载 metadata', attributes: { 'data-demo-metadata-download': '' } }),
+    el('div', { className: 'action-cost' }, [
+      el('span', {}, [el('small', { text: '候选输出' }), el('b', { text: '2 组动作 · 16 帧' })]),
+      el('span', {}, [el('small', { text: '自动检查' }), el('b', { text: '6 项规则' })]),
+      el('span', {}, [el('small', { text: '预计耗时' }), el('b', { text: '约 8 秒' })]),
     ]),
   ]);
+}
 
-  const nodes = [identity, master, action, frames, quality, promote, packageNode];
-  const connectors = Array.from({ length: 6 }, (_, index) => el('span', {
-    className: `production-connector production-connector--${index + 1}`,
-    attributes: { 'aria-hidden': 'true', 'data-canvas-connector-index': String(index) },
-  }));
-
-  return el('section', {
-    className: snapshot.completed ? 'production-studio is-complete' : 'production-studio',
-    attributes: { 'data-demo-runner': '' },
-  }, [
-    el('div', {
-      className: 'production-canvas',
-      attributes: { 'data-guided-canvas': '', tabindex: '0', 'aria-label': '创作画布，可拖动和缩放' },
-    }, [
-      el('div', { className: 'production-canvas__world', attributes: { 'data-guided-canvas-world': '' } }, [
-        el('span', { className: 'production-canvas__lane', attributes: { 'aria-hidden': 'true' } }),
-        ...connectors,
-        ...nodes,
+function renderActionReview(snapshot) {
+  return el('section', { className: 'workbench-action-review' }, [
+    el('header', {}, [
+      el('div', {}, [el('span', { className: 'overline', text: 'ACTION REVIEW' }), el('h2', { text: '检查动作候选' }), el('p', { text: '自动检查已经完成。请确认动作节奏和角色一致性，再决定是否入库。' })]),
+      el('span', { className: 'review-required', text: '需要确认' }),
+    ]),
+    el('div', { className: 'action-review-stage' }, [
+      el('div', { className: 'action-loop', attributes: { 'aria-label': '侧视行走循环预览' } }, DEMO_CHARACTER_ASSETS.walkFrames.map((src, index) => (
+        el('img', { src, alt: index === 0 ? '侧视行走动作预览' : '' })
+      ))),
+      el('div', { className: 'action-review-meta' }, [
+        el('span', { className: 'status-chip', text: '自动检查 6 / 6' }),
+        el('h3', { text: '侧视行走 · 候选批次 01' }),
+        el('p', { text: '8 帧循环，脚底基线与主体高度稳定。仍需人工判断动作是否自然。' }),
       ]),
+    ]),
+  ]);
+}
+
+function renderCompletedStage(snapshot) {
+  const metadata = JSON.stringify({
+    character: snapshot.profile.name,
+    actions: ['idle', 'walk'],
+    fps: 8,
+    frames: 16,
+  }, null, 2);
+  return el('section', { className: 'workbench-complete' }, [
+    el('span', { className: 'workbench-complete__mark', text: '✓' }),
+    el('span', { className: 'overline', text: 'FORMAL ASSET V1' }),
+    el('h2', { text: '角色与动作已经进入项目资产' }),
+    el('p', { text: '母版、待机和行走动作已经作为正式版本保存，候选记录仍可追溯。' }),
+    el('div', { className: 'workbench-complete__actions' }, [
+      el('a', { className: 'button button--primary', href: hashFor('library', { query: { character: 'boy' } }), text: '查看项目资产' }),
+      el('a', { className: 'button button--ghost', href: './review.html?character=boy&view=side&action=walk', text: '打开动作检查台' }),
+      el('a', {
+        className: 'text-action',
+        href: `data:application/json;charset=utf-8,${encodeURIComponent(metadata)}`,
+        text: '下载 metadata',
+        attributes: { download: `${snapshot.profile.name}-metadata.json` },
+      }),
+    ]),
+  ]);
+}
+
+function renderWorkbenchCanvas(snapshot) {
+  let content;
+  if (snapshot.status === 'running') content = renderGeneratingStage(snapshot);
+  else if (snapshot.status === 'master_review') content = renderMasterReview(snapshot);
+  else if (snapshot.status === 'action_setup') content = renderActionSetup(snapshot);
+  else if (snapshot.status === 'action_review') content = renderActionReview(snapshot);
+  else if (snapshot.completed) content = renderCompletedStage(snapshot);
+  else content = renderDefinitionStage(snapshot);
+  return el('section', { className: 'workbench-canvas' }, [
+    el('div', { className: 'workbench-canvas__toolbar' }, [
+      el('span', {}, [el('b', { text: snapshot.profile.name }), el('small', { text: workbenchStages[workbenchStageIndex(snapshot)][0] })]),
       el('div', { className: 'production-canvas__zoom', attributes: { 'aria-label': '画布缩放' } }, [
-        el('button', { type: 'button', text: '−', attributes: { 'aria-label': '缩小画布', 'data-canvas-zoom-out': '' } }),
-        el('output', { text: '100%', attributes: { 'aria-live': 'polite', 'data-canvas-zoom-label': '' } }),
-        el('button', { type: 'button', text: '+', attributes: { 'aria-label': '放大画布', 'data-canvas-zoom-in': '' } }),
+        el('button', { type: 'button', text: '−', attributes: { 'aria-label': '缩小画布', 'data-workbench-zoom-out': '' } }),
+        el('output', { text: '100%', attributes: { 'aria-live': 'polite', 'data-workbench-zoom-label': '' } }),
+        el('button', { type: 'button', text: '+', attributes: { 'aria-label': '放大画布', 'data-workbench-zoom-in': '' } }),
       ]),
-      el('div', { className: 'production-canvas__progress' }, [
-        el('span', {}, [el('b', { text: `${snapshot.progress}%`, attributes: { 'data-demo-progress-text': '' } }), el('small', { text: 'PRODUCTION' })]),
-        el('i', {}, [el('em', { attributes: { 'data-demo-progress-bar': '' } })]),
-      ]),
-      el('div', { className: 'production-canvas__map', attributes: { 'aria-label': '生产链导航' } }, DEMO_PRODUCTION_STEPS.map((step, index) => {
-        const state = demoCanvasNodeState(snapshot, index);
-        return el('button', {
-          className: state.className,
-          type: 'button',
-          text: String(index + 1).padStart(2, '0'),
-          attributes: { 'aria-label': `聚焦${step.label}`, 'data-canvas-jump': String(index), ...(state.className.includes('is-locked') ? { disabled: '' } : {}) },
-        });
-      })),
-      el('span', { className: 'production-canvas__hint', text: '拖动画布 · 双指平移 · ⌘/Ctrl 滚轮缩放 · F 聚焦' }),
+    ]),
+    el('div', { className: 'workbench-canvas__viewport' }, [
+      el('div', { className: 'workbench-canvas__content', attributes: { 'data-workbench-canvas-content': '' } }, [content]),
     ]),
   ]);
 }
 
-function renderDemoBuilder(snapshot) {
-  return renderDemoCanvas(snapshot);
+function renderWorkbenchInspector(snapshot) {
+  const stageIndex = workbenchStageIndex(snapshot);
+  const common = [
+    ['当前阶段', workbenchStages[stageIndex][0]],
+    ['角色', snapshot.profile.name],
+    ['视角', 'Side · 朝右'],
+  ];
+  let body;
+  if (snapshot.status === 'action_setup') {
+    body = el('form', { className: 'inspector-form', id: 'actionSpecForm' }, [
+      el('label', {}, [el('span', { text: '帧率' }), el('select', {}, [el('option', { text: '8 FPS', attributes: { value: '8' } })])]),
+      el('label', {}, [el('span', { text: '画布尺寸' }), el('select', {}, [el('option', { text: '256 × 256', attributes: { value: '256' } })])]),
+      el('label', {}, [el('span', { text: '循环方式' }), el('select', {}, [el('option', { text: '循环', attributes: { value: 'loop' } })])]),
+      el('label', {}, [el('span', { text: '动作约束' }), el('textarea', { text: '保持角色比例与侧视朝向，脚底始终对齐基线。', attributes: { rows: '4' } })]),
+      el('button', { className: 'button button--primary', type: 'submit', text: '确认规格并生成动作' }),
+    ]);
+  } else if (snapshot.status === 'action_review') {
+    body = el('div', { className: 'inspector-review' }, [
+      ...['透明背景', '画布尺寸', '脚底基线', '主体高度', '相邻位移', '循环接缝'].map((label) => el('span', {}, [el('i', { text: '✓' }), el('b', { text: label }), el('small', { text: '通过' })])),
+      el('textarea', { attributes: { rows: '3', placeholder: '退回时填写修改意见…' } }),
+      el('div', {}, [
+        el('button', { className: 'button button--ghost', type: 'button', text: '重新生成动作', attributes: { 'data-regenerate-actions': '' } }),
+        el('button', { className: 'button button--primary', type: 'button', text: '确认动作并正式入库', attributes: { 'data-approve-actions': '' } }),
+      ]),
+    ]);
+  } else {
+    body = el('dl', { className: 'inspector-facts' }, common.map(([label, value]) => (
+      el('div', {}, [el('dt', { text: label }), el('dd', { text: value })])
+    )));
+  }
+  return el('aside', { className: 'workbench-inspector' }, [
+    el('header', {}, [el('span', { className: 'overline', text: 'INSPECTOR' }), el('h2', { text: '属性与检查' })]),
+    body,
+    snapshot.status === 'running' ? el('div', { className: 'inspector-process' }, [
+      el('span', {}, [el('i', { className: 'generation-status__pulse' }), el('b', { text: '本地生成进程' })]),
+      el('p', { text: snapshot.activeStep?.copy }),
+      el('small', { text: '当前结果仍是候选，不会自动写入正式资产。' }),
+    ]) : null,
+  ]);
 }
 
+function renderWorkbenchDock(snapshot) {
+  const frameReady = snapshot.stepIndex >= 2 || ['action_review', 'completed'].includes(snapshot.status);
+  return el('section', { className: 'workbench-dock' }, [
+    el('header', {}, [
+      el('nav', {}, [el('button', { className: 'is-active', type: 'button', text: '候选帧' }), el('button', { type: 'button', text: '生成记录' })]),
+      el('span', { text: frameReady ? 'side / walk · 8 帧 · 8 FPS' : '等待动作生成' }),
+    ]),
+    el('div', { className: 'workbench-filmstrip' }, DEMO_CHARACTER_ASSETS.walkFrames.map((src, index) => (
+      el('span', { className: frameReady ? 'is-ready' : '' }, [
+        frameReady ? el('img', { src, alt: '' }) : el('i', { text: '·' }),
+        el('small', { text: String(index + 1).padStart(2, '0') }),
+      ])
+    ))),
+    el('div', { className: 'workbench-job' }, [
+      el('i', { className: snapshot.status === 'running' ? 'is-running' : '' }),
+      el('span', {}, [el('b', { text: snapshot.status === 'running' ? snapshot.activeStep.title : snapshot.completed ? '正式版本已保存' : '等待下一步操作' }), el('small', { text: snapshot.status === 'running' ? '生成过程可见，完成后等待人工确认' : '所有自动结果先进入候选区' })]),
+      el('strong', { text: `${snapshot.progress}%` }),
+    ]),
+  ]);
+}
+
+const masterCandidates = Object.freeze([
+  { id: 'boy', label: '轻装信使', src: DEMO_CHARACTER_ASSETS.base },
+  { id: 'skeleton', label: '骷髅剑士', src: '../assets/resources/characters/skeleton/base.png' },
+  { id: 'lirael', label: '暗色游侠', src: '../assets/resources/characters/lirael/base.png' },
+]);
+
+const projectLabels = Object.freeze({
+  side: '横版侧视',
+  topdown: '俯视',
+  isometric: '2.5D',
+  1: '单向',
+  4: '四向',
+  8: '八向',
+});
+
+function renderProjectSetup(projectContext = {}, workflowState = {}) {
+  const templates = workflowState.items || [];
+  const selectedTemplate = templates.find((item) => item.id === workflowState.selectedId);
+  const defaults = selectedTemplate?.project || projectContext;
+  const iconPixels = Array.from({ length: 289 }, (_, index) => {
+    const x = index % 17;
+    const y = Math.floor(index / 17);
+    const frame = ((y === 3 || y === 13) && x >= 3 && x <= 13) || ((x === 3 || x === 13) && y >= 3 && y <= 13);
+    const handle = (x === 2 || x === 14) && (y === 2 || y === 14);
+    const cursor = [[8, 7], [8, 8], [8, 9], [8, 10], [8, 11], [9, 8], [9, 9], [9, 10], [10, 9], [10, 10], [11, 10], [10, 11], [11, 12]].some(([px, py]) => px === x && py === y);
+    const guide = (y === 6 && x >= 5 && x <= 7) || (x === 6 && y >= 5 && y <= 7);
+    const ring = Math.min(8, Math.floor(Math.hypot(x - 8, y - 8)));
+    const phase = (x + y) % 4;
+    const role = handle ? 'is-active is-handle' : cursor ? 'is-active is-cursor' : frame || guide ? 'is-active' : '';
+    const className = `pixel-ring-${ring} pixel-phase-${phase} ${role}`.trim();
+    return el('i', { className });
+  });
+  return el('section', { className: 'project-setup' }, [
+    el('div', { className: 'project-setup__intro' }, [
+      el('div', { className: 'project-setup__pixel-icon', attributes: { 'aria-label': '画布工作台' } }, iconPixels),
+    ]),
+    el('form', { className: 'project-setup__form', id: 'projectContextForm' }, [
+      el('header', { className: 'project-setup__form-head project-setup__wide' }, [
+        el('div', {}, [
+          el('h2', { id: 'workflowPageTitle', text: '新建角色项目' }),
+        ]),
+      ]),
+      el('label', { className: 'project-setup__wide' }, [
+        el('span', { text: '启动方式' }),
+        el('select', { attributes: { 'data-workflow-template-select': '', name: 'workflowTemplate' } }, [
+          el('option', { text: '空白流程', attributes: { value: '', ...(!workflowState.selectedId ? { selected: '' } : {}) } }),
+          ...templates.map((template) => el('option', { text: template.name, attributes: { value: template.id, ...(template.id === workflowState.selectedId ? { selected: '' } : {}) } })),
+        ]),
+      ]),
+      el('label', { className: 'project-setup__wide' }, [
+        el('span', { text: '项目名称' }),
+        el('input', { attributes: { name: 'projectName', required: '', maxlength: '48', value: projectContext.projectName || '', placeholder: '例如：雾港来信' } }),
+      ]),
+      el('label', {}, [
+        el('span', { text: '游戏视角' }),
+        el('select', { attributes: { name: 'view' } }, [
+          el('option', { text: '横版侧视', attributes: { value: 'side', ...(defaults.view === 'side' ? { selected: '' } : {}) } }),
+          el('option', { text: '俯视', attributes: { value: 'topdown', ...(defaults.view === 'topdown' ? { selected: '' } : {}) } }),
+          el('option', { text: '2.5D', attributes: { value: 'isometric', ...(defaults.view === 'isometric' ? { selected: '' } : {}) } }),
+        ]),
+      ]),
+      el('label', {}, [
+        el('span', { text: '方向数量' }),
+        el('select', { attributes: { name: 'directions' } }, [
+          el('option', { text: '单向', attributes: { value: '1', ...(defaults.directions === '1' ? { selected: '' } : {}) } }),
+          el('option', { text: '四向', attributes: { value: '4', ...(defaults.directions === '4' ? { selected: '' } : {}) } }),
+          el('option', { text: '八向', attributes: { value: '8', ...(defaults.directions === '8' ? { selected: '' } : {}) } }),
+        ]),
+      ]),
+      el('label', {}, [
+        el('span', { text: '角色画布尺寸' }),
+        el('select', { attributes: { name: 'canvasSize' } }, [
+          el('option', { text: '256 × 256', attributes: { value: '256', ...(defaults.canvasSize === '256' ? { selected: '' } : {}) } }),
+          el('option', { text: '128 × 128', attributes: { value: '128', ...(defaults.canvasSize === '128' ? { selected: '' } : {}) } }),
+          el('option', { text: '512 × 512', attributes: { value: '512', ...(defaults.canvasSize === '512' ? { selected: '' } : {}) } }),
+        ]),
+      ]),
+      el('label', { className: 'project-setup__wide' }, [
+        el('span', { text: '美术风格或参考图' }),
+        el('textarea', { text: defaults.style || '', attributes: { name: 'style', rows: '3', maxlength: '240', placeholder: '例如：低饱和像素风、细长比例、深灰旅行服' } }),
+        el('span', { className: 'project-reference' }, [
+          el('input', { type: 'file', attributes: { name: 'reference', accept: 'image/png,image/jpeg,image/webp' } }),
+          el('small', { text: '可选 · PNG / JPG / WebP' }),
+        ]),
+      ]),
+      el('footer', { className: 'project-setup__wide' }, [
+        el('span', {}, [
+          el('i', { attributes: { 'aria-hidden': 'true' } }),
+          el('small', { text: selectedTemplate ? `复用「${selectedTemplate.name}」并自动运行` : '空白流程 · 每个节点由你连接并确认' }),
+        ]),
+        el('button', { className: 'button button--primary', type: 'submit' }, [
+          el('span', { text: selectedTemplate ? '使用流程进入画布' : '进入空白创作画布' }),
+          el('i', { text: '↗', attributes: { 'aria-hidden': 'true' } }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+function nodePort(kind, enabled = true) {
+  return el('button', {
+    className: `graph-port graph-port--${kind}`,
+    type: 'button',
+    attributes: {
+      'aria-label': kind === 'input' ? '输入端口' : '输出端口',
+      'data-enabled': String(enabled),
+      'data-port': kind,
+    },
+  });
+}
+
+function graphNode({ id, eyebrow, title, x, y, body, input = true, output = true, outputEnabled = true, className = '', focus = false, focusGroup = false }) {
+  return el('article', {
+    className: `graph-node ${className}`.trim(),
+    attributes: { 'data-node-id': id, 'data-node-focus': String(focus), 'data-node-focus-group': String(focusGroup), 'data-x': String(x), 'data-y': String(y) },
+  }, [
+    input ? nodePort('input') : null,
+    el('header', { attributes: { 'data-node-drag': '' } }, [
+      el('span', {}, [el('small', { text: eyebrow }), el('h2', { text: title })]),
+      el('i', { attributes: { 'aria-hidden': 'true' } }, [el('b'), el('b'), el('b')]),
+    ]),
+    el('div', { className: 'graph-node__body' }, body),
+    input ? el('button', {
+      className: 'graph-node__connect-surface', type: 'button',
+      attributes: { 'aria-label': `确认连接到${title}`, 'data-node-connect-surface': '' },
+    }, [el('span', { text: '点击卡片确认连接' })]) : null,
+    output ? nodePort('output', outputEnabled) : null,
+  ]);
+}
+
+function nodeStatus(label, state) {
+  const text = {
+    locked: '等待上游', ready: '可以生成', generating: '生成中', review: '等待确认', confirmed: '已确认', idle: '尚未生成',
+  }[state] || state;
+  return el('div', { className: `node-status node-status--${state}` }, [el('span', { text: label }), el('b', { text })]);
+}
+
+function jobIsRunning(snapshot, kind, action = null) {
+  return (snapshot.jobs || []).some((job) => job.kind === kind && job.action === action);
+}
+
+function generationVisual(src, label, kind = 'image') {
+  return el('div', { className: `node-generation node-generation--${kind}` }, [
+    el('div', { className: 'node-generation__dots', attributes: { 'aria-hidden': 'true' } }, Array.from({ length: 81 }, (_, index) => {
+      const x = index % 9 - 4;
+      const y = Math.floor(index / 9) - 4;
+      const ring = Math.max(Math.abs(x), Math.abs(y));
+      return el('i', { className: `dot-ring-${ring}` });
+    })),
+    src ? el('img', { src, alt: label }) : null,
+    el('small', { text: label }),
+  ]);
+}
+
+function selectedAssetSet(snapshot) {
+  const id = snapshot.masterCandidate || 'boy';
+  const root = `../assets/resources/characters/${id}`;
+  const master = masterCandidates.find((candidate) => candidate.id === id)?.src || DEMO_CHARACTER_ASSETS.base;
+  if (id === 'boy') return { master, idle: DEMO_CHARACTER_ASSETS.idleFrames, walk: DEMO_CHARACTER_ASSETS.walkFrames };
+  const walk = Array.from({ length: 8 }, (_, index) => `${root}/views/side/walk-${String(index + 1).padStart(2, '0')}.png`);
+  return { master, idle: Array(8).fill(master), walk };
+}
+
+function renderFrameStrip(frames, running, label) {
+  return el('div', { className: `node-frame-strip ${running ? 'is-revealing' : ''}`, attributes: { 'aria-label': label } }, frames.map((src, index) => (
+    el('span', {}, [el('img', { src, alt: index === 0 ? label : '' }), el('small', { text: String(index + 1).padStart(2, '0') })])
+  )));
+}
+
+function renderSourceNode(snapshot, focus) {
+  return graphNode({
+    id: 'source', eyebrow: '01 · SOURCE', title: '选择角色起点', x: 70, y: 280, input: false, focus,
+    outputEnabled: Boolean(snapshot.source),
+    body: [
+      el('p', { text: '选择一种母版输入方式。确认后再连接到母版生成节点。' }),
+      el('div', { className: 'node-source-list' }, DEMO_SOURCE_OPTIONS.map((source) => el('button', {
+        className: snapshot.sourceId === source.id ? 'is-selected' : '', type: 'button',
+        attributes: { 'data-demo-source': source.id },
+      }, [el('span', { text: source.label }), el('small', { text: source.eyebrow })]))),
+    ],
+  });
+}
+
+function renderMasterGenerator(snapshot, focus, projectContext, libraryState = {}) {
+  const running = jobIsRunning(snapshot, 'master');
+  const sourceField = snapshot.sourceId === 'upload'
+    ? el('label', {}, [el('span', { text: '角色参考图' }), el('input', { type: 'file', attributes: { name: 'reference', accept: 'image/png,image/jpeg,image/webp', required: '' } })])
+    : snapshot.sourceId === 'existing'
+      ? el('label', {}, [el('span', { text: '已有角色' }), el('select', { attributes: { name: 'existingCharacter', required: '' } }, [
+        el('option', { text: '请选择项目资产', attributes: { value: '' } }),
+        ...(libraryState.characters || []).map((character) => el('option', { text: character.label, attributes: { value: character.id } })),
+      ])])
+      : null;
+  return graphNode({
+    id: 'master-gen', eyebrow: '02 · GENERATE', title: '生成参考母版', x: 510, y: 180, focus,
+    outputEnabled: ['review', 'confirmed'].includes(snapshot.master), className: running ? 'is-running' : '',
+    body: [
+      nodeStatus('母版任务', snapshot.master),
+      running ? generationVisual(DEMO_CHARACTER_ASSETS.base, '身份特征逐步成形') : el('form', { className: 'node-brief-form', id: 'masterBriefForm' }, [
+        el('label', {}, [el('span', { text: '角色名称' }), el('input', { attributes: { name: 'name', required: '', maxlength: '40', value: snapshot.master === 'review' ? snapshot.profile.name : '', placeholder: '输入角色名称' } })]),
+        el('label', {}, [el('span', { text: '身份与外观' }), el('textarea', { text: snapshot.master === 'review' ? snapshot.profile.description : '', attributes: { name: 'description', required: '', maxlength: '240', rows: '3', placeholder: '描述身份、服装、体型和识别特征' } })]),
+        el('label', {}, [el('span', { text: '美术约束' }), el('textarea', { text: snapshot.master === 'review' ? snapshot.profile.style : projectContext.style || '', attributes: { name: 'style', required: '', maxlength: '180', rows: '2', placeholder: '输入风格、色彩和材质约束' } })]),
+        sourceField,
+        el('button', { className: 'node-action', type: 'submit', text: snapshot.master === 'review' ? '重新生成候选' : '生成 3 张候选 · 约 9 秒', attributes: { 'data-connection-required': 'source:master-gen' } }),
+      ]),
+    ],
+  });
+}
+
+function renderMasterNode(snapshot, focus, focusGroup = false) {
+  const assets = selectedAssetSet(snapshot);
+  const reviewing = snapshot.master === 'review';
+  return graphNode({
+    id: 'master', eyebrow: '03 · MOTHER NODE', title: '确认母节点', x: 950, y: 240, focus, focusGroup,
+    outputEnabled: snapshot.master === 'confirmed',
+    body: [
+      nodeStatus('人工决策', snapshot.master),
+      reviewing ? el('div', { className: 'master-choice-grid' }, masterCandidates.map((candidate, index) => el('button', {
+        className: snapshot.masterCandidate === candidate.id ? 'is-selected' : '', type: 'button',
+        attributes: { 'data-master-candidate': candidate.id },
+      }, [el('img', { src: candidate.src, alt: candidate.label }), el('span', { text: `0${index + 1} · ${candidate.label}` })]))) : null,
+      snapshot.master === 'confirmed' ? el('figure', { className: 'confirmed-master' }, [el('img', { src: assets.master, alt: '已确认的角色母版' }), el('figcaption', { text: '身份母版已锁定' })]) : null,
+      reviewing ? el('button', {
+        className: 'node-action', type: 'button', text: '确认所选母版',
+        attributes: snapshot.masterCandidate ? { 'data-confirm-master': '' } : { 'data-confirm-master': '', disabled: '' },
+      }) : null,
+      snapshot.master === 'idle' || snapshot.master === 'generating' ? el('p', { text: '等待候选图进入此节点。' }) : null,
+    ],
+  });
+}
+
+function renderKeyframeNode(snapshot, action, x, y, focus = false, focusGroup = false) {
+  const branch = snapshot.actions[action];
+  const label = action === 'walk' ? 'Walk 第一帧' : 'Idle 第一帧';
+  const frames = selectedAssetSet(snapshot)[action];
+  const running = jobIsRunning(snapshot, 'keyframe', action);
+  return graphNode({
+    id: `${action}-key`, eyebrow: `04 · ${action.toUpperCase()}`, title: label, x, y, focus, focusGroup,
+    outputEnabled: branch.keyframe === 'confirmed', className: running ? 'is-running' : '',
+    body: [
+      nodeStatus('关键帧', branch.keyframe),
+      running ? generationVisual(frames[0], `${label}正在生成`) : null,
+      ['review', 'confirmed'].includes(branch.keyframe) ? el('figure', { className: 'keyframe-preview' }, [el('img', { src: frames[0], alt: label }), el('figcaption', { text: `${action} · frame 01` })]) : null,
+      ['ready', 'review'].includes(branch.keyframe) ? el('form', { className: 'node-brief-form', attributes: { 'data-keyframe-form': action } }, [
+        el('label', {}, [el('span', { text: '动作描述' }), el('textarea', { text: branch.brief, attributes: { name: 'brief', required: '', rows: '3', maxlength: '180', placeholder: action === 'walk' ? '描述步态、重心、速度和情绪' : '描述呼吸、重心和待机细节' } })]),
+        el('button', { className: 'node-action', type: 'submit', text: branch.keyframe === 'review' ? '重新生成 · 约 7 秒' : '生成首帧 · 约 7 秒', attributes: { 'data-connection-required': `master:${action}-key` } }),
+      ]) : null,
+      branch.keyframe === 'review' ? el('button', { className: 'node-action node-action--confirm', type: 'button', text: '确认首帧', attributes: { 'data-confirm-keyframe': action } }) : null,
+    ],
+  });
+}
+
+function renderAnimationNode(snapshot, action, x, y, focus = false, focusGroup = false) {
+  const branch = snapshot.actions[action];
+  const label = action === 'walk' ? 'Walk 动画' : 'Idle 动画';
+  const frames = selectedAssetSet(snapshot)[action];
+  const running = jobIsRunning(snapshot, 'animation', action);
+  return graphNode({
+    id: `${action}-animation`, eyebrow: `05 · ${action.toUpperCase()}`, title: label, x, y, focus, focusGroup,
+    outputEnabled: branch.animation === 'confirmed', className: running ? 'is-running' : '',
+    body: [
+      nodeStatus('8 FPS · 循环', branch.animation),
+      running || ['review', 'confirmed'].includes(branch.animation) ? renderFrameStrip(frames, running, `${label}八帧预览`) : el('p', { text: '首帧确认后，再连接并生成完整动作。' }),
+      ['ready', 'review'].includes(branch.animation) ? el('form', { className: 'node-brief-form node-animation-form', attributes: { 'data-animation-form': action } }, [
+        el('label', {}, [el('span', { text: '动画 FPS' }), el('select', { attributes: { name: 'fps', required: '' } }, [
+          el('option', { text: '请选择', attributes: { value: '' } }),
+          ...[8, 12, 16].map((fps) => el('option', { text: `${fps} FPS`, attributes: { value: String(fps) } })),
+        ])]),
+        el('button', { className: 'node-action', type: 'submit', text: branch.animation === 'review' ? '重新生成 · 约 15 秒' : '生成完整动画 · 约 15 秒', attributes: { 'data-connection-required': `${action}-key:${action}-animation` } }),
+      ]) : null,
+      branch.animation === 'review' ? el('button', { className: 'node-action node-action--confirm', type: 'button', text: '确认动画', attributes: { 'data-confirm-animation': action } }) : null,
+    ],
+  });
+}
+
+function renderCustomActionNode() {
+  return graphNode({
+    id: 'custom-action', eyebrow: '04 · CUSTOM', title: '自定义动作', x: 1390, y: 1080, output: false,
+    body: [
+      nodeStatus('扩展动作', 'ready'),
+      el('div', { className: 'node-brief-form custom-action-placeholder' }, [
+        el('label', {}, [el('span', { text: '动作名称' }), el('input', { attributes: { placeholder: '例如：攻击、受击、跳跃' } })]),
+        el('label', {}, [el('span', { text: '动作描述' }), el('textarea', { attributes: { rows: '3', placeholder: '描述动作意图和关键姿态' } })]),
+        el('small', { text: '自定义扩展节点 · 当前不继续生成后续节点' }),
+      ]),
+    ],
+  });
+}
+
+function renderPublishNode(snapshot, focus, projectContext, workflowState = {}) {
+  const running = jobIsRunning(snapshot, 'publish');
+  const previewHref = `./review.html?character=${encodeURIComponent(snapshot.masterCandidate || 'boy')}&view=side&action=walk`;
+  return graphNode({
+    id: 'publish', eyebrow: '06 · ASSET', title: snapshot.completed ? '项目资产已就绪' : '导入项目资产', x: 2250, y: 330, focus,
+    output: false, className: running ? 'is-running' : '',
+    body: [
+      nodeStatus('双分支校验', snapshot.completed ? 'confirmed' : running ? 'generating' : 'locked'),
+      running ? generationVisual(selectedAssetSet(snapshot).master, '正在保存母版、动作与版本关系') : null,
+      snapshot.completed ? el('div', { className: 'publish-complete' }, [
+        el('b', { text: '版本 v1 · 选择下一步' }),
+        el('span', { text: '母版、Idle 与 Walk 已完成' }),
+        el('div', { className: 'publish-options' }, [
+          el('button', { type: 'button', attributes: { 'data-export-pack': '' } }, [
+            el('b', { text: '导出资产' }),
+            el('small', { text: '下载 SpriteSheet 与 JSON' }),
+          ]),
+          el('a', { href: previewHref }, [
+            el('b', { text: '发送到预览台' }),
+            el('small', { text: '检查动作播放与循环效果' }),
+          ]),
+        ]),
+        el('form', { className: 'workflow-save-form', attributes: { 'data-workflow-save-form': '' } }, [
+          el('label', {}, [
+            el('span', { text: '保存为可复用流程' }),
+            el('input', { attributes: { name: 'workflowName', required: '', maxlength: '48', value: `${projectContext?.projectName || snapshot.profile.name} 角色流程` } }),
+          ]),
+          el('button', { type: 'submit', text: workflowState.saving ? '正在保存…' : '保存流程', attributes: workflowState.saving ? { disabled: '' } : {} }),
+          workflowState.message ? el('small', { text: workflowState.message }) : null,
+        ]),
+      ]) : el('button', { className: 'node-action', type: 'button', text: '确认导入项目资产', attributes: { 'data-publish': '', 'data-connection-required': 'walk-animation:publish,idle-animation:publish' } }),
+    ],
+  });
+}
+
+function renderProjectNode(projectContext) {
+  return graphNode({
+    id: 'project', eyebrow: '01 · PROJECT', title: projectContext.projectName, x: 70, y: 70, input: false,
+    body: [
+      el('dl', { className: 'project-node-facts' }, [
+        ['视角', projectLabels[projectContext.view]],
+        ['方向', projectLabels[projectContext.directions]],
+        ['画布', `${projectContext.canvasSize} × ${projectContext.canvasSize}`],
+      ].map(([term, value]) => el('div', {}, [el('dt', { text: term }), el('dd', { text: value })]))),
+      el('p', { text: projectContext.style || '以参考图作为美术约束' }),
+    ],
+  });
+}
+
+function renderDemoBuilder(snapshot, libraryState, projectContext, workflowState) {
+  if (!projectContext) return renderProjectSetup({}, workflowState);
+  const restoredWorkflow = Boolean(snapshot.workflow);
+  const showGenerator = Boolean(snapshot.source);
+  const showMaster = restoredWorkflow || snapshot.master !== 'idle';
+  const showKeys = restoredWorkflow || snapshot.master === 'confirmed';
+  const showWalkAnimation = restoredWorkflow || snapshot.actions.walk.keyframe === 'confirmed';
+  const showIdleAnimation = restoredWorkflow || snapshot.actions.idle.keyframe === 'confirmed';
+  const showPublish = restoredWorkflow || snapshot.completed || Object.values(snapshot.actions).some((branch) => branch.animation === 'confirmed');
+  const showBranchOverview = showKeys
+    && snapshot.actions.walk.keyframe === 'ready'
+    && snapshot.actions.idle.keyframe === 'ready';
+  const keyframeWorkMode = showKeys && (snapshot.jobs || []).some((job) => job.kind === 'keyframe');
+  const animationWorkMode = showWalkAnimation && showIdleAnimation && (snapshot.jobs || []).some((job) => job.kind === 'animation');
+  const suggestedFocus = snapshot.actions.walk.keyframe === 'ready' ? 'walk-key'
+    : snapshot.actions.walk.animation === 'ready' || snapshot.actions.walk.animation === 'review' ? 'walk-animation'
+      : snapshot.actions.idle.keyframe === 'ready' ? 'idle-key'
+        : snapshot.actions.idle.animation === 'ready' || snapshot.actions.idle.animation === 'review' ? 'idle-animation'
+          : 'master-gen';
+  const focusId = snapshot.job?.kind === 'publish' || snapshot.completed ? 'publish'
+    : snapshot.job?.kind === 'animation' ? `${snapshot.job.action}-animation`
+      : snapshot.job?.kind === 'keyframe' ? `${snapshot.job.action}-key`
+        : snapshot.master === 'review' ? 'master'
+          : snapshot.master === 'confirmed' ? suggestedFocus
+            : snapshot.job?.kind === 'master' || showGenerator ? 'master-gen'
+            : 'source';
+  return el('section', { className: 'node-graph-workspace', attributes: { 'data-production-status': snapshot.status } }, [
+    el('div', { className: 'node-canvas', attributes: { 'data-node-canvas': '' } }, [
+      el('div', { className: 'node-surface', attributes: { 'data-node-surface': '' } }, [
+        el('svg', { className: 'node-wires', attributes: { 'data-node-wires': '', 'aria-hidden': 'true' } }),
+        renderSourceNode(snapshot, focusId === 'source'),
+        showGenerator ? renderMasterGenerator(snapshot, focusId === 'master-gen', projectContext, libraryState) : null,
+        showMaster ? renderMasterNode(snapshot, focusId === 'master', showBranchOverview || keyframeWorkMode) : null,
+        showKeys ? renderKeyframeNode(snapshot, 'walk', 1390, 60, focusId === 'walk-key' && !showBranchOverview && !keyframeWorkMode, showBranchOverview || keyframeWorkMode) : null,
+        showKeys ? renderKeyframeNode(snapshot, 'idle', 1390, 570, focusId === 'idle-key' && !showBranchOverview && !keyframeWorkMode, showBranchOverview || keyframeWorkMode) : null,
+        showKeys ? renderCustomActionNode() : null,
+        showWalkAnimation ? renderAnimationNode(snapshot, 'walk', 1820, 60, focusId === 'walk-animation' && !animationWorkMode, animationWorkMode) : null,
+        showIdleAnimation ? renderAnimationNode(snapshot, 'idle', 1820, 570, focusId === 'idle-animation' && !animationWorkMode, animationWorkMode) : null,
+        showPublish ? renderPublishNode(snapshot, focusId === 'publish', projectContext, workflowState) : null,
+      ]),
+      el('div', { className: 'node-canvas-hint' }, [
+        el('span', { className: 'node-canvas-hint__copy' }, [
+          el('b', { text: snapshot.workflow ? `正在复用：${snapshot.workflow.name}` : showGenerator ? '下一步：拖动端口完成连接' : '第一步：选择角色起点' }),
+          el('span', { text: snapshot.workflow ? '填写新角色后，已验证节点将自动按顺序运行' : showGenerator ? '点击虚线终点的卡片即可确认连接 · 实线出现后解锁生成' : '选择后，下一节点才会出现' }),
+        ]),
+        el('button', { type: 'button', attributes: { 'data-workflow-library-open': '', 'aria-label': `打开流程库，${(workflowState.items || []).length} 个已保存流程` } }, [
+          el('span', { text: '流程库' }),
+          el('i', { text: String((workflowState.items || []).length) }),
+        ]),
+      ]),
+      el('div', { className: 'node-zoom', attributes: { 'aria-label': '画布缩放' } }, [
+        el('button', { type: 'button', text: '−', attributes: { 'aria-label': '缩小画布', 'data-node-zoom-out': '' } }),
+        el('output', { text: '100%', attributes: { 'data-node-zoom-label': '', 'aria-live': 'polite' } }),
+        el('button', { type: 'button', text: '+', attributes: { 'aria-label': '放大画布', 'data-node-zoom-in': '' } }),
+      ]),
+    ]),
+  ]);
+}
 function renderForm(context) {
   const form = el('div', { className: 'form-architecture' });
   context.route.regions.forEach((region, index) => form.append(el('section', { className: 'form-block' }, [
@@ -822,7 +1393,7 @@ function renderSelection(context) {
 function renderBody(context, demoSnapshot, libraryState) {
   if (context.route.id === 'projects') return renderProjectHub(context);
   if (context.route.id === 'library') return renderLibrary(context, libraryState);
-  if (context.route.id === 'demoBuilder') return renderDemoBuilder(demoSnapshot);
+  if (context.route.id === 'demoBuilder') return renderDemoBuilder(demoSnapshot, libraryState);
   if (context.route.layout === 'canvas') return renderCanvas(context);
   if (formRoutes.has(context.route.id)) return renderForm(context);
   if (mediaRoutes.has(context.route.id)) return renderMediaWorkbench(context);
@@ -841,9 +1412,9 @@ function renderActions(context) {
   return bar;
 }
 
-function renderWorkspace(context, demoSnapshot, libraryState) {
+function renderWorkspace(context, demoSnapshot, libraryState, projectContext, workflowState) {
   if (context.route.id === 'demoBuilder') {
-    return el('main', { className: 'production-canvas-workspace' }, [renderDemoBuilder(demoSnapshot)]);
+    return el('main', { className: 'production-canvas-workspace' }, [renderDemoBuilder(demoSnapshot, libraryState, projectContext, workflowState)]);
   }
   const parent = parentIdFor(context) ? routeById(parentIdFor(context)) : null;
   return el('main', { className: 'product-workspace' }, [
@@ -862,6 +1433,10 @@ function renderWorkspace(context, demoSnapshot, libraryState) {
 export function renderWorkflowShell(root, context, options = {}) {
   root.replaceChildren();
   root.dataset.routeId = context.route.id;
-  root.append(renderHeader(context));
-  root.append(context.route.id === 'home' ? renderHome(context) : renderWorkspace(context, options.demoSnapshot, options.libraryState));
+  root.append(context.route.id === 'demoBuilder' ? renderStudioBar(context, options.projectContext, options.workflowState) : renderHeader(context));
+  root.append(context.route.id === 'home' ? renderHome(context) : renderWorkspace(context, options.demoSnapshot, options.libraryState, options.projectContext, options.workflowState));
+  if (context.route.id === 'demoBuilder') {
+    const workflowLibrary = renderWorkflowLibrary(options.workflowState);
+    if (workflowLibrary) root.append(workflowLibrary);
+  }
 }
