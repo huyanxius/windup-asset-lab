@@ -1,4 +1,5 @@
 import http.cookiejar
+import io
 import json
 import shutil
 import tempfile
@@ -9,6 +10,7 @@ import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from PIL import Image
 
 from server.app import create_handler
 from server.windup_pipeline.application import GenerationApplication
@@ -51,6 +53,16 @@ class HttpContractTest(unittest.TestCase):
             data=data,
             method="POST" if body is not None else "GET",
             headers={"Content-Type": "application/json"} if body is not None else {},
+        )
+        with self.opener.open(request, timeout=5) as response:
+            return response.status, json.load(response)
+
+    def upload(self, path, body, media_type="image/png", filename="reference.png"):
+        request = urllib.request.Request(
+            self.base + path,
+            data=body,
+            method="POST",
+            headers={"Content-Type": media_type, "X-Windup-Filename": filename},
         )
         with self.opener.open(request, timeout=5) as response:
             return response.status, json.load(response)
@@ -114,6 +126,30 @@ class HttpContractTest(unittest.TestCase):
         character = next(item for item in library["characters"] if item["id"] == character_id)
         self.assertEqual(set(character["assets"]["side"]), {"idle", "walk"})
         self.assertTrue((self.root / character["base"]).exists())
+
+    def test_uploaded_reference_is_validated_and_attached_to_character_job(self):
+        stream = io.BytesIO()
+        Image.new("RGBA", (96, 128), (30, 60, 90, 255)).save(stream, "PNG")
+        status, reference = self.upload(
+            "/api/projects/windup-demo/references",
+            stream.getvalue(),
+        )
+        self.assertEqual(status, 201)
+        self.assertRegex(reference["id"], r"^ref-[a-f0-9]{12}$")
+
+        status, job = self.request("/api/characters/generations", {
+            "projectId": "windup-demo",
+            "referenceAssetId": reference["id"],
+            "name": "Reference Hero",
+            "description": "A reference-driven pixel-art traveller with a clear side silhouette.",
+            "model": "gemini-2.5-flash-image",
+            "starterActions": ["walk"],
+        })
+        self.assertEqual(status, 202)
+        self.assertEqual(job["request"]["referenceAssetId"], reference["id"])
+        self.assertEqual(job["request"]["sourceType"], "uploaded_reference")
+        current = self.wait_for_job(job["id"])
+        self.assertEqual(current["status"], "awaiting_review")
 
     def test_full_walk_uses_skeleton_frames_route_and_promotes_eight_frames(self):
         status, job = self.request("/api/generations", {

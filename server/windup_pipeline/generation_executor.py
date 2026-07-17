@@ -18,12 +18,13 @@ from .time_utils import now_iso
 
 
 class GenerationExecutor:
-    def __init__(self, *, root: Path, data_root: Path, jobs_root: Path, jobs, catalog, demo: bool):
+    def __init__(self, *, root: Path, data_root: Path, jobs_root: Path, jobs, catalog, references, demo: bool):
         self.root = root
         self.data_root = data_root
         self.jobs_root = jobs_root
         self.jobs = jobs
         self.catalog = catalog
+        self.references = references
         self.demo = demo
         self.actions = ActionPipeline(demo=demo, official_frame=catalog.official_frame)
 
@@ -118,11 +119,24 @@ class GenerationExecutor:
             if live:
                 # 母版门禁：正面或朝左的母版会让下游所有动作 prompt 自相矛盾，必须在源头拦下。
                 for attempt in range(2):
-                    generate.gen_character(
-                        request["description"], str(raw),
-                        style=request.get("style", ""), palette=request.get("palette", ""),
-                        model=request["model"], api_key=api_key,
-                    )
+                    reference_id = request.get("referenceAssetId")
+                    if reference_id:
+                        reference = self.references.resolve(request["projectId"], reference_id)
+                        reference_constraints = " ".join(filter(None, [
+                            request["description"],
+                            request.get("style", ""),
+                            request.get("palette", ""),
+                        ]))
+                        generate.to_side_view(
+                            str(reference), reference_constraints, str(raw),
+                            model=request["model"], api_key=api_key,
+                        )
+                    else:
+                        generate.gen_character(
+                            request["description"], str(raw),
+                            style=request.get("style", ""), palette=request.get("palette", ""),
+                            model=request["model"], api_key=api_key,
+                        )
                     self.update(job_id, progress=14, message="正在校验母版视角与朝向")
                     try:
                         card = describe.describe_character(str(raw), api_key=api_key)

@@ -25,6 +25,7 @@ from .domain import (
 from .generation_executor import GenerationExecutor
 from .job_store import JobStore
 from .publisher import AssetPublisher
+from .reference_store import ReferenceStore
 from .review_store import ReviewStore
 from .session_store import ProviderSession, ProviderSessionStore
 from .time_utils import now_iso
@@ -37,11 +38,13 @@ class GenerationApplication:
         self.jobs_root = self.data_root / "jobs"
         self.backups_root = self.data_root / "backups"
         self.characters_root = self.data_root / "characters"
+        self.references_root = self.data_root / "references"
         self.demo = demo
         self.jobs = JobStore(self.jobs_root)
         self.reviews = ReviewStore(self.data_root / "reviews")
         self.sessions = ProviderSessionStore(config.API_KEY, config.IMAGE_MODEL)
         self.assets = AssetCatalog(root, self.characters_root)
+        self.references = ReferenceStore(self.references_root)
         self.catalog = self.assets.records
         self.executor = GenerationExecutor(
             root=root,
@@ -49,6 +52,7 @@ class GenerationApplication:
             jobs_root=self.jobs_root,
             jobs=self.jobs,
             catalog=self.assets,
+            references=self.references,
             demo=demo,
         )
         self.publisher = AssetPublisher(
@@ -62,6 +66,7 @@ class GenerationApplication:
     def prepare(self) -> None:
         for path in (self.jobs_root, self.backups_root, self.characters_root):
             path.mkdir(parents=True, exist_ok=True)
+        self.references.prepare()
         self.assets.load_custom()
         self.jobs.load(now_iso())
         if config.API_KEY and not self.demo:
@@ -124,6 +129,15 @@ class GenerationApplication:
     def characters(self) -> dict:
         return self.assets.characters()
 
+    def upload_reference(
+        self,
+        project_id: str,
+        data: bytes,
+        media_type: str,
+        filename: str = "",
+    ) -> dict:
+        return self.references.save(project_id, data, media_type, filename)
+
     def official_frame(self, character_id: str, view: str, action: str, frame_index: int) -> Path:
         return self.assets.official_frame(character_id, view, action, frame_index)
 
@@ -146,6 +160,8 @@ class GenerationApplication:
         style = str(payload.get("style", "")).strip()
         palette = str(payload.get("palette", "")).strip()
         model = str(payload.get("model", "")).strip()
+        project_id = str(payload.get("projectId", "windup-demo")).strip()
+        reference_id = str(payload.get("referenceAssetId", "")).strip()
         if len(style) > 120 or len(palette) > 120:
             raise ValueError("风格与配色各不超过 120 字")
         raw_starter_actions = payload.get("starterActions", GENERATION["starterPack"]["actions"])
@@ -155,6 +171,8 @@ class GenerationApplication:
             raise ValueError("角色定义需要 12–800 字")
         if model not in IMAGE_MODELS:
             raise ValueError("请选择有效的图像模型")
+        if reference_id:
+            self.references.resolve(project_id, reference_id)
         if not isinstance(raw_starter_actions, list):
             raise ValueError("基础动作包格式不合法")
         starter_actions = list(dict.fromkeys(str(action) for action in raw_starter_actions))
@@ -168,6 +186,8 @@ class GenerationApplication:
             "request": {
                 "type": "character", "character": character_id, "name": name,
                 "description": description, "style": style, "palette": palette, "model": model,
+                "projectId": project_id, "referenceAssetId": reference_id or None,
+                "sourceType": "uploaded_reference" if reference_id else "text",
                 "starterView": GENERATION["starterPack"]["view"],
                 "starterActions": starter_actions,
                 "generationRoute": GENERATION["defaultRoute"],

@@ -18,8 +18,9 @@ def _call(text, ref_paths, out_path, timeout=200, model=None, api_key=None):
         for path in ref_paths:
             with open(path, "rb") as image:
                 encoded = base64.b64encode(image.read()).decode()
+            media_type = "image/jpeg" if str(path).lower().endswith((".jpg", ".jpeg")) else "image/png"
             content.append({"type": "image_url",
-                            "image_url": {"url": "data:image/png;base64," + encoded}})
+                            "image_url": {"url": f"data:{media_type};base64," + encoded}})
     body = {
         "model": model or config.IMAGE_MODEL,
         "stream": False,

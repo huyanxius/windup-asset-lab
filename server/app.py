@@ -10,7 +10,7 @@ import re
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 try:
     from .windup_pipeline import provider
@@ -25,30 +25,24 @@ ROOT = Path(__file__).resolve().parents[1]
 LOCAL_ORIGIN = re.compile(r"https?://(?:127\.0\.0\.1|localhost)(?::\d+)?")
 SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{20,80}$")
 
-
 def allowed_origins() -> set[str]:
     return {value.strip() for value in os.environ.get("WINDUP_ALLOWED_ORIGINS", "").split(",") if value.strip()}
-
 
 def create_handler(application: GenerationApplication, root: Path = ROOT):
     configured_origins = allowed_origins()
 
     class Handler(SimpleHTTPRequestHandler):
         server_version = "WindupGeneration/2.0"
-
         def __init__(self, *args, **kwargs):
             self._session_id = ""
             self._set_session_cookie = False
             super().__init__(*args, directory=str(root), **kwargs)
-
         def end_headers(self) -> None:
             if not urlparse(self.path).path.startswith("/api/"):
                 self.send_header("Cache-Control", "no-store")
             super().end_headers()
-
         def origin_allowed(self, origin: str) -> bool:
             return origin in configured_origins if configured_origins else bool(LOCAL_ORIGIN.fullmatch(origin))
-
         def session_id(self) -> str:
             if self._session_id:
                 return self._session_id
@@ -61,7 +55,6 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
             self._session_id = value
             application.session(value)
             return value
-
         def send_json(self, value: dict, status: int = 200) -> None:
             body = json.dumps(value, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
@@ -77,7 +70,6 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 self.send_header("Vary", "Origin")
             self.end_headers()
             self.wfile.write(body)
-
         def do_OPTIONS(self):
             origin = self.headers.get("Origin", "")
             self.send_response(204)
@@ -85,7 +77,7 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                 self.send_header("Access-Control-Allow-Origin", origin)
                 self.send_header("Access-Control-Allow-Credentials", "true")
                 self.send_header("Vary", "Origin")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Windup-Request")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Windup-Request, X-Windup-Filename")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.end_headers()
 
@@ -97,6 +89,14 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
             if not isinstance(value, dict):
                 raise ValueError("请求体必须是对象")
             return value
+
+        def read_binary(self, maximum: int = 10 * 1024 * 1024) -> bytes:
+            length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0:
+                raise ValueError("参考图内容为空")
+            if length > maximum:
+                raise ValueError("参考图需要小于 10 MB")
+            return self.rfile.read(length)
 
         def do_GET(self):
             parsed = urlparse(self.path)
@@ -138,6 +138,15 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
                         self.send_json({"error": "非法请求"}, 403)
                         return
                     self.send_json(application.connect_provider(self.session_id(), self.read_json()))
+                    return
+                reference_match = re.fullmatch(r"/api/projects/([a-z0-9][a-z0-9-]{1,63})/references", path)
+                if reference_match:
+                    self.send_json(application.upload_reference(
+                        reference_match.group(1),
+                        self.read_binary(),
+                        self.headers.get("Content-Type", ""),
+                        unquote(self.headers.get("X-Windup-Filename", "")),
+                    ), 201)
                     return
                 if path == "/api/characters/generations":
                     self.send_json(application.create_character_job(self.session_id(), self.read_json()), 202)
