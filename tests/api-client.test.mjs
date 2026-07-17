@@ -15,3 +15,24 @@ test('asset URLs work for API paths and editor-relative catalogue paths', () => 
   assert.equal(local.assetUrl('../assets/a.png'), '../assets/a.png');
   assert.equal(remote.assetUrl('/generation-data/a.png'), 'http://127.0.0.1:4174/generation-data/a.png');
 });
+
+test('reference uploads keep binary content and session credentials', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return { ok: true, json: async () => ({ id: 'ref-123456789abc' }) };
+  };
+  try {
+    const file = new Blob(['png'], { type: 'image/png' });
+    Object.defineProperty(file, 'name', { value: 'hero.png' });
+    const api = createApiClient('http://127.0.0.1:4174');
+    await api.upload('/api/projects/windup-demo/references', file);
+    assert.equal(calls[0].url, 'http://127.0.0.1:4174/api/projects/windup-demo/references');
+    assert.equal(calls[0].options.credentials, 'include');
+    assert.equal(calls[0].options.body, file);
+    assert.equal(calls[0].options.headers['Content-Type'], 'image/png');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -1,6 +1,4 @@
 import { startBrandWave } from './features/brand-wave.js';
-import { DemoProductionController } from './features/demo-production.js';
-import { GuidedCanvasController } from './features/guided-canvas.js';
 import { startHomeIdleCast } from './features/home-idle-cast.js';
 import { startNarrativeFields } from './features/narrative-field.js';
 import { runRouteLightTransition } from './features/route-light-transition.js';
@@ -17,43 +15,8 @@ let stopScrollBird = () => {};
 let stopRouteTransition = () => {};
 let renderToken = 0;
 let activeRouteId = null;
-const guidedCanvas = new GuidedCanvasController();
 const api = createApiClient();
 let libraryState = { status: 'loading', characters: [] };
-const demoProduction = new DemoProductionController({
-  onChange: () => render({ preserveScroll: true }),
-});
-
-function bindDemoFlow(context) {
-  if (context.route.id !== 'demoBuilder') {
-    guidedCanvas.detach();
-    return;
-  }
-  guidedCanvas.attach(root, demoProduction.snapshot());
-  document.querySelectorAll('[data-demo-source]').forEach((button) => {
-    button.addEventListener('click', () => {
-      demoProduction.selectSource(button.dataset.demoSource);
-    });
-  });
-  document.querySelector('[data-demo-change-source]')?.addEventListener('click', () => {
-    demoProduction.clearSource();
-  });
-  document.querySelector('#demoCharacterForm')?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    demoProduction.configure({
-      action: 'side / idle + walk / 8 FPS',
-      description: form.get('description'),
-      name: form.get('name'),
-      role: form.get('role'),
-      style: form.get('style'),
-    });
-    demoProduction.start();
-  });
-  document.querySelector('[data-demo-reset]')?.addEventListener('click', () => {
-    demoProduction.configure();
-  });
-}
 
 function render(options = {}) {
   const token = ++renderToken;
@@ -66,11 +29,7 @@ function render(options = {}) {
   stopHomeIdleCast = () => {};
   stopScrollBird = () => {};
   const context = parseWorkflowLocation(window.location.hash);
-  const requestedSource = context.query.get('source');
-  if (requestedSource && demoProduction.snapshot().sourceId !== requestedSource) {
-    demoProduction.selectSource(requestedSource);
-  }
-  renderWorkflowShell(root, context, { demoSnapshot: demoProduction.snapshot(), libraryState });
+  renderWorkflowShell(root, context, { libraryState });
   document.title = `Windup · ${context.route.title}`;
   activeRouteId = context.route.id;
   if (context.route.id === 'home') {
@@ -82,7 +41,6 @@ function render(options = {}) {
     stopNarrativeFields = startNarrativeFields(document.querySelectorAll('.narrative-dot-field'));
     stopScrollBird = startScrollBird(document.querySelector('[data-bird-layer="transition"]'));
   }
-  bindDemoFlow(context);
   document.querySelector('[data-library-retry]')?.addEventListener('click', loadAssetLibrary);
   if (options.focus) document.querySelector('#workflowPageTitle')?.focus({ preventScroll: true });
   if (!options.preserveScroll) window.scrollTo({ top: 0, behavior: 'instant' });

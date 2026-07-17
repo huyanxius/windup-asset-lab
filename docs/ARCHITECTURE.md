@@ -40,6 +40,7 @@ asset-lab/
 │  ├─ drawer-controller.js      # 左侧抽屉生命周期
 │  ├─ onboarding-controller.js  # 聚光灯、模式选择和点击引导
 │  ├─ provider-session-controller.js # 生成页面共用的 Key/模型连接状态
+│  ├─ production-sources.js     # 主创作入口到真实生成页面的映射
 │  └─ workflow-stepper.js       # 生成流程步骤状态
 ├─ styles/
 │  ├─ foundation.css            # 设计变量和基础组件（第 1 层）
@@ -70,6 +71,7 @@ server/
    ├─ action_pipeline.py        # 动作条/单帧双路由与回退
    ├─ asset_catalog.py          # 正式角色目录与动作清单
    ├─ publisher.py              # 原子入库、备份与失败回滚
+   ├─ reference_store.py        # 参考图校验、原子保存与安全 ID 解析
    ├─ processing.py             # 抠图、动作条切分、归一化与连续性质检
    ├─ job_store.py              # 线程安全的任务持久化边界
    ├─ review_store.py           # 乐观锁版本化审核存储
@@ -145,6 +147,8 @@ queued → generating → awaiting_review → approved
 ### 增加角色
 
 内建角色加到目录；用户角色通过 `/api/characters/generations` 创建。默认角色包包含母版、side/idle 和 side/walk；`AssetPublisher` 在临时目录完成全部复制后再原子入库。角色母版、动作候选和正式帧必须保持不同目录。
+
+上传参考图先通过 `POST /api/projects/{project_id}/references` 进入 `ReferenceStore`，任务只保存 `referenceAssetId`，执行器在运行时解析文件并将其作为身份依据。浏览器必须使用 `api-client.upload()`，不能自行发送二进制请求。
 
 ### 更换整套动作策略
 

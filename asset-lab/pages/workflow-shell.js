@@ -1,10 +1,10 @@
 import { hashFor, routeById } from '../data/workflow-routes.js';
+import { DEFAULT_DEMO_CHARACTER_ASSETS } from '../data/default-demo-character.js';
 import {
   DEFAULT_DEMO_PROFILE,
-  DEMO_CHARACTER_ASSETS,
   DEMO_PRODUCTION_STEPS,
-  DEMO_SOURCE_OPTIONS,
 } from '../features/demo-production.js';
+import { PRODUCTION_SOURCE_OPTIONS } from '../features/production-sources.js';
 import {
   backHrefFor,
   breadcrumbsFor,
@@ -19,6 +19,11 @@ const navItems = Object.freeze([
   { id: 'library', label: '项目资产' },
   { id: 'demoBuilder', label: '创作' },
 ]);
+
+const DEMO_CHARACTER_ASSETS = Object.freeze({
+  ...DEFAULT_DEMO_CHARACTER_ASSETS,
+  frames: DEFAULT_DEMO_CHARACTER_ASSETS.walkFrames,
+});
 
 const deliveryJourney = Object.freeze([
   ['exportSelect', '选择动作'],
@@ -750,6 +755,33 @@ function renderDemoBuilder(snapshot) {
   return renderDemoCanvas(snapshot);
 }
 
+function renderProductionEntry(context) {
+  const requested = context.query.get('source');
+  return el('main', { className: 'product-workspace production-entry' }, [
+    el('header', { className: 'page-heading' }, [
+      el('span', { className: 'overline', text: 'REAL GENERATION WORKFLOWS' }),
+      el('h1', { text: '选择真实生产入口' }),
+      el('p', { text: '每条入口都会进入后端任务、真实轮询和候选审核；不会再用固定角色或定时器伪造结果。' }),
+    ]),
+    el('div', { className: 'demo-source-grid demo-source-grid--canvas' }, PRODUCTION_SOURCE_OPTIONS.map((source, index) => (
+      el('a', {
+        className: requested === source.id ? 'demo-source-card is-selected' : 'demo-source-card',
+        href: source.id === 'existing' && context.query.get('character')
+          ? `${source.href}?character=${encodeURIComponent(context.query.get('character'))}`
+          : source.href,
+        attributes: { 'data-production-source': source.id },
+      }, [
+        el('span', { text: String(index + 1).padStart(2, '0') }),
+        el('small', { text: source.eyebrow }),
+        el('h3', { text: source.label }),
+        el('p', { text: source.copy }),
+        el('b', { text: `${source.action} →` }),
+      ])
+    ))),
+    el('p', { className: 'production-entry__note', text: '生成费用只会在你完成 Key 验证并明确提交后产生。候选资产必须手动采用，才会进入正式角色库。' }),
+  ]);
+}
+
 function renderForm(context) {
   const form = el('div', { className: 'form-architecture' });
   context.route.regions.forEach((region, index) => form.append(el('section', { className: 'form-block' }, [
@@ -819,10 +851,10 @@ function renderSelection(context) {
   return grid;
 }
 
-function renderBody(context, demoSnapshot, libraryState) {
+function renderBody(context, libraryState) {
   if (context.route.id === 'projects') return renderProjectHub(context);
   if (context.route.id === 'library') return renderLibrary(context, libraryState);
-  if (context.route.id === 'demoBuilder') return renderDemoBuilder(demoSnapshot);
+  if (context.route.id === 'demoBuilder') return renderProductionEntry(context);
   if (context.route.layout === 'canvas') return renderCanvas(context);
   if (formRoutes.has(context.route.id)) return renderForm(context);
   if (mediaRoutes.has(context.route.id)) return renderMediaWorkbench(context);
@@ -841,16 +873,16 @@ function renderActions(context) {
   return bar;
 }
 
-function renderWorkspace(context, demoSnapshot, libraryState) {
+function renderWorkspace(context, libraryState) {
   if (context.route.id === 'demoBuilder') {
-    return el('main', { className: 'production-canvas-workspace' }, [renderDemoBuilder(demoSnapshot)]);
+    return renderProductionEntry(context);
   }
   const parent = parentIdFor(context) ? routeById(parentIdFor(context)) : null;
   return el('main', { className: 'product-workspace' }, [
     renderBreadcrumbs(context),
     renderPageHeading(context),
     renderJourney(context),
-    renderBody(context, demoSnapshot, libraryState),
+    renderBody(context, libraryState),
     renderActions(context),
     backHrefFor(context) ? el('footer', { className: 'workspace-footer' }, [
       el('a', { href: backHrefFor(context), text: `← 返回${parent?.title || '上一级'}` }),
@@ -863,5 +895,5 @@ export function renderWorkflowShell(root, context, options = {}) {
   root.replaceChildren();
   root.dataset.routeId = context.route.id;
   root.append(renderHeader(context));
-  root.append(context.route.id === 'home' ? renderHome(context) : renderWorkspace(context, options.demoSnapshot, options.libraryState));
+  root.append(context.route.id === 'home' ? renderHome(context) : renderWorkspace(context, options.libraryState));
 }

@@ -38,6 +38,11 @@
 
       <form id="createForm">
         <div class="section-title"><span><b>角色定义</b><small>按步骤填写，或从模板一键起步</small></span></div>
+        <label id="referenceField" class="reference-field">
+          <span>角色参考图 · PNG/JPEG，最大 10 MB</span>
+          <input id="referenceInput" type="file" accept="image/png,image/jpeg">
+          <span class="reference-preview"><img id="referencePreview" alt="角色参考图预览" hidden><small id="referenceMessage">不上传时将根据文字创建原创角色。</small></span>
+        </label>
         <div class="templates" aria-label="角色模板">
           <button type="button" data-template="literary">文艺少年</button>
           <button type="button" data-template="courier">雾港邮差</button>
@@ -79,6 +84,6 @@
       </div>
     </section>
   </main>
-  <script type="module" src="./create-character.js?v=6"></script>
+  <script type="module" src="./create-character.js?v=7"></script>
 </body>
 </html>

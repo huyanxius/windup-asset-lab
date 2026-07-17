@@ -39,6 +39,14 @@ export function createApiClient(baseUrl = resolveApiBase()) {
       headers,
       body: JSON.stringify(body),
     }),
+    upload: (path, file) => request(path, {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+        'X-Windup-Filename': encodeURIComponent(file.name || 'reference'),
+      },
+      body: file,
+    }),
     assetUrl(path) {
       if (!path || /^https?:/.test(path)) return path;
       if (path.startsWith('../') || path.startsWith('./')) return path;

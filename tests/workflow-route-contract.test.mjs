@@ -9,7 +9,7 @@ import {
 import {
   navigationContractErrors,
 } from '../asset-lab/features/workflow-navigation.js';
-import { DEMO_SOURCE_OPTIONS } from '../asset-lab/features/demo-production.js';
+import { PRODUCTION_SOURCE_OPTIONS } from '../asset-lab/features/production-sources.js';
 
 const assetLab = new URL('../asset-lab/', import.meta.url);
 
@@ -38,7 +38,11 @@ test('workflow route registry is complete and internally connected', () => {
 });
 
 test('the product exposes one canonical canvas creation flow with three sources', () => {
-  assert.deepEqual(DEMO_SOURCE_OPTIONS.map((source) => source.id), ['zero', 'upload', 'existing']);
+  assert.deepEqual(PRODUCTION_SOURCE_OPTIONS.map((source) => source.id), ['zero', 'upload', 'existing']);
+  assert.deepEqual(
+    PRODUCTION_SOURCE_OPTIONS.map((source) => source.href),
+    ['./create-character.html?source=zero', './create-character.html?source=upload', './generate.html'],
+  );
   assert.equal(routeById('demoBuilder').path, '/studio');
   assert.deepEqual(
     WORKFLOW_ROUTES.filter((route) => route.section === 'demo').map((route) => route.id),
@@ -83,15 +87,16 @@ test('project asset home reads the same character API as the legacy library', as
   assert.match(shell, /libraryState\.assetUrl/);
 });
 
-test('production state changes rerender the studio without an undefined controller hook', async () => {
+test('production entry points only to real API-backed generation pages', async () => {
   const [app, shell] = await Promise.all([
     readFile(new URL('workflow-app.js', assetLab), 'utf8'),
     readFile(new URL('pages/workflow-shell.js', assetLab), 'utf8'),
   ]);
 
-  assert.doesNotMatch(app, /demoProduction\.attach\(/);
-  assert.match(app, /onChange:\s*\(\)\s*=>\s*render\(\{ preserveScroll: true \}\)/);
-  assert.match(shell, /'data-production-status': snapshot\.status/);
+  assert.doesNotMatch(app, /DemoProductionController|demoProduction|setTimeout/);
+  assert.match(shell, /renderProductionEntry\(context\)/);
+  assert.match(shell, /data-production-source/);
+  assert.doesNotMatch(shell, /renderDemoBuilder\(demoSnapshot\)/);
 });
 
 test('product home and action review are separate canonical pages', async () => {

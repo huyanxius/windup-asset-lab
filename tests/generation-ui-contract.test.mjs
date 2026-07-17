@@ -11,8 +11,11 @@ test('character creation exposes and enforces a starter action package', async (
   ]);
   assert.match(html, /id="starterIdle"[^>]*checked/);
   assert.match(html, /id="starterWalk"[^>]*checked/);
+  assert.match(html, /id="referenceInput"[^>]*type="file"/);
   assert.match(html, /id="resultGrid"/);
   assert.match(source, /starterActions:\s*generationDefaults\.starterPack\.actions\.filter/);
+  assert.match(source, /api\.upload\('\/api\/projects\/windup-demo\/references'/);
+  assert.match(source, /referenceAssetId/);
   assert.match(source, /completePackage/);
   assert.match(source, /contractVersion === CONTRACT_VERSION/);
 });

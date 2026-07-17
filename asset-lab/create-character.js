@@ -10,12 +10,14 @@ const els = Object.fromEntries([
   'serviceState','providerState','providerDot','apiKey','model','connectBtn','connectionMessage',
   'createForm','assetName','description','styleInput','paletteInput','createBtn','workflowSteps','resultPanel','jobPercent',
   'jobProgress','jobTitle','jobMessage','emptyResult','resultGrid','acceptBtn','libraryLink','editorLink',
-  'starterIdle','starterWalk',
+  'starterIdle','starterWalk','referenceField','referenceInput','referencePreview','referenceMessage',
 ].map((id) => [id, $(id)]));
 
 const api = createApiClient();
 const poller = createJobPoller(api);
-const state = { busy: false, job: null };
+const query = new URLSearchParams(location.search);
+const referenceRequired = query.get('source') === 'upload';
+const state = { busy: false, job: null, reference: null, previewUrl: '' };
 const stepper = new WorkflowStepper(els.workflowSteps, ['connect', 'define', 'review']);
 const provider = new ProviderSessionController({
   api,
@@ -62,13 +64,16 @@ const dicePools = {
 
 function syncControls() {
   const contractReady = provider.contractVersion === CONTRACT_VERSION;
-  const ready = provider.connected && contractReady && !state.busy && Boolean(provider.model);
+  const referenceReady = !referenceRequired || Boolean(els.referenceInput.files[0]);
+  const ready = provider.connected && contractReady && referenceReady && !state.busy && Boolean(provider.model);
   els.createBtn.disabled = !ready;
   els.createBtn.textContent = state.busy
     ? '正在生成完整角色包…'
     : provider.connected && !contractReady
       ? '请重启生成服务以启用角色包'
-      : provider.connected ? '生成完整角色包' : '连接服务后生成角色包';
+      : provider.connected && !referenceReady
+        ? '请先选择角色参考图'
+        : provider.connected ? '生成完整角色包' : '连接服务后生成角色包';
   els.connectBtn.disabled = state.busy || provider.busy;
 }
 
@@ -119,7 +124,18 @@ async function createCharacter(event) {
   els.jobProgress.style.width = '0%';
   syncControls();
   try {
+    let referenceAssetId = null;
+    const referenceFile = els.referenceInput.files[0];
+    if (referenceFile) {
+      els.jobTitle.textContent = '正在上传参考图';
+      els.jobMessage.textContent = '服务端正在校验文件类型、尺寸和内容…';
+      state.reference = await api.upload('/api/projects/windup-demo/references', referenceFile);
+      referenceAssetId = state.reference.id;
+      els.referenceMessage.textContent = `已上传 ${state.reference.width} × ${state.reference.height} · ${state.reference.id}`;
+    }
     const job = await api.post('/api/characters/generations', {
+      projectId: 'windup-demo',
+      referenceAssetId,
       name: els.assetName.value.trim(),
       description: els.description.value.trim(),
       style: els.styleInput.value.trim(),
@@ -165,6 +181,10 @@ async function acceptCharacter() {
 }
 
 async function boot() {
+  if (referenceRequired) {
+    els.referenceField.classList.add('is-required');
+    els.referenceMessage.textContent = '此入口需要先上传一张角色参考图。';
+  }
   await provider.boot();
   if (provider.connected) stepper.select('define');
   syncControls();
@@ -186,6 +206,31 @@ document.querySelectorAll('.dice').forEach((button) => {
     const input = button.dataset.dice === 'style' ? els.styleInput : els.paletteInput;
     input.value = pool[Math.floor(Math.random() * pool.length)];
   });
+});
+els.referenceInput.addEventListener('change', () => {
+  const file = els.referenceInput.files[0];
+  state.reference = null;
+  if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+  state.previewUrl = '';
+  els.referencePreview.hidden = true;
+  if (!file) {
+    els.referenceMessage.textContent = referenceRequired
+      ? '此入口需要先上传一张角色参考图。'
+      : '不上传时将根据文字创建原创角色。';
+    syncControls();
+    return;
+  }
+  if (!['image/png', 'image/jpeg'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+    els.referenceInput.value = '';
+    els.referenceMessage.textContent = '请选择小于 10 MB 的 PNG 或 JPEG。';
+    syncControls();
+    return;
+  }
+  state.previewUrl = URL.createObjectURL(file);
+  els.referencePreview.src = state.previewUrl;
+  els.referencePreview.hidden = false;
+  els.referenceMessage.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB，提交时上传并校验。`;
+  syncControls();
 });
 provider.bind();
 els.createForm.addEventListener('submit', createCharacter);
