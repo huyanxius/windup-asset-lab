@@ -68,7 +68,7 @@ function setLibraryState(type, error = '') {
   }
   if (failed) {
     els.libraryStateTitle.textContent = '资产库暂时不可用';
-    els.libraryStateCopy.textContent = error || '请确认本地生成服务已经启动。';
+    els.libraryStateCopy.textContent = error || '请确认资产生成服务已经启动。';
   }
 }
 

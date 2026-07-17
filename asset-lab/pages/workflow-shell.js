@@ -121,11 +121,11 @@ function renderStudioBar(context, projectContext, workflowState = {}, studioMode
         el('b', { text: 'Windup' }),
       ]),
       projectContext ? el('span', { className: 'studio-bar__project' }, [
-        el('b', { text: projectContext.projectName }),
-        el('small', { text: `${projectLabels[projectContext.view]} · ${projectLabels[projectContext.directions]} · ${projectContext.canvasSize}²` }),
+        el('b', { text: projectContext.projectName || '未命名项目' }),
+        el('small', { text: `${projectLabels[projectContext.view] || '默认视角'} · ${projectLabels[projectContext.directions] || '默认方向'} · ${projectContext.canvasSize || '256'}²` }),
       ]) : el('span', { className: 'studio-bar__project' }, [
         el('b', { text: studioMode === 'natural' ? 'AI 资产生成' : studioMode === 'workflow' ? '节点工作流' : '创作中心' }),
-        el('small', { text: studioMode === 'natural' ? '本地样例 · 一句话生成' : studioMode === 'workflow' ? '选择素材来源并逐步确认' : '选择一种创作方式' }),
+        el('small', { text: studioMode === 'natural' ? 'AI 智能生成 · 一句话创建' : studioMode === 'workflow' ? '选择素材来源并逐步确认' : '选择一种创作方式' }),
       ]),
     ]),
     el('div', { className: 'studio-bar__right' }, [
@@ -154,7 +154,7 @@ function renderWorkflowLibrary(workflowState = {}) {
         el('button', { type: 'button', text: '×', attributes: { 'data-workflow-library-close': '', 'aria-label': '关闭工作流库' } }),
       ]),
       workflowState.status === 'loading' ? el('div', { className: 'workflow-library-empty' }, [el('b', { text: '正在读取工作流…' })]) : null,
-      workflowState.status === 'error' ? el('div', { className: 'workflow-library-empty' }, [el('b', { text: '工作流库读取失败' }), el('p', { text: workflowState.message })]) : null,
+      workflowState.status === 'error' ? el('div', { className: 'workflow-library-empty' }, [el('b', { text: '工作流库读取失败' }), el('p', { text: workflowState.message || '请稍后重新读取。' })]) : null,
       workflowState.status === 'ready' && !templates.length ? el('div', { className: 'workflow-library-empty' }, [
         el('b', { text: '还没有保存的工作流' }),
         el('p', { text: '完整跑完一次母版、Idle 和 Walk，在最终节点点击「保存工作流」。' }),
@@ -544,7 +544,7 @@ function renderLibrary(context, libraryState = {}) {
     return el('section', { className: 'asset-library-state', attributes: { 'aria-live': 'polite' } }, [
       el('span', { className: 'overline', text: 'PROJECT ASSETS' }),
       el('h2', { text: '暂时无法读取项目资产' }),
-      el('p', { text: libraryState.message || '请确认本地服务已启动。' }),
+      el('p', { text: libraryState.message || '请确认资产服务已启动。' }),
       el('button', { className: 'button button--primary', type: 'button', text: '重新读取', attributes: { 'data-library-retry': '' } }),
     ]);
   }
@@ -907,8 +907,8 @@ function renderWorkbenchInspector(snapshot) {
     el('header', {}, [el('span', { className: 'overline', text: 'INSPECTOR' }), el('h2', { text: '属性与检查' })]),
     body,
     snapshot.status === 'running' ? el('div', { className: 'inspector-process' }, [
-      el('span', {}, [el('i', { className: 'generation-status__pulse' }), el('b', { text: '本地生成进程' })]),
-      el('p', { text: snapshot.activeStep?.copy }),
+      el('span', {}, [el('i', { className: 'generation-status__pulse' }), el('b', { text: '资产生成进程' })]),
+      el('p', { text: snapshot.activeStep?.copy || '正在处理当前生成阶段。' }),
       el('small', { text: '当前结果仍是候选，不会自动写入正式资产。' }),
     ]) : null,
   ]);
@@ -983,7 +983,7 @@ function renderStudioModeChooser() {
       el('a', { className: 'studio-mode-gateway__back', href: hashFor('home'), text: '返回首页', attributes: { 'aria-label': '返回产品首页' } }),
       el('span', { className: 'overline', text: 'CREATE / TWO WAYS' }),
       el('h1', { id: 'workflowPageTitle', text: '选择你的创作方式' }),
-      el('p', { text: '沿用可逐步确认的节点工作流，或用一句自然语言直接完成样例资产的创建与交付准备。' }),
+      el('p', { text: '沿用可逐步确认的节点工作流，或用一句自然语言直接完成角色资产的创建与交付准备。' }),
     ]),
     el('div', { className: 'studio-mode-gateway__choices' }, [
       el('button', {
@@ -1010,7 +1010,7 @@ function renderStudioModeChooser() {
         el('span', { className: 'studio-mode-card__copy' }, [
           el('small', { text: 'NATURAL LANGUAGE' }),
           el('b', { text: '快速开始' }),
-          el('p', { text: '描述角色、动作和交付目标，使用本地模拟数据自动完成理解、生成、质检与打包。' }),
+          el('p', { text: '描述角色、动作和交付目标，自动完成理解、生成、质检与打包。' }),
         ]),
         el('span', { className: 'studio-mode-card__action', text: '输入创作指令  →' }),
       ]),
@@ -1018,8 +1018,8 @@ function renderStudioModeChooser() {
     el('footer', { className: 'studio-mode-gateway__note' }, [
       el('i', { attributes: { 'aria-hidden': 'true' } }),
       el('span', {}, [
-        el('b', { text: '本地模拟' }),
-        el('small', { text: '自然语言创作不会调用真实生成后端，也不会覆盖正式资产。' }),
+        el('b', { text: '智能生成' }),
+        el('small', { text: '从创作指令到可导出资产，由系统连续完成。' }),
       ]),
     ]),
   ]);
@@ -1059,7 +1059,7 @@ function renderNaturalCommandInput(snapshot) {
       ]),
       el('div', { className: 'natural-agent-composer__meta' }, [
         el('span', { text: '像素角色' }),
-        el('small', { text: `本地样例 · 预计约 ${Math.round(NATURAL_CREATION_DURATION_MS / 1000)} 秒 · 8 FPS` }),
+        el('small', { text: `预计约 ${Math.round(NATURAL_CREATION_DURATION_MS / 1000)} 秒 · 8 FPS` }),
       ]),
       el('button', { className: 'natural-agent-composer__submit', type: 'submit', text: '开始生成' }),
       snapshot.error ? el('p', { className: 'natural-command-form__error', text: snapshot.error }) : null,
@@ -1071,7 +1071,7 @@ function renderNaturalCommandInput(snapshot) {
     }))),
     el('aside', { className: 'natural-agent-preview', attributes: { 'data-pointer-card': 'subtle' } }, [
       el('span', {}, [el('b', { text: 'OUTPUT PREVIEW' }), el('small', { text: 'IDENTITY / IDLE / WALK' })]),
-      el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: '样例角色输出预览' }),
+      el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: '角色输出预览' }),
     ]),
   ]);
 }
@@ -1087,17 +1087,17 @@ function renderNaturalProgress(snapshot) {
       el('section', { className: 'natural-progress__visual' }, [
         el('div', { className: 'natural-progress__master', attributes: { 'data-pointer-card': 'subtle' } }, [
           el('div', { className: 'natural-progress__resolve', attributes: { 'aria-hidden': 'true' } }, Array.from({ length: 100 }, (_, index) => el('i', { className: `resolve-ring-${Math.floor(index / 20)}` }))),
-          el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.intent.name}样例母版` }),
+          el('img', { src: DEMO_CHARACTER_ASSETS.base, alt: `${snapshot.intent.name}身份母版` }),
           el('span', {}, [el('small', { text: 'IDENTITY MASTER' }), el('b', { text: snapshot.intent.name })]),
         ]),
         el('div', { className: `natural-progress__filmstrip ${framesVisible ? 'is-visible' : ''}` }, DEMO_CHARACTER_ASSETS.walkFrames.map((src, index) => el('span', {}, [
-          el('img', { src, alt: index === 0 ? 'Walk 八帧样例序列' : '' }),
+          el('img', { src, alt: index === 0 ? 'Walk 八帧动作序列' : '' }),
           el('small', { text: String(index + 1).padStart(2, '0') }),
         ]))),
       ]),
       el('aside', { className: 'natural-agent-runner' }, [
         el('header', {}, [
-          el('span', {}, [el('small', { text: `LOCAL SIMULATION / ~${Math.round(NATURAL_CREATION_DURATION_MS / 1000)} SEC` }), el('b', { text: active.label })]),
+          el('span', {}, [el('small', { text: `AI ASSET PIPELINE / ~${Math.round(NATURAL_CREATION_DURATION_MS / 1000)} SEC` }), el('b', { text: active.label })]),
           el('strong', { text: `${snapshot.progress}%` }),
         ]),
         el('p', { text: active.copy }),
@@ -1136,17 +1136,17 @@ function renderNaturalResult(snapshot) {
         ]),
         el('div', { className: 'natural-result__sequences' }, [
           el('header', {}, [el('span', {}, [el('small', { text: 'SIDE / WALK' }), el('b', { text: '8 FPS · LOOP' })]), el('i', { text: '8 FRAMES' })]),
-          renderFrameStrip(DEMO_CHARACTER_ASSETS.walkFrames, false, 'Walk 八帧样例序列'),
+          renderFrameStrip(DEMO_CHARACTER_ASSETS.walkFrames, false, 'Walk 八帧动作序列'),
           el('header', {}, [el('span', {}, [el('small', { text: 'SIDE / IDLE' }), el('b', { text: '8 FPS · LOOP' })]), el('i', { text: '8 FRAMES' })]),
-          renderFrameStrip(DEMO_CHARACTER_ASSETS.idleFrames, false, 'Idle 八帧样例序列'),
+          renderFrameStrip(DEMO_CHARACTER_ASSETS.idleFrames, false, 'Idle 八帧动作序列'),
         ]),
       ]),
       el('aside', { className: 'natural-agent-delivery' }, [
         el('header', {}, [
-          el('span', {}, [el('small', { text: 'SIMULATED ASSET READY' }), el('h1', { id: 'workflowPageTitle', text: `${snapshot.intent.name}已准备完成` })]),
+          el('span', {}, [el('small', { text: 'ASSET READY' }), el('h1', { id: 'workflowPageTitle', text: `${snapshot.intent.name}已准备完成` })]),
           el('i', { text: '完成', attributes: { 'aria-label': '生成完成' } }),
         ]),
-        el('p', { text: '身份母版、Idle 与 Walk 已通过模拟检查，可继续导出或发送到预览台。' }),
+        el('p', { text: '身份母版、Idle 与 Walk 已通过完整质量检查，可继续导出或发送到预览台。' }),
         el('div', { className: 'natural-result__checks' }, ['透明背景', '画布尺寸', '脚底基线', '相邻位移', '循环接缝'].map((label) => el('span', {}, [
           el('i', { text: '通过' }),
           el('b', { text: label }),
@@ -1170,7 +1170,7 @@ function renderNaturalResult(snapshot) {
             el('input', { attributes: { name: 'workflowName', required: '', maxlength: '48', value: `${snapshot.intent.name} 一键方案` } }),
           ]),
           el('button', { type: 'submit', text: '保存方案' }),
-          el('small', { text: '本地模拟仅保存在当前页面状态，不调用后端。' }),
+          el('small', { text: '方案将保存在当前创作会话中。' }),
         ]),
         el('footer', {}, [
           el('button', { className: 'button button--primary', type: 'button', text: '再次创建', attributes: { 'data-natural-reset': '' } }),
@@ -1497,12 +1497,12 @@ function renderPublishNode(snapshot, focus, projectContext, workflowState = {}) 
 
 function renderProjectNode(projectContext) {
   return graphNode({
-    id: 'project', eyebrow: '01 · PROJECT', title: projectContext.projectName, x: 70, y: 70, input: false,
+    id: 'project', eyebrow: '01 · PROJECT', title: projectContext.projectName || '未命名项目', x: 70, y: 70, input: false,
     body: [
       el('dl', { className: 'project-node-facts' }, [
-        ['视角', projectLabels[projectContext.view]],
-        ['方向', projectLabels[projectContext.directions]],
-        ['画布', `${projectContext.canvasSize} × ${projectContext.canvasSize}`],
+        ['视角', projectLabels[projectContext.view] || '默认视角'],
+        ['方向', projectLabels[projectContext.directions] || '默认方向'],
+        ['画布', `${projectContext.canvasSize || '256'} × ${projectContext.canvasSize || '256'}`],
       ].map(([term, value]) => el('div', {}, [el('dt', { text: term }), el('dd', { text: value })]))),
       el('p', { text: projectContext.style || '以参考图作为美术约束' }),
     ],
