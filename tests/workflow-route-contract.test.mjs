@@ -87,13 +87,14 @@ test('project asset home reads the same character API as the legacy library', as
   assert.match(shell, /libraryState\.assetUrl/);
 });
 
-test('production entry points only to real API-backed generation pages', async () => {
+test('production entry points only to local demo generation pages', async () => {
   const [app, shell] = await Promise.all([
     readFile(new URL('workflow-app.js', assetLab), 'utf8'),
     readFile(new URL('pages/workflow-shell.js', assetLab), 'utf8'),
   ]);
 
   assert.doesNotMatch(app, /DemoProductionController|demoProduction|setTimeout/);
+  assert.match(app, /createDemoApiClient/);
   assert.match(shell, /renderProductionEntry\(context\)/);
   assert.match(shell, /data-production-source/);
   assert.doesNotMatch(shell, /renderDemoBuilder\(demoSnapshot\)/);

@@ -5,7 +5,7 @@ import { runRouteLightTransition } from './features/route-light-transition.js';
 import { startScrollBird } from './features/scroll-bird.js';
 import { parseWorkflowLocation } from './features/workflow-navigation.js';
 import { renderWorkflowShell } from './pages/workflow-shell.js';
-import { createApiClient } from './core/api-client.js';
+import { createDemoApiClient } from './core/demo-api-client.js';
 import { characterRecords } from './core/api-contract.js';
 import { CONTRACT_VERSION } from './data/generated-contract.js';
 
@@ -17,7 +17,7 @@ let stopScrollBird = () => {};
 let stopRouteTransition = () => {};
 let renderToken = 0;
 let activeRouteId = null;
-const api = createApiClient();
+const api = createDemoApiClient();
 let libraryState = { status: 'loading', characters: [] };
 
 function render(options = {}) {
@@ -60,7 +60,14 @@ async function loadAssetLibrary() {
       assetUrl: (path) => api.assetUrl(path),
     };
   } catch (error) {
-    libraryState = { status: 'error', characters: [], message: error.message };
+    const fallbackApi = createDemoApiClient({ storage: null });
+    const fallback = await fallbackApi.get('/api/characters');
+    libraryState = {
+      status: 'ready',
+      characters: characterRecords(fallback, CONTRACT_VERSION),
+      assetUrl: (path) => fallbackApi.assetUrl(path),
+      message: `已启用内置资产保底：${error.message}`,
+    };
   }
   if (['projects', 'library'].includes(liveRoute())) render();
 }

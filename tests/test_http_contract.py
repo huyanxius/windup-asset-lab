@@ -29,7 +29,7 @@ class HttpContractTest(unittest.TestCase):
             PROJECT_ROOT / "assets/resources/characters/boy",
             self.root / "assets/resources/characters/boy",
         )
-        self.application = GenerationApplication(self.root, demo=True)
+        self.application = GenerationApplication(self.root)
         self.application.prepare()
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), create_handler(self.application, self.root))
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
@@ -75,6 +75,19 @@ class HttpContractTest(unittest.TestCase):
             time.sleep(0.02)
         self.fail(f"job {job_id} did not finish")
 
+    def test_runtime_is_demo_only_and_provider_session_route_is_absent(self):
+        demo_application = GenerationApplication(self.root)
+        self.assertTrue(demo_application.demo)
+        self.assertTrue(demo_application.health()["demo"])
+
+        with self.subTest(route="session"), self.assertRaises(urllib.error.HTTPError) as missing_session:
+            self.request("/api/provider/session", {"apiKey": "must-not-be-accepted"})
+        self.assertEqual(missing_session.exception.code, 404)
+
+        with self.subTest(route="models"), self.assertRaises(urllib.error.HTTPError) as missing_models:
+            self.request("/api/provider/models")
+        self.assertEqual(missing_models.exception.code, 404)
+
     def test_versioned_contract_generation_and_review_flow(self):
         _, health = self.request("/api/health")
         self.assertEqual(health["contractVersion"], "1.1.0")
@@ -83,7 +96,7 @@ class HttpContractTest(unittest.TestCase):
 
         status, job = self.request("/api/generations", {
             "character": "lamplighter", "view": "side", "action": "walk",
-            "mode": "single", "frameIndex": 0, "model": "gemini-2.5-flash-image",
+            "mode": "single", "frameIndex": 0, "model": "windup-demo-fixture-v1",
         })
         self.assertEqual(status, 202)
         self.assertEqual(job["contractVersion"], "1.1.0")
@@ -109,7 +122,7 @@ class HttpContractTest(unittest.TestCase):
             "referenceAssetId": None,
             "name": "Test Hero",
             "description": "A restrained literary pixel-art hero with a dark coat and clear silhouette.",
-            "model": "gemini-2.5-flash-image",
+            "model": "windup-demo-fixture-v1",
             "starterActions": ["idle", "walk"],
         })
         self.assertEqual(status, 202)
@@ -149,7 +162,7 @@ class HttpContractTest(unittest.TestCase):
             "referenceAssetId": reference["id"],
             "name": "Reference Hero",
             "description": "A reference-driven pixel-art traveller with a clear side silhouette.",
-            "model": "gemini-2.5-flash-image",
+            "model": "windup-demo-fixture-v1",
             "starterActions": ["walk"],
         })
         self.assertEqual(status, 202)
@@ -165,7 +178,7 @@ class HttpContractTest(unittest.TestCase):
             "style": "pixel art",
             "palette": "blue",
             "projectId": "windup-demo",
-            "model": "gemini-2.5-flash-image",
+            "model": "windup-demo-fixture-v1",
             "starterActions": ["idle"],
         }
         for field in ("name", "style", "palette", "projectId"):
@@ -178,7 +191,7 @@ class HttpContractTest(unittest.TestCase):
     def test_full_walk_uses_skeleton_frames_route_and_promotes_eight_frames(self):
         status, job = self.request("/api/generations", {
             "character": "lamplighter", "view": "side", "action": "walk",
-            "mode": "full", "route": "sheet", "model": "gemini-2.5-flash-image",
+            "mode": "full", "route": "sheet", "model": "windup-demo-fixture-v1",
         })
         self.assertEqual(status, 202)
         current = self.wait_for_job(job["id"])

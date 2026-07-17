@@ -31,7 +31,7 @@
 ```bash
 cd /Users/huyan/Desktop/点灯人
 python3 -m http.server 4173 --bind 127.0.0.1 --directory build/lamplighter-mvp
-python3 -m server.app --demo
+python3 -m server.app
 ```
 
 如需编辑 Cocos 项目：
@@ -52,12 +52,12 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - 预览舞台可直接操控人物和自动巡走。
 - 左侧资产栏为 macOS 毛玻璃抽屉：默认收起，鼠标移入左侧热区展开，移出后自动收回。
 - 人物点击统一走动作状态机：开始、暂停、从原位置恢复，不再依赖事件冒泡。
-- 角色创建、角色管理、动作生成和逐帧审核为四个独立页面，共用 API 与任务轮询模块。
-- 产品创作入口只进入真实角色生成、参考图生成和已有角色动作生成页面，不再运行定时演示生产链。
-- 参考图入口支持 PNG/JPEG 二进制上传、10 MB 上限、真实文件类型与尺寸校验，并以不可猜测 ID 关联生成任务。
-- 新角色默认一次生成母版、待机 8 帧和行走 8 帧，整体确认后原子入库，可直接进入审核台。
-- 完整动作默认一次生成横向动作条并自动切成 8 帧；单帧退回继续走独立修复。
-- 内建演示角色继续作为离线体验与测试资产；真实创作链路必须校验前后端合约版本，并按“创建任务 → 轮询 → 显式采用 → 角色接口同步 → 审核/导出”闭环运行。指定的自建角色不存在或接口不兼容时明确报错，不回退到默认少年。
+- 角色创建、角色管理、动作生成和逐帧审核为四个独立页面，共用浏览器内置 Demo API 与任务轮询模块。
+- 产品创作入口不再连接真实生成服务，不读取 API Key，也不配置远程 API 地址。
+- 参考图入口只做演示登记；PNG/JPEG 与 10 MB 校验仍保留，但不会上传到外部服务。
+- 新角色默认组装母版、待机 8 帧和行走 8 帧，确认后写入浏览器本地演示资产库。
+- 完整动作和单帧修复都使用打包素材模拟相同任务阶段，不产生外部调用。
+- 保底顺序为 `localStorage 演示状态 → 当前页面内存状态 → 打包内置角色`；指定角色丢失时显示回退提示并使用默认少年。
 
 ## 5. 架构入口
 
@@ -65,7 +65,7 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - `docs/ENGINEERING_PLAYBOOK.md`：端到端资产流程、数据寿命、故障处理和生产升级阈值。
 - `docs/DECISIONS.md`：当前必须保持的架构决策。
 - `CONTRIBUTING.md` / `AGENTS.md`：人类和 AI 协作者的固定开发规则。
-- `asset-lab/core/`：编辑会话、动作状态、播放时钟、API、任务轮询和审核持久化。
+- `asset-lab/core/`：编辑会话、动作状态、播放时钟、Demo API、任务轮询和审核持久化。
 - `asset-lab/features/`：质检、图集打包、Cocos 通信、抽屉和启动引导。
 - `asset-lab/pages/editor.js`：Composition Root；渲染与输入分别在 `editor-view.js`、`editor-bindings.js`。
 - `asset-lab/styles/`：基础、表面、抽屉、布局、组件、集成和动效七层样式，不再使用巨型单文件。
@@ -75,9 +75,8 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - `server/windup_pipeline/generation_executor.py`：后台任务进度、角色包执行与溯源。
 - `server/windup_pipeline/action_pipeline.py`：动作条生成、切帧、逐帧修复与回退策略。
 - `server/windup_pipeline/asset_catalog.py` / `publisher.py`：正式资产发现、原子入库、备份与失败恢复。
-- `server/windup_pipeline/session_store.py`：会话级 Key/模型隔离，不进入磁盘任务。
 - `server/windup_pipeline/review_store.py`：版本化审核状态与并发冲突保护。
-- `server/windup_pipeline/provider.py`：七牛云鉴权、请求、重试和错误映射。
+- `server/app.py`：静态服务与 Demo-only 兼容路由，不暴露 Provider 会话接口。
 - `server/windup_pipeline/job_store.py`：可替换的任务持久化边界。
 - `server/windup_pipeline/processing.py`：抠图与帧归一化。
 
@@ -101,7 +100,7 @@ open -a CocosCreator /Users/huyan/Desktop/点灯人
 - 资产平台与 Cocos 联调成功，实测 `topdown / walk / 8帧`。
 - 手动移动、自动巡走、停止待机已验证。
 - 最终测试未发现 JavaScript 运行错误。
-- 前端 51 项测试、后端 14 项测试通过，覆盖角色包界面、动作条路由、旧后端拦截、抽屉/胶片栏/全屏布局回归、契约漂移、编辑会话、动作状态、播放时钟、会话隔离、审核同步与并发、HTTP 完整角色包、切帧、API 地址和任务恢复。
+- 前端 48 项测试、后端 14 项测试通过，覆盖浏览器零网络调用、演示资产持久化与内存保底、角色包界面、动作条路由、Provider 会话接口移除、契约漂移、编辑会话、动作状态、播放时钟、审核同步与并发、HTTP 完整角色包、切帧和任务恢复。
 - Demo API 已跑通 `queued → generating → awaiting_review`，未调用外部模型。
-- 项目中未保存 API Key、`.env` 或凭据文件。
+- 产品界面和默认运行链路不接受 API Key、远程接口地址或付费模型配置。
 - 本地修改的 8 张 Skeleton 行走帧未纳入本次架构提交。

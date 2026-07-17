@@ -11,7 +11,6 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from . import config, provider
 from .asset_catalog import AssetCatalog
 from .domain import (
     ACTIONS,
@@ -27,22 +26,20 @@ from .job_store import JobStore
 from .publisher import AssetPublisher
 from .reference_store import ReferenceStore
 from .review_store import ReviewStore
-from .session_store import ProviderSession, ProviderSessionStore
 from .time_utils import now_iso
 
 
 class GenerationApplication:
-    def __init__(self, root: Path, *, demo: bool = False):
+    def __init__(self, root: Path):
         self.root = root
         self.data_root = root / "generation-data"
         self.jobs_root = self.data_root / "jobs"
         self.backups_root = self.data_root / "backups"
         self.characters_root = self.data_root / "characters"
         self.references_root = self.data_root / "references"
-        self.demo = demo
+        self.demo = True
         self.jobs = JobStore(self.jobs_root)
         self.reviews = ReviewStore(self.data_root / "reviews")
-        self.sessions = ProviderSessionStore(config.API_KEY, config.IMAGE_MODEL)
         self.assets = AssetCatalog(root, self.characters_root)
         self.references = ReferenceStore(self.references_root)
         self.catalog = self.assets.records
@@ -52,8 +49,6 @@ class GenerationApplication:
             jobs_root=self.jobs_root,
             jobs=self.jobs,
             catalog=self.assets,
-            references=self.references,
-            demo=demo,
         )
         self.publisher = AssetPublisher(
             root=root,
@@ -69,58 +64,18 @@ class GenerationApplication:
         self.references.prepare()
         self.assets.load_custom()
         self.jobs.load(now_iso(), contract_version=CONTRACT_VERSION)
-        if config.API_KEY and not self.demo:
-            try:
-                provider.verify_key(config.API_KEY)
-                self.sessions.default_verified = True
-            except provider.ProviderError:
-                self.sessions.default_key = ""
-                self.sessions.default_verified = False
-
-    def session(self, session_id: str) -> ProviderSession:
-        return self.sessions.get_or_create(session_id)
-
-    def health(self, session_id: str) -> dict:
-        session = self.session(session_id)
+    def health(self) -> dict:
         return {
             "ok": True,
-            **session.public(),
-            "demo": self.demo,
-            "provider": "七牛云 QnAIGC",
+            "configured": True,
+            "verified": True,
+            "model": IMAGE_MODELS[0],
+            "demo": True,
+            "fallback": False,
+            "provider": "Windup 内置演示引擎",
             "contractVersion": CONTRACT_VERSION,
             "fps": FPS,
             "characters": self.assets.summaries(),
-        }
-
-    def models(self, session_id: str) -> dict:
-        session = self.session(session_id)
-        return {
-            "provider": "七牛云 QnAIGC",
-            "models": IMAGE_MODELS,
-            "selected": session.model or IMAGE_MODELS[0],
-            "source": "QnAIGC image model documentation",
-            "contractVersion": CONTRACT_VERSION,
-        }
-
-    def connect_provider(self, session_id: str, payload: dict) -> dict:
-        api_key = str(payload.get("apiKey", "")).strip()
-        model = str(payload.get("model", "")).strip() or IMAGE_MODELS[0]
-        if not 16 <= len(api_key) <= 512 or any(char.isspace() for char in api_key):
-            raise ValueError("API Key 格式不合法")
-        if model not in IMAGE_MODELS:
-            raise ValueError("不支持的图像模型")
-        try:
-            provider.verify_key(api_key)
-        except provider.ProviderError as error:
-            self.sessions.fail(session_id, str(error))
-            raise
-        session = self.sessions.connect(session_id, api_key, model)
-        return {
-            "ok": True,
-            **session.public(),
-            "storage": "isolated-process-session",
-            "models": IMAGE_MODELS,
-            "contractVersion": CONTRACT_VERSION,
         }
 
     def character_card(self, character_id: str) -> dict:
@@ -150,14 +105,7 @@ class GenerationApplication:
     def _update_job(self, job_id: str, **changes: object) -> dict:
         return self.jobs.update(job_id, updatedAt=now_iso(), **changes)
 
-    def _credentials(self, session_id: str) -> ProviderSession:
-        session = self.session(session_id)
-        if not self.demo and (not session.api_key or not session.verified):
-            raise ValueError("请先验证七牛云 API Key")
-        return session
-
-    def create_character_job(self, session_id: str, payload: dict) -> dict:
-        credentials = self._credentials(session_id)
+    def create_character_job(self, payload: dict) -> dict:
         def text_field(key: str, default: str = "") -> str:
             value = payload[key] if key in payload else default
             if not isinstance(value, str):
@@ -208,11 +156,10 @@ class GenerationApplication:
             "outputs": [], "createdAt": now_iso(), "updatedAt": now_iso(),
         }
         self.jobs.add(job)
-        threading.Thread(target=self.executor.run_character, args=(job_id, credentials.api_key), daemon=True).start()
+        threading.Thread(target=self.executor.run_character, args=(job_id,), daemon=True).start()
         return job
 
-    def create_job(self, session_id: str, payload: dict) -> dict:
-        credentials = self._credentials(session_id)
+    def create_job(self, payload: dict) -> dict:
         def text_field(key: str, default: str = "") -> str:
             value = payload[key] if key in payload else default
             if not isinstance(value, str):
@@ -225,7 +172,7 @@ class GenerationApplication:
         mode = text_field("mode", "full")
         route = text_field("route", GENERATION["defaultRoute"])
         custom_prompt = text_field("customPrompt")
-        model = text_field("model", credentials.model or config.IMAGE_MODEL)
+        model = text_field("model", IMAGE_MODELS[0])
         if (
             character_id not in self.catalog
             or view not in VIEWS
@@ -254,7 +201,7 @@ class GenerationApplication:
             "outputs": [], "createdAt": now_iso(), "updatedAt": now_iso(),
         }
         self.jobs.add(job)
-        threading.Thread(target=self.executor.run_action, args=(job_id, credentials.api_key), daemon=True).start()
+        threading.Thread(target=self.executor.run_action, args=(job_id,), daemon=True).start()
         return job
 
     def promote_job(self, job_id: str) -> dict:
