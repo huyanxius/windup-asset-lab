@@ -5,6 +5,10 @@ export class PlaybackClock {
     this.timer = null;
   }
 
+  setFps(fps) {
+    this.fps = fps;
+  }
+
   start(onTick) {
     this.stop();
     this.timer = this.timers.setInterval(onTick, 1000 / this.fps);

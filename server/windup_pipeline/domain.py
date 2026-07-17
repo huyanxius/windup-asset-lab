@@ -33,4 +33,9 @@ CATALOG = {
         "base": "assets/resources/characters/lirael/base.png",
         "description": "pixel-art young druid in a deep green hooded dress, red hair, antler crown, rune details and a staff with a blue orb",
     },
+    "samurai": {
+        "label": "Samurai",
+        "base": "assets/resources/characters/samurai/base.png",
+        "description": "pixel-art samurai warrior in layered armour with a sash and sheathed katana, ready stance",
+    },
 }

@@ -99,7 +99,7 @@ export class EditorSession {
       character: this.characterId,
       action: this.asset.key,
       view: this.view,
-      fps: FIXED_FPS,
+      fps: this.asset?.fps || FIXED_FPS,
       loop,
     };
   }
