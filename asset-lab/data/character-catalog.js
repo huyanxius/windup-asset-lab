@@ -89,7 +89,7 @@ function teammateLibrary(character, count = 8, actions = ['walk'], version = '')
 
 export const characterCatalog = {
   lamplighter: {
-    label: '旧试验角色 · 独立样例',
+    label: '经典角色 · 独立资产',
     base: `${CHARACTER_ROOT}/frames/walk-01.png`,
     library: lamplighterLibrary,
   },

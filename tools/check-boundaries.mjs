@@ -36,7 +36,7 @@ export function findFrontendBoundaryViolations(relativePath, source) {
   if (source.includes('setInterval(') && path !== 'core/playback-clock.js') {
     violations.push('animation intervals must be owned by PlaybackClock');
   }
-  if (/127\.0\.0\.1:417[34]/.test(source) && path !== 'core/runtime-config.js') {
+  if (/127\.0\.0\.1:517[34]/.test(source) && path !== 'core/runtime-config.js') {
     violations.push('runtime origins must be resolved by core/runtime-config.js');
   }
 

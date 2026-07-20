@@ -47,12 +47,12 @@ test('recognizes owner allowlists with Windows-style paths', () => {
     [],
   );
   assert.deepEqual(
-    findFrontendBoundaryViolations(String.raw`core\runtime-config.js`, "const origin = 'http://127.0.0.1:4174';"),
+    findFrontendBoundaryViolations(String.raw`core\runtime-config.js`, "const origin = 'http://127.0.0.1:5174';"),
     [],
   );
 
   assert.deepEqual(
-    findFrontendBoundaryViolations(String.raw`pages\editor.js`, "fetch('/api'); setInterval(tick, 125); const origin = 'http://127.0.0.1:4173';"),
+    findFrontendBoundaryViolations(String.raw`pages\editor.js`, "fetch('/api'); setInterval(tick, 125); const origin = 'http://127.0.0.1:5173';"),
     [
       'HTTP calls must go through core/api-client.js',
       'animation intervals must be owned by PlaybackClock',

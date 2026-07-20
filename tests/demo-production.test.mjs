@@ -9,6 +9,15 @@ import {
 } from '../asset-lab/features/demo-production.js';
 import { DEFAULT_DEMO_ASSET_VERSION } from '../asset-lab/data/default-demo-character.js';
 
+function finishCurrentJob(controller, scheduled, predicate) {
+  let guard = 100;
+  while (!predicate(controller.snapshot()) && scheduled.length && guard > 0) {
+    scheduled.shift().callback();
+    guard -= 1;
+  }
+  assert.ok(predicate(controller.snapshot()), 'expected the current production job to finish');
+}
+
 test('default boy demo exposes complete idle and walk sequences', () => {
   assert.equal(DEMO_CHARACTER_ASSETS.idleFrames.length, 8);
   assert.equal(DEMO_CHARACTER_ASSETS.walkFrames.length, 8);
@@ -27,7 +36,7 @@ test('production pauses after every generated result until the user confirms it'
   controller.configure({ name: 'Workbench Hero', role: 'platformer courier' });
   controller.startMaster();
   assert.equal(controller.snapshot().master, 'generating');
-  scheduled.shift().callback();
+  finishCurrentJob(controller, scheduled, (snapshot) => snapshot.master === 'review');
   assert.equal(controller.snapshot().master, 'review');
   controller.selectMasterCandidate('boy');
   controller.confirmMaster();
@@ -36,20 +45,20 @@ test('production pauses after every generated result until the user confirms it'
 
   for (const action of ['walk', 'idle']) {
     controller.generateKeyframe(action, { brief: `${action} motion brief` });
-    scheduled.shift().callback();
+    finishCurrentJob(controller, scheduled, (snapshot) => snapshot.actions[action].keyframe === 'review');
     assert.equal(controller.snapshot().actions[action].keyframe, 'review');
     assert.equal(controller.snapshot().actions[action].animation, 'locked');
     controller.confirmKeyframe(action);
     assert.equal(controller.snapshot().actions[action].animation, 'ready');
     controller.generateAnimation(action, { fps: 8 });
-    scheduled.shift().callback();
+    finishCurrentJob(controller, scheduled, (snapshot) => snapshot.actions[action].animation === 'review');
     assert.equal(controller.snapshot().actions[action].animation, 'review');
     controller.confirmAnimation(action);
   }
 
   controller.publish();
   assert.equal(controller.snapshot().completed, false);
-  scheduled.shift().callback();
+  finishCurrentJob(controller, scheduled, (snapshot) => snapshot.completed);
 
   const result = controller.snapshot();
   assert.equal(result.status, 'completed');
@@ -60,10 +69,12 @@ test('production pauses after every generated result until the user confirms it'
 
 test('walk and idle can generate concurrently without cancelling each other', () => {
   const scheduled = [];
-  const controller = new DemoProductionController({ schedule: (callback) => scheduled.push(callback) });
+  const controller = new DemoProductionController({
+    schedule: (callback, delay) => scheduled.push({ callback, delay }),
+  });
   controller.selectSource('zero');
   controller.startMaster();
-  scheduled.shift()();
+  finishCurrentJob(controller, scheduled, (snapshot) => snapshot.master === 'review');
   controller.selectMasterCandidate('boy');
   controller.confirmMaster();
 
@@ -73,12 +84,38 @@ test('walk and idle can generate concurrently without cancelling each other', ()
   assert.equal(controller.snapshot().actions.walk.keyframe, 'generating');
   assert.equal(controller.snapshot().actions.idle.keyframe, 'generating');
 
-  scheduled.shift()();
+  finishCurrentJob(controller, scheduled, (snapshot) => snapshot.actions.walk.keyframe === 'review');
   assert.equal(controller.snapshot().actions.walk.keyframe, 'review');
   assert.equal(controller.snapshot().actions.idle.keyframe, 'generating');
-  scheduled.shift()();
+  finishCurrentJob(controller, scheduled, (snapshot) => snapshot.actions.idle.keyframe === 'review');
   assert.equal(controller.snapshot().actions.idle.keyframe, 'review');
   assert.equal(controller.snapshot().jobs.length, 0);
+});
+
+test('animation jobs expose all eight frame arrivals before review', () => {
+  const scheduled = [];
+  const controller = new DemoProductionController({
+    schedule: (callback, delay) => scheduled.push({ callback, delay }),
+  });
+  controller.selectSource('zero');
+  controller.startMaster();
+  finishCurrentJob(controller, scheduled, (snapshot) => snapshot.master === 'review');
+  controller.selectMasterCandidate('boy');
+  controller.confirmMaster();
+  controller.generateKeyframe('walk', { brief: 'quick forward walk' });
+  finishCurrentJob(controller, scheduled, (snapshot) => snapshot.actions.walk.keyframe === 'review');
+  controller.confirmKeyframe('walk');
+  controller.generateAnimation('walk', { fps: 8 });
+
+  const arrivalCounts = [];
+  while (controller.snapshot().actions.walk.animation === 'generating') {
+    scheduled.shift().callback();
+    const job = controller.snapshot().jobs.find((item) => item.kind === 'animation' && item.action === 'walk');
+    if (job) arrivalCounts.push(job.arrivals);
+  }
+
+  assert.deepEqual(arrivalCounts, [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.equal(controller.snapshot().actions.walk.animation, 'review');
 });
 
 test('confirmation commands cannot skip an unfinished stage', () => {
@@ -123,7 +160,9 @@ test('reset clears a previously selected source and reusable workflow', () => {
 
 test('an approved workflow template can run the full visual pipeline automatically', () => {
   const scheduled = [];
-  const controller = new DemoProductionController({ schedule: (callback) => scheduled.push(callback) });
+  const controller = new DemoProductionController({
+    schedule: (callback, delay) => scheduled.push({ callback, delay }),
+  });
   controller.applyWorkflowTemplate({
     id: 'abc123def456',
     name: 'Side starter',
@@ -133,7 +172,7 @@ test('an approved workflow template can run the full visual pipeline automatical
   controller.configure({ name: 'Reusable Hero', description: 'A readable side-view character.' });
   controller.startWorkflowRun();
 
-  while (scheduled.length) scheduled.shift()();
+  while (scheduled.length) scheduled.shift().callback();
 
   const result = controller.snapshot();
   assert.equal(result.completed, false);
@@ -141,6 +180,6 @@ test('an approved workflow template can run the full visual pipeline automatical
   assert.equal(result.actions.walk.animation, 'confirmed');
   assert.equal(result.actions.idle.animation, 'confirmed');
   controller.publish();
-  scheduled.shift()();
+  finishCurrentJob(controller, scheduled, (snapshot) => snapshot.workflow.status === 'completed');
   assert.equal(controller.snapshot().workflow.status, 'completed');
 });
