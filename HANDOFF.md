@@ -1,26 +1,23 @@
 # Windup 开发交接
 
-> 更新：2026-07-17
+> 更新：2026-07-20
 >
 > GitHub：<https://github.com/huyanxius/windup-asset-lab>
 >
 > 默认分支：`main`
 
-## 当前分支与 PR
+## 仓库状态
 
-| Scope | Branch | Pull request | Status |
-|---|---|---|---|
-| Issue #14 完整导航骨架 | `codex/issue-14-workflow-skeleton` | [Draft PR #15](https://github.com/huyanxius/windup-asset-lab/pull/15) | 已推送，待 Review |
-| 节点创作台、交互与流程复用 | `codex/canvas-workbench-workflow-reuse` | 堆叠在 PR #15 之上 | 当前开发分支 |
+`main` 是唯一权威分支，可直接 clone 使用。导航骨架、节点创作台、流程复用、自然语言快捷创建、跨平台启动器等已全部合入 `main`，当前没有待处理的 open PR。上手直接看 [`README.md`](README.md) 的 Quick start。
 
-当前分支不直接合并到 `main`。先审查 PR #15 的导航基线，再审查创作台堆叠 PR，避免把 Issue #14 的路由骨架与后续产品改造混成一个巨型 diff。
+其余仍存在的功能分支（`feat/*`、`codex/*`）都各自落后 `main`，属未清理的历史实验枝，不影响主干使用，也不要以它们为基线开新工作——请从 `main` 拉分支。
 
 ## 产品入口
 
 启动服务：
 
 ```bash
-cd /Users/huyan/Desktop/点灯人-issue-14
+cd windup-asset-lab   # clone 下来的仓库根目录
 chmod +x start.command
 ./start.command
 ```
@@ -71,12 +68,12 @@ PATH=/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin ./tools/verify-architecture
 git diff --check
 ```
 
-2026-07-16 最近一次通过：
+2026-07-20 最近一次通过：
 
-- 前端 Node tests：56 项。
-- 后端 Python tests：11 项。
-- 架构边界：39 个前端模块、29 个后端模块。
-- 实测 `GET /api/health` 和 `GET /api/workflows` 均返回 200。
+- 前端 Node tests：84 项。
+- 后端 Python tests：20 项。
+- 架构边界：42 个前端模块、30 个后端模块。
+- 端到端实测 `GET /api/health`、`GET /api/workflows`、`POST /api/quick-start`、`POST /api/generations`、`POST /api/reviews`、promote 等接口均正常返回。
 
 ## 已知限制
 
@@ -87,6 +84,6 @@ git diff --check
 
 ## 下一步
 
-1. 将创作台改动作为堆叠 PR 推送，Review 时不与 Issue #14 的导航骨架混在一起。
-2. 使用真实供应商做一次“保存流程 → 新角色复用 → 候选审核 → promote”端到端验收。
-3. 将模板列表扩展为独立的流程管理页，增加更新、删除和版本比较。
+1. 使用真实供应商做一次“保存流程 → 新角色复用 → 候选审核 → promote”端到端验收。
+2. 将模板列表扩展为独立的流程管理页，增加更新、删除和版本比较。
+3. 清理仍落后 `main` 的历史功能分支（`feat/*`、`codex/*`），逐条确认无未采用的提交后删除。
