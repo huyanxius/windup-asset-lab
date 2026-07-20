@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from .domain import ACTION_LOOPS, ACTIONS, CATALOG, FPS, POSES, VIEWS
 
@@ -33,11 +33,19 @@ class AssetCatalog:
 
     def register(self, card: dict, card_file: Path) -> dict:
         character_id = str(card.get("id", ""))
-        base = str(card.get("base", ""))
+        base_path = PurePosixPath(str(card.get("base", "")).replace("\\", "/"))
+        base_parts = base_path.parts
         if not SAFE_ID.fullmatch(character_id):
             raise ValueError("角色 ID 不合法")
-        if not base.startswith("generation-data/characters/") or not (self.root / base).exists():
+        if (
+            base_path.is_absolute()
+            or ".." in base_parts
+            or base_parts[:2] != ("generation-data", "characters")
+            or len(base_parts) < 4
+            or not self.root.joinpath(*base_parts).exists()
+        ):
             raise ValueError("角色母版路径不合法")
+        base = base_path.as_posix()
         record = {
             "label": str(card.get("label", character_id)),
             "base": base,

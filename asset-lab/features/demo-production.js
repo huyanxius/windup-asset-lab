@@ -32,16 +32,16 @@ const SOURCE_BY_ID = Object.freeze(Object.fromEntries(
 
 export const DEMO_PRODUCTION_STEPS = Object.freeze([
   Object.freeze({
-    id: 'master', label: '生成角色母版', title: '正在生成角色母版', duration: 9000,
+    id: 'master', label: '生成角色母版', title: '正在生成角色母版', duration: 9000, artifactCount: 3,
   }),
   Object.freeze({
-    id: 'keyframe', label: '生成动作首帧', title: '正在生成动作首帧', duration: 7000,
+    id: 'keyframe', label: '生成动作首帧', title: '正在生成动作首帧', duration: 7000, artifactCount: 1,
   }),
   Object.freeze({
-    id: 'animation', label: '生成动画', title: '正在生成八帧动画', duration: 15000,
+    id: 'animation', label: '生成动画', title: '正在生成八帧动画', duration: 15000, artifactCount: 8,
   }),
   Object.freeze({
-    id: 'publish', label: '写入正式资产', title: '正在写入项目资产', duration: 2500,
+    id: 'publish', label: '写入正式资产', title: '正在写入项目资产', duration: 2500, artifactCount: 0,
   }),
 ]);
 
@@ -232,8 +232,26 @@ export class DemoProductionController {
     const key = `${kind}:${action || 'global'}`;
     if (this.jobs.has(key)) return this.snapshot();
     this.status = 'running';
-    this.jobs.set(key, { action, duration: step.duration, kind, title: step.title, token });
+    const artifactCount = Number(step.artifactCount || 0);
+    this.jobs.set(key, {
+      action,
+      arrivals: 0,
+      duration: step.duration,
+      kind,
+      title: step.title,
+      token,
+      total: artifactCount,
+    });
     this.emit();
+    for (let index = 0; index < artifactCount; index += 1) {
+      const delay = Math.round(((index + 1) / (artifactCount + 1)) * step.duration);
+      this.schedule(() => {
+        const job = this.jobs.get(key);
+        if (job?.token !== token) return;
+        job.arrivals = index + 1;
+        this.emit();
+      }, delay);
+    }
     this.schedule(() => {
       if (this.jobs.get(key)?.token !== token) return;
       complete();

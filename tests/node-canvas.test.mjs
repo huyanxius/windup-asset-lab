@@ -82,3 +82,33 @@ test('clicking a suggested target card confirms its incoming connection', () => 
   const event = { target: { closest: () => null } };
   assert.equal(canvas.clickNodeToConnect(event, node), true);
 });
+
+test('a connected publish control stays disabled until upstream generation is confirmed', () => {
+  const canvas = new NodeCanvasController(null);
+  canvas.connections = new Set([
+    connectionKey('walk-animation', 'publish'),
+    connectionKey('idle-animation', 'publish'),
+  ]);
+  const node = { classList: { toggle: () => {} } };
+  const control = {
+    dataset: {
+      connectionRequired: 'walk-animation:publish,idle-animation:publish',
+      nodeReady: 'false',
+    },
+    disabled: false,
+    title: '',
+    closest: () => node,
+  };
+  canvas.root = {
+    querySelectorAll: (selector) => selector === '[data-connection-required]' ? [control] : [],
+  };
+
+  canvas.syncActions();
+  assert.equal(control.disabled, true);
+  assert.equal(control.title, '等待上游生成与确认');
+
+  control.dataset.nodeReady = 'true';
+  canvas.syncActions();
+  assert.equal(control.disabled, false);
+  assert.equal(control.title, '');
+});

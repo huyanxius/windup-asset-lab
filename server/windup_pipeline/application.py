@@ -47,6 +47,7 @@ class GenerationApplication:
         self.sessions = ProviderSessionStore(config.API_KEY, config.IMAGE_MODEL)
         self.assets = AssetCatalog(root, self.characters_root)
         self.catalog = self.assets.records
+        self.promotion_lock = threading.Lock()
         self.executor = GenerationExecutor(
             root=root,
             data_root=self.data_root,
@@ -392,8 +393,11 @@ class GenerationApplication:
         return job
 
     def promote_job(self, job_id: str) -> dict:
-        job = self.jobs.get(job_id)
-        if not job or job.get("status") != "awaiting_review":
-            raise ValueError("该任务尚不可采用")
-        result = self.publisher.promote(job)
-        return self._update_job(job_id, status="approved", **result)
+        with self.promotion_lock:
+            job = self.jobs.get(job_id)
+            if job and job.get("status") == "approved":
+                return job
+            if not job or job.get("status") != "awaiting_review":
+                raise ValueError("该任务尚不可采用")
+            result = self.publisher.promote(job)
+            return self._update_job(job_id, status="approved", **result)

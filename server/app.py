@@ -191,7 +191,7 @@ def create_handler(application: GenerationApplication, root: Path = ROOT):
 def main() -> None:
     parser = argparse.ArgumentParser(description="Windup generation backend and static server")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=4174)
+    parser.add_argument("--port", type=int, default=5174)
     parser.add_argument("--demo", action="store_true", help="Use existing frames without API cost")
     args = parser.parse_args()
     application = GenerationApplication(ROOT, demo=os.environ.get("WINDUP_DEMO") == "1" or args.demo)

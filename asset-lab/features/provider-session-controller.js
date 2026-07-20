@@ -27,9 +27,13 @@ export class ProviderSessionController {
   }
 
   populateModels(provider) {
-    const models = Array.isArray(provider.models) ? provider.models : [];
+    const models = Array.isArray(provider?.models)
+      ? provider.models
+        .filter((id) => typeof id === 'string' && id.trim())
+        .map((id) => id.trim())
+      : [];
     this.els.model.replaceChildren(...models.map((id) => new Option(id, id)));
-    this.els.model.value = models.includes(provider.selected) ? provider.selected : models[0] || '';
+    this.els.model.value = models.includes(provider?.selected) ? provider.selected : models[0] || '';
     this.els.model.disabled = models.length === 0;
   }
 
@@ -58,16 +62,21 @@ export class ProviderSessionController {
         { 'X-Windup-Request': 'studio' },
       );
       this.connected = providerIsReady(result);
-      this.contractVersion = result.contractVersion || this.contractVersion;
+      this.contractVersion = result?.contractVersion || this.contractVersion;
       this.els.apiKey.value = '';
+      if (!this.connected) {
+        this.els.connectBtn.textContent = '重试连接';
+        this.status('error', '验证未通过', result?.message || '服务未确认当前凭据状态。');
+        return false;
+      }
       this.els.connectBtn.textContent = '重新连接';
-      this.status('ready', '已验证', `${result.model} · 当前后端会话`);
+      this.status('ready', '已验证', `${result?.model || this.model || '生成模型'} · 当前后端会话`);
       this.onConnected(result);
       return true;
     } catch (error) {
       this.connected = false;
       this.els.connectBtn.textContent = '重试连接';
-      this.status('error', '连接失败', error.message);
+      this.status('error', '连接失败', error?.message || '连接服务时发生未知错误。');
       return false;
     } finally {
       this.busy = false;
@@ -86,13 +95,13 @@ export class ProviderSessionController {
       this.els.model.disabled = true;
     }
     if (healthResult.status === 'fulfilled') {
-      const health = healthResult.value;
+      const health = healthResult.value || {};
       this.contractVersion = health.contractVersion || '';
       this.connected = providerIsReady(health);
       this.els.serviceState.textContent = '生成后端已连接';
       if (this.connected) {
         this.els.connectBtn.textContent = '重新连接';
-        this.status('ready', health.demo ? '本地模式' : '已验证', `${health.model} · ${health.demo ? '不调用外部 API' : '当前后端会话'}`);
+        this.status('ready', health.demo ? '服务就绪' : '已验证', `${health.model || this.model || '生成模型'} · 当前后端会话`);
       } else {
         this.status(health.providerError ? 'error' : '', '未连接', health.providerError || '输入 Key 后进行真实验证。');
       }

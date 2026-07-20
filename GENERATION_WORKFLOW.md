@@ -1,6 +1,6 @@
 # 生图工作流
 
-一个进程同时承担前端静态托管与生成后端(`python3 -m server.app --port 4174`,加 `--demo` 为演示模式)。前端轮询 job,后端逐张发布 outputs。每步的 prompt 原文与约束参数见 `GENERATION_CONSTRAINTS.md`。
+一个进程同时承担前端静态托管与生成后端(`python3 -m server.app --port 5174`,加 `--demo` 为演示模式)。前端轮询 job,后端逐张发布 outputs。每步的 prompt 原文与约束参数见 `GENERATION_CONSTRAINTS.md`。
 
 ## 总览
 
